@@ -112,6 +112,8 @@ pub fn write_styles(reg: &StyleRegistry) -> Vec<u8> {
             }
             if align.wrap_text { aa.push(("wrapText", "1".into())); }
             if align.shrink { aa.push(("shrinkToFit", "1".into())); }
+            if align.indent > 0 { aa.push(("indent", align.indent.to_string())); }
+            if align.rotation != 0 { aa.push(("textRotation", align.rotation.to_string())); }
             let refs: Vec<(&str, &str)> = aa.iter().map(|(k, v)| (*k, v.as_str())).collect();
             w.empty_tag("alignment", &refs);
             if has_protection {

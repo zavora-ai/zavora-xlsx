@@ -25,7 +25,12 @@ pub struct Workbook {
     passthrough_entries: Vec<(String, Vec<u8>)>,
     workbook_protection: Option<WorkbookProtection>,
     is_xlsm: bool,
+    calc_mode: Option<CalcMode>,
 }
+
+/// Calculation mode for the workbook.
+#[derive(Debug, Clone, Copy)]
+pub enum CalcMode { Auto, Manual, AutoNoTable }
 
 impl Workbook {
     /// Create a new empty workbook with one sheet ("Sheet1").
@@ -38,7 +43,7 @@ impl Workbook {
             properties: DocProperties::default(),
             passthrough_entries: Vec::new(),
             workbook_protection: None,
-            is_xlsm: false,
+            is_xlsm: false, calc_mode: None,
         }
     }
 
@@ -58,7 +63,7 @@ impl Workbook {
             properties: data.properties,
             passthrough_entries: Vec::new(),
             workbook_protection: None,
-            is_xlsm: false,
+            is_xlsm: false, calc_mode: None,
         })
     }
 
@@ -105,6 +110,7 @@ impl Workbook {
             passthrough_entries: passthrough,
             workbook_protection: None,
             is_xlsm,
+            calc_mode: None,
         })
     }
 
@@ -246,6 +252,9 @@ impl Workbook {
                         row_outline_levels: &ws.row_outline_levels,
                         col_outline_levels: &ws.col_outline_levels,
                         legacy_drawing_rid: meta.legacy_drawing_rid.clone(),
+                        zoom: ws.zoom, show_gridlines: ws.show_gridlines,
+                        show_headings: ws.show_headings, right_to_left: ws.right_to_left,
+                        tab_color: ws.tab_color,
                     };
                     Some(sheet_writer::write_sheet(&sc))
                 })
@@ -435,6 +444,8 @@ impl Workbook {
         self
     }
 
+    pub fn set_calc_mode(&mut self, mode: CalcMode) -> &mut Self { self.calc_mode = Some(mode); self }
+
     // ── Internal ──
 
     fn write_workbook_xml(&self) -> Vec<u8> {
@@ -475,7 +486,16 @@ impl Workbook {
                     all_names.push(("_xlnm.Print_Area".into(), val, Some(i)));
                 }
                 if let Some((first, last)) = ps.repeat_rows {
-                    let val = format!("'{}'!${}:${}", ws.name, first + 1, last + 1);
+                    let row_part = format!("'{}'!${}:${}", ws.name, first + 1, last + 1);
+                    if let Some((fc, lc)) = ps.repeat_cols {
+                        // Both rows and cols — combine with comma
+                        let col_part = format!("'{}'!${}:${}", ws.name, col_to_letter(fc), col_to_letter(lc));
+                        all_names.push(("_xlnm.Print_Titles".into(), format!("{col_part},{row_part}"), Some(i)));
+                    } else {
+                        all_names.push(("_xlnm.Print_Titles".into(), row_part, Some(i)));
+                    }
+                } else if let Some((fc, lc)) = ps.repeat_cols {
+                    let val = format!("'{}'!${}:${}", ws.name, col_to_letter(fc), col_to_letter(lc));
                     all_names.push(("_xlnm.Print_Titles".into(), val, Some(i)));
                 }
             }
@@ -492,6 +512,12 @@ impl Workbook {
                 }
             }
             w.end_tag("definedNames");
+        }
+
+        // calcPr
+        if let Some(mode) = &self.calc_mode {
+            let val = match mode { CalcMode::Auto => "auto", CalcMode::Manual => "manual", CalcMode::AutoNoTable => "autoNoTable" };
+            w.empty_tag("calcPr", &[("calcMode", val)]);
         }
 
         w.end_tag("workbook");

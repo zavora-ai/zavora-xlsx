@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, HashMap};
 use crate::cell::{CellType, CellValue, IntoExcelData, RichText};
 use crate::datetime::ExcelDateTime;
 use crate::features::chart::Chart;
+use crate::format::IntoColor;
 use crate::features::conditional::{ConditionalFormat, StoredCf};
 use crate::features::image::Image;
 use crate::features::sparkline::Sparkline;
@@ -48,6 +49,12 @@ pub struct Worksheet {
     pub(crate) comments: Vec<Comment>,
     pub(crate) row_outline_levels: BTreeMap<RowNum, u8>,
     pub(crate) col_outline_levels: BTreeMap<ColNum, u8>,
+    // Phase 6 features
+    pub(crate) zoom: Option<u16>,
+    pub(crate) show_gridlines: bool,
+    pub(crate) show_headings: bool,
+    pub(crate) right_to_left: bool,
+    pub(crate) tab_color: Option<[u8; 3]>,
 }
 
 impl Worksheet {
@@ -68,6 +75,8 @@ impl Worksheet {
             hidden_cols: std::collections::BTreeSet::new(),
             autofilter: None, hyperlinks: Vec::new(), comments: Vec::new(),
             row_outline_levels: BTreeMap::new(), col_outline_levels: BTreeMap::new(),
+            zoom: None, show_gridlines: true, show_headings: true,
+            right_to_left: false, tab_color: None,
         }
     }
 
@@ -441,6 +450,28 @@ impl Worksheet {
         self
     }
 
+    // ── Phase 6: View / Print ──
+
+    pub fn set_zoom(&mut self, percent: u16) -> &mut Self { self.zoom = Some(percent.clamp(10, 400)); self }
+    pub fn hide_gridlines(&mut self) -> &mut Self { self.show_gridlines = false; self }
+    pub fn hide_headings(&mut self) -> &mut Self { self.show_headings = false; self }
+    pub fn set_right_to_left(&mut self) -> &mut Self { self.right_to_left = true; self }
+    pub fn set_tab_color(&mut self, c: impl IntoColor) -> &mut Self { self.tab_color = Some(c.into_color().to_rgb()); self }
+
+    pub fn set_repeat_columns(&mut self, first: ColNum, last: ColNum) -> &mut Self {
+        let ps = self.print_settings.get_or_insert_with(PrintSettings::default);
+        ps.repeat_cols = Some((first, last));
+        self.dirty = true;
+        self
+    }
+
+    pub fn set_print_scale(&mut self, percent: u16) -> &mut Self {
+        let ps = self.print_settings.get_or_insert_with(PrintSettings::default);
+        ps.scale = Some(percent.clamp(10, 400));
+        self.dirty = true;
+        self
+    }
+
     // ── Row/Column operations ──
 
     /// Insert `count` rows at the given 0-based row index. Shifts existing rows down.
@@ -703,6 +734,7 @@ pub struct PrintSettings {
     pub fit_to_page: bool,
     pub fit_to_width: Option<u16>,
     pub fit_to_height: Option<u16>,
+    pub scale: Option<u16>,
     pub margin_top: Option<f64>,
     pub margin_bottom: Option<f64>,
     pub margin_left: Option<f64>,
@@ -715,6 +747,7 @@ pub struct PrintSettings {
     pub col_breaks: Vec<ColNum>,
     pub print_area: Option<(RowNum, ColNum, RowNum, ColNum)>,
     pub repeat_rows: Option<(RowNum, RowNum)>,
+    pub repeat_cols: Option<(ColNum, ColNum)>,
 }
 
 impl PrintSettings {

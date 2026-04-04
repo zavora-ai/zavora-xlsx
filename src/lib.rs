@@ -46,6 +46,6 @@ pub use features::validation::{DataValidation, ErrorStyle, ValidationRule};
 pub use format::{Align, BorderStyle, Color, Format, IntoColor, NamedColor, Pattern, Underline};
 pub use properties::DocProperties;
 pub use utility::{ColNum, RowNum};
-pub use workbook::Workbook;
+pub use workbook::{Workbook, CalcMode};
 pub use worksheet::{Comment, Hyperlink, Orientation, PrintSettings, SheetProtection, Worksheet};
 pub use streaming::StreamingWorkbook;

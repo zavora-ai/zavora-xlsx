@@ -33,6 +33,11 @@ pub struct SheetCells<'a> {
     pub row_outline_levels: &'a BTreeMap<RowNum, u8>,
     pub col_outline_levels: &'a BTreeMap<ColNum, u8>,
     pub legacy_drawing_rid: Option<String>,
+    pub zoom: Option<u16>,
+    pub show_gridlines: bool,
+    pub show_headings: bool,
+    pub right_to_left: bool,
+    pub tab_color: Option<[u8; 3]>,
 }
 
 pub fn write_sheet(data: &SheetCells<'_>) -> Vec<u8> {
@@ -43,13 +48,34 @@ pub fn write_sheet(data: &SheetCells<'_>) -> Vec<u8> {
         ("xmlns:r", "http://schemas.openxmlformats.org/officeDocument/2006/relationships"),
     ]);
 
+    // 0. sheetPr (tab color, fit-to-page)
+    let need_sheet_pr = data.tab_color.is_some()
+        || data.print_settings.map_or(false, |ps| ps.fit_to_page);
+    if need_sheet_pr {
+        w.start_tag("sheetPr", &[]);
+        if let Some(rgb) = data.tab_color {
+            let hex = format!("FF{:02X}{:02X}{:02X}", rgb[0], rgb[1], rgb[2]);
+            w.empty_tag("tabColor", &[("rgb", &hex)]);
+        }
+        if data.print_settings.map_or(false, |ps| ps.fit_to_page) {
+            w.empty_tag("pageSetUpPr", &[("fitToPage", "1")]);
+        }
+        w.end_tag("sheetPr");
+    }
+
     // 1. dimension
     let dim = compute_dimension(data);
     w.empty_tag("dimension", &[("ref", &dim)]);
 
     // 2. sheetViews (always present)
     w.start_tag("sheetViews", &[]);
-    w.start_tag("sheetView", &[("workbookViewId", "0")]);
+    let mut sv_attrs: Vec<(&str, String)> = vec![("workbookViewId", "0".into())];
+    if !data.show_gridlines { sv_attrs.push(("showGridLines", "0".into())); }
+    if !data.show_headings { sv_attrs.push(("showRowColHeaders", "0".into())); }
+    if data.right_to_left { sv_attrs.push(("rightToLeft", "1".into())); }
+    if let Some(z) = data.zoom { sv_attrs.push(("zoomScale", z.to_string())); sv_attrs.push(("zoomScaleNormal", z.to_string())); }
+    let sv_refs: Vec<(&str, &str)> = sv_attrs.iter().map(|(k, v)| (*k, v.as_str())).collect();
+    w.start_tag("sheetView", &sv_refs);
     if data.freeze_row > 0 || data.freeze_col > 0 {
         let top_left = format!("{}{}", col_to_letter(data.freeze_col), data.freeze_row + 1);
         let mut pane_attrs: Vec<(&str, String)> = Vec::new();
@@ -200,6 +226,7 @@ pub fn write_sheet(data: &SheetCells<'_>) -> Vec<u8> {
         if let Some(sz) = ps.paper_size { setup_attrs.push(("paperSize", sz.to_string())); }
         if let Some(Orientation::Landscape) = ps.orientation { setup_attrs.push(("orientation", "landscape".into())); }
         else if ps.orientation.is_some() { setup_attrs.push(("orientation", "portrait".into())); }
+        if let Some(s) = ps.scale { setup_attrs.push(("scale", s.to_string())); }
         if ps.fit_to_page {
             if let Some(fw) = ps.fit_to_width { setup_attrs.push(("fitToWidth", fw.to_string())); }
             if let Some(fh) = ps.fit_to_height { setup_attrs.push(("fitToHeight", fh.to_string())); }
