@@ -65,12 +65,22 @@ pub struct StyleRegistry {
     pub borders: Vec<BorderData>,
     pub num_formats: Vec<(u16, String)>, // (id, format_code)
     pub xf_records: Vec<XfRecord>,
+    pub dxf_formats: Vec<DxfData>,
 
     font_map: HashMap<FontData, usize>,
     fill_map: HashMap<FillData, usize>,
     border_map: HashMap<BorderData, usize>,
     xf_map: HashMap<XfRecord, u32>,
     next_custom_num_fmt_id: u16,
+}
+
+/// Differential formatting data for conditional formatting.
+#[derive(Debug, Clone)]
+pub struct DxfData {
+    pub font: Option<FontData>,
+    pub fill: Option<FillData>,
+    pub border: Option<BorderData>,
+    pub num_format: Option<String>,
 }
 
 impl StyleRegistry {
@@ -91,6 +101,7 @@ impl StyleRegistry {
             borders: vec![default_border.clone()],
             num_formats: Vec::new(),
             xf_records: Vec::new(),
+            dxf_formats: Vec::new(),
             font_map: HashMap::new(),
             fill_map: HashMap::new(),
             border_map: HashMap::new(),
@@ -197,6 +208,25 @@ impl StyleRegistry {
         let idx = self.xf_records.len() as u32;
         self.xf_map.insert(xf.clone(), idx);
         self.xf_records.push(xf);
+        idx
+    }
+
+    /// Register a differential format for conditional formatting. Returns dxf index.
+    pub fn register_dxf(&mut self, fmt: &crate::format::Format) -> u32 {
+        let font = if fmt.bold || fmt.italic || fmt.strikethrough || fmt.font_color.is_some() || fmt.underline as u8 > 0 {
+            Some(FontData {
+                bold: fmt.bold, italic: fmt.italic, underline: fmt.underline as u8,
+                strikethrough: fmt.strikethrough, size_x100: 0, name: String::new(),
+                color_rgb: fmt.font_color,
+            })
+        } else { None };
+        let fill = fmt.bg_color.map(|bg| FillData { pattern: 1, fg_rgb: Some(bg), bg_rgb: None });
+        let border = if fmt.border_top as u8 > 0 || fmt.border_bottom as u8 > 0 || fmt.border_left as u8 > 0 || fmt.border_right as u8 > 0 {
+            Some(BorderData { top: fmt.border_top as u8, bottom: fmt.border_bottom as u8, left: fmt.border_left as u8, right: fmt.border_right as u8, color_rgb: fmt.border_color })
+        } else { None };
+        let num_format = if fmt.num_format.is_empty() { None } else { Some(fmt.num_format.clone()) };
+        let idx = self.dxf_formats.len() as u32;
+        self.dxf_formats.push(DxfData { font, fill, border, num_format });
         idx
     }
 

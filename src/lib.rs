@@ -36,8 +36,12 @@ pub use datetime::ExcelDateTime;
 pub use error::{Error, Result};
 pub use features::chart::{Chart, ChartSeries, ChartType, LegendPosition};
 pub use features::conditional::{
-    CfOperator, ConditionalFormat, ConditionalFormat2ColorScale, ConditionalFormat3ColorScale,
-    ConditionalFormatCell, ConditionalFormatDataBar, ConditionalFormatIconSet, IconSetType,
+    AverageType, CfOperator, ConditionalFormat, ConditionalFormat2ColorScale,
+    ConditionalFormat3ColorScale, ConditionalFormatAverage, ConditionalFormatCell,
+    ConditionalFormatDataBar, ConditionalFormatDate, ConditionalFormatDuplicate,
+    ConditionalFormatFormula, ConditionalFormatIconSet, ConditionalFormatText,
+    ConditionalFormatTopBottom, ConditionalFormatUnique, DateOccurring, IconSetType,
+    TextOperator, TopBottomType,
 };
 pub use features::image::Image;
 pub use features::sparkline::{Sparkline, SparklineType};

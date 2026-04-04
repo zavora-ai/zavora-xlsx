@@ -308,7 +308,7 @@ impl Worksheet {
     // ── Conditional Formatting ──
 
     pub fn add_conditional_format(&mut self, r1: RowNum, c1: ColNum, r2: RowNum, c2: ColNum, cf: impl ConditionalFormat + 'static) -> crate::Result<&mut Self> {
-        self.conditional_formats.push(StoredCf { range: (r1, c1, r2, c2), rule: Box::new(cf) });
+        self.conditional_formats.push(StoredCf { range: (r1, c1, r2, c2), rule: Box::new(cf), dxf_id: None });
         self.dirty = true;
         Ok(self)
     }

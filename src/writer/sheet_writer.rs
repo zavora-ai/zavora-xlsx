@@ -178,7 +178,7 @@ pub fn write_sheet(data: &SheetCells<'_>) -> Vec<u8> {
         let (r1, c1, r2, c2) = cf.range;
         let sqref = format!("{}{}:{}{}", col_to_letter(c1), r1 + 1, col_to_letter(c2), r2 + 1);
         w.start_tag("conditionalFormatting", &[("sqref", &sqref)]);
-        cf.rule.write_rule(&mut w, (i + 1) as u32);
+        cf.rule.write_rule(&mut w, (i + 1) as u32, cf.dxf_id);
         w.end_tag("conditionalFormatting");
     }
 

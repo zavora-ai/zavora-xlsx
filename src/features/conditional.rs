@@ -4,7 +4,8 @@ use crate::utility::{ColNum, RowNum};
 /// Trait for all conditional format types.
 pub trait ConditionalFormat: Send + Sync {
     fn cf_type(&self) -> &str;
-    fn write_rule(&self, w: &mut crate::xml::xml_writer::XmlWriter, priority: u32);
+    fn write_rule(&self, w: &mut crate::xml::xml_writer::XmlWriter, priority: u32, dxf_id: Option<u32>);
+    fn dxf_format(&self) -> Option<&Format> { None }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -41,9 +42,13 @@ impl ConditionalFormatCell {
 
 impl ConditionalFormat for ConditionalFormatCell {
     fn cf_type(&self) -> &str { "cellIs" }
-    fn write_rule(&self, w: &mut crate::xml::xml_writer::XmlWriter, priority: u32) {
+    fn dxf_format(&self) -> Option<&Format> { self.format.as_ref() }
+    fn write_rule(&self, w: &mut crate::xml::xml_writer::XmlWriter, priority: u32, dxf_id: Option<u32>) {
         let p = priority.to_string();
-        w.start_tag("cfRule", &[("type", "cellIs"), ("operator", self.operator.xml_str()), ("priority", &p)]);
+        let d = dxf_id.map(|id| id.to_string());
+        let mut attrs: Vec<(&str, &str)> = vec![("type", "cellIs"), ("priority", &p), ("operator", self.operator.xml_str())];
+        if let Some(ref ds) = d { attrs.push(("dxfId", ds)); }
+        w.start_tag("cfRule", &attrs);
         w.text_element("formula", &[], &self.value.to_string());
         if let Some(v2) = self.value2 {
             w.text_element("formula", &[], &v2.to_string());
@@ -68,7 +73,7 @@ impl ConditionalFormat2ColorScale {
 
 impl ConditionalFormat for ConditionalFormat2ColorScale {
     fn cf_type(&self) -> &str { "colorScale" }
-    fn write_rule(&self, w: &mut crate::xml::xml_writer::XmlWriter, priority: u32) {
+    fn write_rule(&self, w: &mut crate::xml::xml_writer::XmlWriter, priority: u32, _dxf_id: Option<u32>) {
         let p = priority.to_string();
         w.start_tag("cfRule", &[("type", "colorScale"), ("priority", &p)]);
         w.start_tag("colorScale", &[]);
@@ -100,7 +105,7 @@ impl ConditionalFormat3ColorScale {
 
 impl ConditionalFormat for ConditionalFormat3ColorScale {
     fn cf_type(&self) -> &str { "colorScale" }
-    fn write_rule(&self, w: &mut crate::xml::xml_writer::XmlWriter, priority: u32) {
+    fn write_rule(&self, w: &mut crate::xml::xml_writer::XmlWriter, priority: u32, _dxf_id: Option<u32>) {
         let p = priority.to_string();
         w.start_tag("cfRule", &[("type", "colorScale"), ("priority", &p)]);
         w.start_tag("colorScale", &[]);
@@ -132,7 +137,7 @@ impl ConditionalFormatDataBar {
 
 impl ConditionalFormat for ConditionalFormatDataBar {
     fn cf_type(&self) -> &str { "dataBar" }
-    fn write_rule(&self, w: &mut crate::xml::xml_writer::XmlWriter, priority: u32) {
+    fn write_rule(&self, w: &mut crate::xml::xml_writer::XmlWriter, priority: u32, _dxf_id: Option<u32>) {
         let p = priority.to_string();
         w.start_tag("cfRule", &[("type", "dataBar"), ("priority", &p)]);
         w.start_tag("dataBar", &[]);
@@ -174,7 +179,7 @@ impl ConditionalFormatIconSet {
 
 impl ConditionalFormat for ConditionalFormatIconSet {
     fn cf_type(&self) -> &str { "iconSet" }
-    fn write_rule(&self, w: &mut crate::xml::xml_writer::XmlWriter, priority: u32) {
+    fn write_rule(&self, w: &mut crate::xml::xml_writer::XmlWriter, priority: u32, _dxf_id: Option<u32>) {
         let p = priority.to_string();
         w.start_tag("cfRule", &[("type", "iconSet"), ("priority", &p)]);
         w.start_tag("iconSet", &[("iconSet", self.icon_type.xml_str())]);
@@ -192,8 +197,251 @@ impl ConditionalFormat for ConditionalFormatIconSet {
     }
 }
 
+// ══════════════════════════════════════════════════════════════
+// Phase 6 Sprint 2 — 6 new CF types
+// ══════════════════════════════════════════════════════════════
+
+// ── Formula-Based CF ──
+
+#[derive(Debug, Clone)]
+pub struct ConditionalFormatFormula {
+    pub(crate) formula: String,
+    pub(crate) format: Option<Format>,
+}
+
+impl ConditionalFormatFormula {
+    pub fn new(formula: &str) -> Self { Self { formula: formula.into(), format: None } }
+    pub fn set_format(&mut self, f: &Format) -> &mut Self { self.format = Some(f.clone()); self }
+}
+
+impl ConditionalFormat for ConditionalFormatFormula {
+    fn cf_type(&self) -> &str { "expression" }
+    fn dxf_format(&self) -> Option<&Format> { self.format.as_ref() }
+    fn write_rule(&self, w: &mut crate::xml::xml_writer::XmlWriter, priority: u32, dxf_id: Option<u32>) {
+        let p = priority.to_string();
+        let d = dxf_id.map(|id| id.to_string());
+        let mut attrs: Vec<(&str, &str)> = vec![("type", "expression"), ("priority", &p)];
+        if let Some(ref ds) = d { attrs.push(("dxfId", ds)); }
+        w.start_tag("cfRule", &attrs);
+        w.text_element("formula", &[], &self.formula);
+        w.end_tag("cfRule");
+    }
+}
+
+// ── Top/Bottom N CF ──
+
+#[derive(Debug, Clone, Copy)]
+pub enum TopBottomType { Top, Bottom, TopPercent, BottomPercent }
+
+#[derive(Debug, Clone)]
+pub struct ConditionalFormatTopBottom {
+    pub(crate) kind: TopBottomType,
+    pub(crate) rank: u32,
+    pub(crate) format: Option<Format>,
+}
+
+impl ConditionalFormatTopBottom {
+    pub fn new(kind: TopBottomType, rank: u32) -> Self { Self { kind, rank, format: None } }
+    pub fn set_format(&mut self, f: &Format) -> &mut Self { self.format = Some(f.clone()); self }
+}
+
+impl ConditionalFormat for ConditionalFormatTopBottom {
+    fn cf_type(&self) -> &str { "top10" }
+    fn dxf_format(&self) -> Option<&Format> { self.format.as_ref() }
+    fn write_rule(&self, w: &mut crate::xml::xml_writer::XmlWriter, priority: u32, dxf_id: Option<u32>) {
+        let p = priority.to_string();
+        let r = self.rank.to_string();
+        let d = dxf_id.map(|id| id.to_string());
+        let bottom = matches!(self.kind, TopBottomType::Bottom | TopBottomType::BottomPercent);
+        let percent = matches!(self.kind, TopBottomType::TopPercent | TopBottomType::BottomPercent);
+        let mut attrs: Vec<(&str, &str)> = vec![("type", "top10"), ("priority", &p), ("rank", &r)];
+        if bottom { attrs.push(("bottom", "1")); }
+        if percent { attrs.push(("percent", "1")); }
+        if let Some(ref ds) = d { attrs.push(("dxfId", ds)); }
+        w.start_tag("cfRule", &attrs);
+        w.end_tag("cfRule");
+    }
+}
+
+// ── Text Contains / Begins / Ends CF ──
+
+#[derive(Debug, Clone, Copy)]
+pub enum TextOperator { Contains, NotContains, BeginsWith, EndsWith }
+
+#[derive(Debug, Clone)]
+pub struct ConditionalFormatText {
+    pub(crate) operator: TextOperator,
+    pub(crate) text: String,
+    pub(crate) format: Option<Format>,
+}
+
+impl ConditionalFormatText {
+    pub fn new(op: TextOperator, text: &str) -> Self { Self { operator: op, text: text.into(), format: None } }
+    pub fn set_format(&mut self, f: &Format) -> &mut Self { self.format = Some(f.clone()); self }
+}
+
+impl ConditionalFormat for ConditionalFormatText {
+    fn cf_type(&self) -> &str {
+        match self.operator {
+            TextOperator::Contains => "containsText",
+            TextOperator::NotContains => "notContainsText",
+            TextOperator::BeginsWith => "beginsWith",
+            TextOperator::EndsWith => "endsWith",
+        }
+    }
+    fn dxf_format(&self) -> Option<&Format> { self.format.as_ref() }
+    fn write_rule(&self, w: &mut crate::xml::xml_writer::XmlWriter, priority: u32, dxf_id: Option<u32>) {
+        let p = priority.to_string();
+        let d = dxf_id.map(|id| id.to_string());
+        let cf_type = self.cf_type();
+        let mut attrs: Vec<(&str, &str)> = vec![("type", cf_type), ("priority", &p), ("text", &self.text)];
+        if let Some(ref ds) = d { attrs.push(("dxfId", ds)); }
+        let op_str = match self.operator {
+            TextOperator::Contains => "containsText",
+            TextOperator::NotContains => "notContains",
+            TextOperator::BeginsWith => "beginsWith",
+            TextOperator::EndsWith => "endsWith",
+        };
+        attrs.push(("operator", op_str));
+        w.start_tag("cfRule", &attrs);
+        // Excel requires a formula for text rules — use placeholder A1
+        let formula = match self.operator {
+            TextOperator::Contains => format!("NOT(ISERROR(SEARCH(\"{}\",A1)))", self.text),
+            TextOperator::NotContains => format!("ISERROR(SEARCH(\"{}\",A1))", self.text),
+            TextOperator::BeginsWith => format!("LEFT(A1,{})=\"{}\"", self.text.len(), self.text),
+            TextOperator::EndsWith => format!("RIGHT(A1,{})=\"{}\"", self.text.len(), self.text),
+        };
+        w.text_element("formula", &[], &formula);
+        w.end_tag("cfRule");
+    }
+}
+
+// ── Duplicate / Unique Values CF ──
+
+#[derive(Debug, Clone)]
+pub struct ConditionalFormatDuplicate { pub(crate) format: Option<Format> }
+
+impl ConditionalFormatDuplicate {
+    pub fn new() -> Self { Self { format: None } }
+    pub fn set_format(&mut self, f: &Format) -> &mut Self { self.format = Some(f.clone()); self }
+}
+
+impl ConditionalFormat for ConditionalFormatDuplicate {
+    fn cf_type(&self) -> &str { "duplicateValues" }
+    fn dxf_format(&self) -> Option<&Format> { self.format.as_ref() }
+    fn write_rule(&self, w: &mut crate::xml::xml_writer::XmlWriter, priority: u32, dxf_id: Option<u32>) {
+        let p = priority.to_string();
+        let d = dxf_id.map(|id| id.to_string());
+        let mut attrs: Vec<(&str, &str)> = vec![("type", "duplicateValues"), ("priority", &p)];
+        if let Some(ref ds) = d { attrs.push(("dxfId", ds)); }
+        w.start_tag("cfRule", &attrs);
+        w.end_tag("cfRule");
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ConditionalFormatUnique { pub(crate) format: Option<Format> }
+
+impl ConditionalFormatUnique {
+    pub fn new() -> Self { Self { format: None } }
+    pub fn set_format(&mut self, f: &Format) -> &mut Self { self.format = Some(f.clone()); self }
+}
+
+impl ConditionalFormat for ConditionalFormatUnique {
+    fn cf_type(&self) -> &str { "uniqueValues" }
+    fn dxf_format(&self) -> Option<&Format> { self.format.as_ref() }
+    fn write_rule(&self, w: &mut crate::xml::xml_writer::XmlWriter, priority: u32, dxf_id: Option<u32>) {
+        let p = priority.to_string();
+        let d = dxf_id.map(|id| id.to_string());
+        let mut attrs: Vec<(&str, &str)> = vec![("type", "uniqueValues"), ("priority", &p)];
+        if let Some(ref ds) = d { attrs.push(("dxfId", ds)); }
+        w.start_tag("cfRule", &attrs);
+        w.end_tag("cfRule");
+    }
+}
+
+// ── Above/Below Average CF ──
+
+#[derive(Debug, Clone, Copy)]
+pub enum AverageType { Above, Below, AboveOrEqual, BelowOrEqual }
+
+#[derive(Debug, Clone)]
+pub struct ConditionalFormatAverage {
+    pub(crate) kind: AverageType,
+    pub(crate) format: Option<Format>,
+}
+
+impl ConditionalFormatAverage {
+    pub fn new(kind: AverageType) -> Self { Self { kind, format: None } }
+    pub fn set_format(&mut self, f: &Format) -> &mut Self { self.format = Some(f.clone()); self }
+}
+
+impl ConditionalFormat for ConditionalFormatAverage {
+    fn cf_type(&self) -> &str { "aboveAverage" }
+    fn dxf_format(&self) -> Option<&Format> { self.format.as_ref() }
+    fn write_rule(&self, w: &mut crate::xml::xml_writer::XmlWriter, priority: u32, dxf_id: Option<u32>) {
+        let p = priority.to_string();
+        let d = dxf_id.map(|id| id.to_string());
+        let mut attrs: Vec<(&str, &str)> = vec![("type", "aboveAverage"), ("priority", &p)];
+        match self.kind {
+            AverageType::Below => { attrs.push(("aboveAverage", "0")); }
+            AverageType::AboveOrEqual => { attrs.push(("equalAverage", "1")); }
+            AverageType::BelowOrEqual => { attrs.push(("aboveAverage", "0")); attrs.push(("equalAverage", "1")); }
+            AverageType::Above => {} // default
+        }
+        if let Some(ref ds) = d { attrs.push(("dxfId", ds)); }
+        w.start_tag("cfRule", &attrs);
+        w.end_tag("cfRule");
+    }
+}
+
+// ── Date Occurring CF ──
+
+#[derive(Debug, Clone, Copy)]
+pub enum DateOccurring { Yesterday, Today, Tomorrow, Last7Days, ThisWeek, LastWeek, NextWeek, ThisMonth, LastMonth, NextMonth }
+
+impl DateOccurring {
+    pub fn xml_str(&self) -> &str {
+        match self {
+            DateOccurring::Yesterday => "yesterday", DateOccurring::Today => "today",
+            DateOccurring::Tomorrow => "tomorrow", DateOccurring::Last7Days => "last7Days",
+            DateOccurring::ThisWeek => "thisWeek", DateOccurring::LastWeek => "lastWeek",
+            DateOccurring::NextWeek => "nextWeek", DateOccurring::ThisMonth => "thisMonth",
+            DateOccurring::LastMonth => "lastMonth", DateOccurring::NextMonth => "nextMonth",
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ConditionalFormatDate {
+    pub(crate) period: DateOccurring,
+    pub(crate) format: Option<Format>,
+}
+
+impl ConditionalFormatDate {
+    pub fn new(period: DateOccurring) -> Self { Self { period, format: None } }
+    pub fn set_format(&mut self, f: &Format) -> &mut Self { self.format = Some(f.clone()); self }
+}
+
+impl ConditionalFormat for ConditionalFormatDate {
+    fn cf_type(&self) -> &str { "timePeriod" }
+    fn dxf_format(&self) -> Option<&Format> { self.format.as_ref() }
+    fn write_rule(&self, w: &mut crate::xml::xml_writer::XmlWriter, priority: u32, dxf_id: Option<u32>) {
+        let p = priority.to_string();
+        let d = dxf_id.map(|id| id.to_string());
+        let tp = self.period.xml_str();
+        let mut attrs: Vec<(&str, &str)> = vec![("type", "timePeriod"), ("priority", &p), ("timePeriod", tp)];
+        if let Some(ref ds) = d { attrs.push(("dxfId", ds)); }
+        w.start_tag("cfRule", &attrs);
+        w.end_tag("cfRule");
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
+
 /// Stored conditional format with range info.
 pub(crate) struct StoredCf {
     pub range: (RowNum, ColNum, RowNum, ColNum),
     pub rule: Box<dyn ConditionalFormat>,
+    pub dxf_id: Option<u32>,
 }

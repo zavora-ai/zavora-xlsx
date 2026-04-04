@@ -129,6 +129,16 @@ impl Workbook {
             ws.finalize(&mut self.sst, &mut self.styles);
         }
 
+        // Register dxf formats for conditional formatting rules
+        for ws in &mut self.worksheets {
+            for cf in &mut ws.conditional_formats {
+                if let Some(fmt) = cf.rule.dxf_format() {
+                    let fmt_clone = fmt.clone();
+                    cf.dxf_id = Some(self.styles.register_dxf(&fmt_clone));
+                }
+            }
+        }
+
         let mut zip = ZipOutput::new();
         let sheet_count = self.worksheets.len();
         let has_props = self.properties.title.is_some() || self.properties.author.is_some()
