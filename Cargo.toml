@@ -1,0 +1,18 @@
+[package]
+name = "zavora-xlsx"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "High-performance Excel xlsx reader, writer, and editor"
+keywords = ["excel", "xlsx", "spreadsheet", "ooxml"]
+categories = ["parser-implementations", "encoding"]
+
+[dependencies]
+quick-xml = { version = "0.37", features = ["encoding"] }
+zip = { version = "2", default-features = false, features = ["deflate"] }
+atoi_simd = "0.16"
+fast-float2 = "0.2"
+
+[dev-dependencies]
+calamine = "0.34"
+tempfile = "3"

@@ -1,0 +1,136 @@
+use quick_xml::events::Event;
+use quick_xml::reader::Reader;
+
+use crate::cell::CellValue;
+use crate::datetime::ExcelDateTime;
+use crate::model::shared_strings::SharedStringTable;
+use crate::model::style_registry::StyleRegistry;
+use crate::reader::style_parser::ParsedStyles;
+use crate::utility::{parse_cell_attr, ColNum, RowNum};
+use crate::xml::xml_reader::get_attr;
+
+pub struct RawCell {
+    pub row: RowNum,
+    pub col: ColNum,
+    pub value: CellValue,
+    pub xf_index: u32,
+}
+
+pub fn read_sheet_cells(
+    data: &[u8],
+    sst: &SharedStringTable,
+    styles: &ParsedStyles,
+) -> crate::Result<Vec<RawCell>> {
+    let mut reader = Reader::from_reader(data);
+    reader.config_mut().check_end_names = false;
+    reader.config_mut().expand_empty_elements = true;
+    let mut buf = Vec::with_capacity(1024);
+    let mut cells = Vec::new();
+
+    // Scan to <sheetData>
+    loop {
+        buf.clear();
+        match reader.read_event_into(&mut buf)? {
+            Event::Start(e) if e.local_name().as_ref() == b"sheetData" => break,
+            Event::Eof => return Ok(cells),
+            _ => {}
+        }
+    }
+
+    let mut cell_pos: Option<(RowNum, ColNum)> = None;
+    let mut cell_type: Option<Vec<u8>> = None;
+    let mut cell_style: usize = 0;
+    let mut in_v = false;
+    let mut in_f = false;
+    let mut v_text = String::new();
+    let mut f_text = String::new();
+    let mut cell_buf = Vec::with_capacity(256);
+
+    loop {
+        cell_buf.clear();
+        match reader.read_event_into(&mut cell_buf)? {
+            Event::Start(e) => {
+                match e.local_name().as_ref() {
+                    b"c" => {
+                        cell_pos = get_attr(e.attributes(), b"r").and_then(parse_cell_attr);
+                        cell_type = get_attr(e.attributes(), b"t").map(|v| v.to_vec());
+                        cell_style = get_attr(e.attributes(), b"s")
+                            .and_then(|v| atoi_simd::parse::<usize>(v).ok())
+                            .unwrap_or(0);
+                        v_text.clear();
+                        f_text.clear();
+                    }
+                    b"v" => { in_v = true; v_text.clear(); }
+                    b"f" => { in_f = true; f_text.clear(); }
+                    _ => {}
+                }
+            }
+            Event::Text(e) => {
+                if in_v {
+                    if let Ok(t) = e.unescape() { v_text.push_str(&t); }
+                } else if in_f {
+                    if let Ok(t) = e.unescape() { f_text.push_str(&t); }
+                }
+            }
+            Event::End(e) => {
+                match e.local_name().as_ref() {
+                    b"v" => { in_v = false; }
+                    b"f" => { in_f = false; }
+                    b"c" => {
+                        if let Some((row, col)) = cell_pos {
+                            let value = resolve_cell_value(
+                                cell_type.as_deref(), &v_text, &f_text,
+                                cell_style, sst, styles,
+                            );
+                            if !value.is_empty() || !f_text.is_empty() {
+                                cells.push(RawCell { row, col, value, xf_index: cell_style as u32 });
+                            }
+                        }
+                        cell_pos = None;
+                        cell_type = None;
+                    }
+                    b"sheetData" => break,
+                    _ => {}
+                }
+            }
+            Event::Eof => break,
+            _ => {}
+        }
+    }
+    Ok(cells)
+}
+
+fn resolve_cell_value(
+    cell_type: Option<&[u8]>, v: &str, f: &str,
+    style_idx: usize, sst: &SharedStringTable, styles: &ParsedStyles,
+) -> CellValue {
+    let base = match cell_type {
+        Some(b"s") => {
+            let idx: u32 = atoi_simd::parse(v.as_bytes()).unwrap_or(0);
+            sst.get(idx).map(|s| CellValue::String(s.to_string())).unwrap_or(CellValue::Empty)
+        }
+        Some(b"b") => CellValue::Bool(v == "1"),
+        Some(b"e") => CellValue::Error(v.to_string()),
+        Some(b"str") | Some(b"inlineStr") => CellValue::String(v.to_string()),
+        _ => {
+            if v.is_empty() {
+                CellValue::Empty
+            } else if let Ok(n) = fast_float2::parse::<f64, _>(v) {
+                let num_fmt_id = styles.xf_num_fmt_ids.get(style_idx).copied().unwrap_or(0);
+                if StyleRegistry::is_date_format(num_fmt_id, &styles.num_formats) {
+                    CellValue::DateTime(ExcelDateTime::new(n, false))
+                } else {
+                    CellValue::Number(n)
+                }
+            } else {
+                CellValue::String(v.to_string())
+            }
+        }
+    };
+
+    if !f.is_empty() {
+        CellValue::Formula { formula: f.to_string(), cached_value: Box::new(base) }
+    } else {
+        base
+    }
+}

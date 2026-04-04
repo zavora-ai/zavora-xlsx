@@ -1,0 +1,289 @@
+use std::collections::BTreeMap;
+use std::fmt::Write;
+
+use crate::cell::CellType;
+use crate::utility::{col_to_letter, ColNum, RowNum};
+use crate::xml::xml_writer::XmlWriter;
+
+use crate::features::conditional::StoredCf;
+use crate::features::sparkline::Sparkline;
+use crate::features::validation::{DataValidation, ValidationRule};
+
+pub struct SheetCells<'a> {
+    pub cells: &'a BTreeMap<RowNum, BTreeMap<ColNum, (CellType, u32)>>,
+    pub merge_ranges: &'a [(RowNum, ColNum, RowNum, ColNum)],
+    pub col_widths: &'a BTreeMap<ColNum, f64>,
+    pub row_heights: &'a BTreeMap<RowNum, f64>,
+    pub freeze_row: RowNum,
+    pub freeze_col: ColNum,
+    pub has_drawing: bool,
+    pub drawing_rid: Option<String>,
+    pub table_parts: Vec<String>, // rIds for tables
+    pub conditional_formats: &'a [StoredCf],
+    pub validations: &'a [DataValidation],
+    pub sparklines: &'a [Sparkline],
+    pub sheet_name: &'a str,
+}
+
+pub fn write_sheet(data: &SheetCells<'_>) -> Vec<u8> {
+    let mut w = XmlWriter::new();
+    w.declaration();
+    w.start_tag("worksheet", &[
+        ("xmlns", "http://schemas.openxmlformats.org/spreadsheetml/2006/main"),
+        ("xmlns:r", "http://schemas.openxmlformats.org/officeDocument/2006/relationships"),
+    ]);
+
+    // sheetViews (freeze panes)
+    if data.freeze_row > 0 || data.freeze_col > 0 {
+        w.start_tag("sheetViews", &[]);
+        w.start_tag("sheetView", &[("tabSelected", "1"), ("workbookViewId", "0")]);
+        let top_left = format!("{}{}", col_to_letter(data.freeze_col), data.freeze_row + 1);
+        let mut pane_attrs: Vec<(&str, String)> = Vec::new();
+        if data.freeze_col > 0 { pane_attrs.push(("xSplit", data.freeze_col.to_string())); }
+        if data.freeze_row > 0 { pane_attrs.push(("ySplit", data.freeze_row.to_string())); }
+        pane_attrs.push(("topLeftCell", top_left));
+        pane_attrs.push(("state", "frozen".into()));
+        let refs: Vec<(&str, &str)> = pane_attrs.iter().map(|(k, v)| (*k, v.as_str())).collect();
+        w.empty_tag("pane", &refs);
+        w.end_tag("sheetView");
+        w.end_tag("sheetViews");
+    }
+
+    // cols
+    if !data.col_widths.is_empty() {
+        w.start_tag("cols", &[]);
+        for (&col, &width) in data.col_widths {
+            let c = (col + 1).to_string();
+            let ws = format!("{width:.2}");
+            w.empty_tag("col", &[("min", &c), ("max", &c), ("width", &ws), ("customWidth", "1")]);
+        }
+        w.end_tag("cols");
+    }
+
+    // sheetData
+    w.start_tag("sheetData", &[]);
+    for (&row, cols) in data.cells {
+        let r = (row + 1).to_string();
+        if let Some(&height) = data.row_heights.get(&row) {
+            let hs = format!("{height:.2}");
+            w.start_tag("row", &[("r", &r), ("ht", &hs), ("customHeight", "1")]);
+        } else {
+            w.start_tag("row", &[("r", &r)]);
+        }
+        for (&col, (cell, xf_idx)) in cols {
+            write_cell(&mut w, row, col, cell, *xf_idx);
+        }
+        w.end_tag("row");
+    }
+    w.end_tag("sheetData");
+
+    // mergeCells
+    if !data.merge_ranges.is_empty() {
+        let count = data.merge_ranges.len().to_string();
+        w.start_tag("mergeCells", &[("count", &count)]);
+        for &(r1, c1, r2, c2) in data.merge_ranges {
+            let ref_str = format!("{}{}:{}{}", col_to_letter(c1), r1 + 1, col_to_letter(c2), r2 + 1);
+            w.empty_tag("mergeCell", &[("ref", &ref_str)]);
+        }
+        w.end_tag("mergeCells");
+    }
+
+    // conditionalFormatting
+    for (i, cf) in data.conditional_formats.iter().enumerate() {
+        let (r1, c1, r2, c2) = cf.range;
+        let sqref = format!("{}{}:{}{}", col_to_letter(c1), r1 + 1, col_to_letter(c2), r2 + 1);
+        w.start_tag("conditionalFormatting", &[("sqref", &sqref)]);
+        cf.rule.write_rule(&mut w, (i + 1) as u32);
+        w.end_tag("conditionalFormatting");
+    }
+
+    // dataValidations
+    if !data.validations.is_empty() {
+        let count = data.validations.len().to_string();
+        w.start_tag("dataValidations", &[("count", &count)]);
+        for dv in data.validations {
+            write_data_validation(&mut w, dv);
+        }
+        w.end_tag("dataValidations");
+    }
+
+    // drawing reference
+    if let Some(ref rid) = data.drawing_rid {
+        w.empty_tag("drawing", &[("r:id", rid)]);
+    }
+
+    // tableParts
+    if !data.table_parts.is_empty() {
+        let count = data.table_parts.len().to_string();
+        w.start_tag("tableParts", &[("count", &count)]);
+        for rid in &data.table_parts {
+            w.empty_tag("tablePart", &[("r:id", rid)]);
+        }
+        w.end_tag("tableParts");
+    }
+
+    // sparklines (as extLst)
+    if !data.sparklines.is_empty() {
+        w.start_tag("extLst", &[]);
+        w.start_tag("ext", &[("xmlns:x14", "http://schemas.microsoft.com/office/spreadsheetml/2009/9/main"), ("uri", "{05C60535-1F16-4fd2-B633-F4F36F0B64E0}")]);
+        w.start_tag("x14:sparklineGroups", &[("xmlns:xm", "http://schemas.microsoft.com/office/excel/2006/main")]);
+        for sp in data.sparklines {
+            let sp_type = sp.sparkline_type.xml_str();
+            w.start_tag("x14:sparklineGroup", &[("type", sp_type)]);
+            if let Some(rgb) = sp.color {
+                let hex = format!("FF{:02X}{:02X}{:02X}", rgb[0], rgb[1], rgb[2]);
+                w.start_tag("x14:colorSeries", &[]);
+                w.empty_tag("x14:rgbColor", &[("rgb", &hex)]);
+                w.end_tag("x14:colorSeries");
+            }
+            w.start_tag("x14:sparklines", &[]);
+            w.start_tag("x14:sparkline", &[]);
+            w.text_element("xm:f", &[], &sp.data_range);
+            let loc = format!("{}{}", col_to_letter(sp.col), sp.row + 1);
+            w.text_element("xm:sqref", &[], &loc);
+            w.end_tag("x14:sparkline");
+            w.end_tag("x14:sparklines");
+            w.end_tag("x14:sparklineGroup");
+        }
+        w.end_tag("x14:sparklineGroups");
+        w.end_tag("ext");
+        w.end_tag("extLst");
+    }
+
+    w.end_tag("worksheet");
+    w.into_bytes()
+}
+
+fn write_cell(w: &mut XmlWriter, row: RowNum, col: ColNum, cell: &CellType, xf: u32) {
+    let ref_str = format!("{}{}", col_to_letter(col), row + 1);
+    let xf_s = xf.to_string();
+
+    match cell {
+        CellType::Number(n) => {
+            let mut v = String::new();
+            let _ = write!(v, "{n}");
+            if xf > 0 {
+                w.start_tag("c", &[("r", &ref_str), ("s", &xf_s)]);
+            } else {
+                w.start_tag("c", &[("r", &ref_str)]);
+            }
+            w.text_element("v", &[], &v);
+            w.end_tag("c");
+        }
+        CellType::SharedString(idx) => {
+            let v = idx.to_string();
+            let mut attrs: Vec<(&str, &str)> = vec![("r", &ref_str), ("t", "s")];
+            if xf > 0 { attrs.push(("s", &xf_s)); }
+            w.start_tag("c", &attrs);
+            w.text_element("v", &[], &v);
+            w.end_tag("c");
+        }
+        CellType::InlineString(s) => {
+            let mut attrs: Vec<(&str, &str)> = vec![("r", &ref_str), ("t", "inlineStr")];
+            if xf > 0 { attrs.push(("s", &xf_s)); }
+            w.start_tag("c", &attrs);
+            w.start_tag("is", &[]);
+            w.text_element("t", &[], s);
+            w.end_tag("is");
+            w.end_tag("c");
+        }
+        CellType::Bool(b) => {
+            let v = if *b { "1" } else { "0" };
+            let mut attrs: Vec<(&str, &str)> = vec![("r", &ref_str), ("t", "b")];
+            if xf > 0 { attrs.push(("s", &xf_s)); }
+            w.start_tag("c", &attrs);
+            w.text_element("v", &[], v);
+            w.end_tag("c");
+        }
+        CellType::Formula { text, cached_number } => {
+            if xf > 0 {
+                w.start_tag("c", &[("r", &ref_str), ("s", &xf_s)]);
+            } else {
+                w.start_tag("c", &[("r", &ref_str)]);
+            }
+            w.text_element("f", &[], text);
+            if let Some(n) = cached_number {
+                let mut v = String::new();
+                let _ = write!(v, "{n}");
+                w.text_element("v", &[], &v);
+            }
+            w.end_tag("c");
+        }
+        CellType::DateTime(serial) => {
+            let mut v = String::new();
+            let _ = write!(v, "{serial}");
+            if xf > 0 {
+                w.start_tag("c", &[("r", &ref_str), ("s", &xf_s)]);
+            } else {
+                w.start_tag("c", &[("r", &ref_str)]);
+            }
+            w.text_element("v", &[], &v);
+            w.end_tag("c");
+        }
+        CellType::Error(e) => {
+            let mut attrs: Vec<(&str, &str)> = vec![("r", &ref_str), ("t", "e")];
+            if xf > 0 { attrs.push(("s", &xf_s)); }
+            w.start_tag("c", &attrs);
+            w.text_element("v", &[], e);
+            w.end_tag("c");
+        }
+        CellType::Empty => {}
+    }
+}
+
+fn write_data_validation(w: &mut XmlWriter, dv: &DataValidation) {
+    let sqref = format!("{}{}:{}{}",
+        col_to_letter(dv.first_col), dv.first_row + 1,
+        col_to_letter(dv.last_col), dv.last_row + 1);
+
+    let (dv_type, formula1, formula2) = match &dv.rule {
+        ValidationRule::List(values) => {
+            let joined = format!("\"{}\"", values.join(","));
+            ("list".to_string(), Some(joined), None)
+        }
+        ValidationRule::ListRange(range) => ("list".to_string(), Some(range.clone()), None),
+        ValidationRule::WholeNumber { min, max } => {
+            let op = if min.is_some() && max.is_some() { "between" } else if min.is_some() { "greaterThanOrEqual" } else { "lessThanOrEqual" };
+            ("whole".to_string(), min.map(|v| v.to_string()).or_else(|| max.map(|v| v.to_string())), max.map(|v| v.to_string()))
+        }
+        ValidationRule::Decimal { min, max } => {
+            ("decimal".to_string(), min.map(|v| v.to_string()).or_else(|| max.map(|v| v.to_string())), max.map(|v| v.to_string()))
+        }
+        ValidationRule::DateRange { min, max } => {
+            ("date".to_string(), min.clone().or_else(|| max.clone()), max.clone())
+        }
+        ValidationRule::TextLength { min, max } => {
+            ("textLength".to_string(), min.map(|v| v.to_string()).or_else(|| max.map(|v| v.to_string())), max.map(|v| v.to_string()))
+        }
+        ValidationRule::Custom(formula) => ("custom".to_string(), Some(formula.clone()), None),
+    };
+
+    let mut attrs: Vec<(&str, &str)> = vec![("type", &dv_type), ("sqref", &sqref), ("allowBlank", "1")];
+    let op_str;
+    if matches!(&dv.rule, ValidationRule::WholeNumber { min: Some(_), max: Some(_) } | ValidationRule::Decimal { min: Some(_), max: Some(_) } | ValidationRule::TextLength { min: Some(_), max: Some(_) }) {
+        op_str = "between".to_string();
+        attrs.push(("operator", &op_str));
+    }
+    let err_style = dv.error_style.xml_str().to_string();
+    attrs.push(("errorStyle", &err_style));
+    if dv.input_title.is_some() { attrs.push(("showInputMessage", "1")); }
+    if dv.error_title.is_some() { attrs.push(("showErrorMessage", "1")); }
+
+    let input_title_ref = dv.input_title.as_deref().unwrap_or("");
+    let input_msg_ref = dv.input_message.as_deref().unwrap_or("");
+    let error_title_ref = dv.error_title.as_deref().unwrap_or("");
+    let error_msg_ref = dv.error_message.as_deref().unwrap_or("");
+    if !input_title_ref.is_empty() { attrs.push(("promptTitle", input_title_ref)); }
+    if !input_msg_ref.is_empty() { attrs.push(("prompt", input_msg_ref)); }
+    if !error_title_ref.is_empty() { attrs.push(("errorTitle", error_title_ref)); }
+    if !error_msg_ref.is_empty() { attrs.push(("error", error_msg_ref)); }
+
+    w.start_tag("dataValidation", &attrs);
+    if let Some(ref f1) = formula1 {
+        w.text_element("formula1", &[], f1);
+    }
+    if let Some(ref f2) = formula2 {
+        w.text_element("formula2", &[], f2);
+    }
+    w.end_tag("dataValidation");
+}
