@@ -34,20 +34,20 @@ pub fn write_drawing_xml(charts: &[Chart], images: &[Image], _sheet_idx: usize) 
     w.into_bytes()
 }
 
-pub fn write_drawing_rels(chart_count: usize, image_count: usize, image_types: &[&str]) -> Vec<u8> {
+pub fn write_drawing_rels(chart_count: usize, image_count: usize, image_types: &[&str], global_chart_start: usize, global_image_start: usize) -> Vec<u8> {
     let mut w = XmlWriter::new();
     w.declaration();
     w.start_tag("Relationships", &[("xmlns", "http://schemas.openxmlformats.org/package/2006/relationships")]);
     let mut rid = 1;
     for i in 0..chart_count {
         let id = format!("rId{rid}");
-        let target = format!("../charts/chart{}.xml", i + 1);
+        let target = format!("../charts/chart{}.xml", global_chart_start + i + 1);
         w.empty_tag("Relationship", &[("Id", &id), ("Type", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart"), ("Target", &target)]);
         rid += 1;
     }
     for i in 0..image_count {
         let id = format!("rId{rid}");
-        let target = format!("../media/image{}.{}", i + 1, image_types[i]);
+        let target = format!("../media/image{}.{}", global_image_start + i + 1, image_types[i]);
         w.empty_tag("Relationship", &[("Id", &id), ("Type", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"), ("Target", &target)]);
         rid += 1;
     }

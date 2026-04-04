@@ -72,52 +72,6 @@ pub fn write_styles(reg: &StyleRegistry) -> Vec<u8> {
     }
     w.end_tag("borders");
 
-    // dxfs (differential formatting for conditional formatting)
-    let dxf_count = reg.dxf_formats.len().to_string();
-    w.start_tag("dxfs", &[("count", &dxf_count)]);
-    for dxf in &reg.dxf_formats {
-        w.start_tag("dxf", &[]);
-        if let Some(ref f) = dxf.font {
-            w.start_tag("font", &[]);
-            if f.bold { w.empty_tag("b", &[]); }
-            if f.italic { w.empty_tag("i", &[]); }
-            if f.strikethrough { w.empty_tag("strike", &[]); }
-            if f.underline == 1 { w.empty_tag("u", &[]); }
-            else if f.underline == 2 { w.empty_tag("u", &[("val", "double")]); }
-            if let Some(rgb) = f.color_rgb {
-                let hex = format!("FF{:02X}{:02X}{:02X}", rgb[0], rgb[1], rgb[2]);
-                w.empty_tag("color", &[("rgb", &hex)]);
-            }
-            w.end_tag("font");
-        }
-        if let Some(ref fl) = dxf.fill {
-            w.start_tag("fill", &[]);
-            let pat = match fl.pattern { 1 => "solid", _ => "none" };
-            if let Some(rgb) = fl.fg_rgb {
-                let hex = format!("FF{:02X}{:02X}{:02X}", rgb[0], rgb[1], rgb[2]);
-                w.start_tag("patternFill", &[("patternType", pat)]);
-                w.empty_tag("bgColor", &[("rgb", &hex)]);
-                w.end_tag("patternFill");
-            } else {
-                w.empty_tag("patternFill", &[("patternType", pat)]);
-            }
-            w.end_tag("fill");
-        }
-        if let Some(ref b) = dxf.border {
-            w.start_tag("border", &[]);
-            write_border_side(&mut w, "left", b.left, b.color_rgb);
-            write_border_side(&mut w, "right", b.right, b.color_rgb);
-            write_border_side(&mut w, "top", b.top, b.color_rgb);
-            write_border_side(&mut w, "bottom", b.bottom, b.color_rgb);
-            w.end_tag("border");
-        }
-        if let Some(ref nf) = dxf.num_format {
-            w.empty_tag("numFmt", &[("numFmtId", "164"), ("formatCode", nf)]);
-        }
-        w.end_tag("dxf");
-    }
-    w.end_tag("dxfs");
-
     // cellStyleXfs (required, at least 1)
     w.start_tag("cellStyleXfs", &[("count", "1")]);
     w.empty_tag("xf", &[("numFmtId", "0"), ("fontId", "0"), ("fillId", "0"), ("borderId", "0")]);
@@ -186,6 +140,52 @@ pub fn write_styles(reg: &StyleRegistry) -> Vec<u8> {
     w.start_tag("cellStyles", &[("count", "1")]);
     w.empty_tag("cellStyle", &[("name", "Normal"), ("xfId", "0"), ("builtinId", "0")]);
     w.end_tag("cellStyles");
+
+    // dxfs (differential formatting for conditional formatting) — must come after cellStyles
+    let dxf_count = reg.dxf_formats.len().to_string();
+    w.start_tag("dxfs", &[("count", &dxf_count)]);
+    for dxf in &reg.dxf_formats {
+        w.start_tag("dxf", &[]);
+        if let Some(ref f) = dxf.font {
+            w.start_tag("font", &[]);
+            if f.bold { w.empty_tag("b", &[]); }
+            if f.italic { w.empty_tag("i", &[]); }
+            if f.strikethrough { w.empty_tag("strike", &[]); }
+            if f.underline == 1 { w.empty_tag("u", &[]); }
+            else if f.underline == 2 { w.empty_tag("u", &[("val", "double")]); }
+            if let Some(rgb) = f.color_rgb {
+                let hex = format!("FF{:02X}{:02X}{:02X}", rgb[0], rgb[1], rgb[2]);
+                w.empty_tag("color", &[("rgb", &hex)]);
+            }
+            w.end_tag("font");
+        }
+        if let Some(ref fl) = dxf.fill {
+            w.start_tag("fill", &[]);
+            let pat = match fl.pattern { 1 => "solid", _ => "none" };
+            if let Some(rgb) = fl.fg_rgb {
+                let hex = format!("FF{:02X}{:02X}{:02X}", rgb[0], rgb[1], rgb[2]);
+                w.start_tag("patternFill", &[("patternType", pat)]);
+                w.empty_tag("bgColor", &[("rgb", &hex)]);
+                w.end_tag("patternFill");
+            } else {
+                w.empty_tag("patternFill", &[("patternType", pat)]);
+            }
+            w.end_tag("fill");
+        }
+        if let Some(ref b) = dxf.border {
+            w.start_tag("border", &[]);
+            write_border_side(&mut w, "left", b.left, b.color_rgb);
+            write_border_side(&mut w, "right", b.right, b.color_rgb);
+            write_border_side(&mut w, "top", b.top, b.color_rgb);
+            write_border_side(&mut w, "bottom", b.bottom, b.color_rgb);
+            w.end_tag("border");
+        }
+        if let Some(ref nf) = dxf.num_format {
+            w.empty_tag("numFmt", &[("numFmtId", "164"), ("formatCode", nf)]);
+        }
+        w.end_tag("dxf");
+    }
+    w.end_tag("dxfs");
 
     w.end_tag("styleSheet");
     w.into_bytes()

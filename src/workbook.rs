@@ -302,7 +302,7 @@ impl Workbook {
 
                 let img_types: Vec<&str> = ws.images.iter().map(|img| img.image_type.extension()).collect();
                 let drawing_rels_path = format!("xl/drawings/_rels/drawing{}.xml.rels", i + 1);
-                zip.add_file(&drawing_rels_path, &drawing_writer::write_drawing_rels(ws.charts.len(), ws.images.len(), &img_types))?;
+                zip.add_file(&drawing_rels_path, &drawing_writer::write_drawing_rels(ws.charts.len(), ws.images.len(), &img_types, meta.global_chart_start, meta.global_image_start))?;
             }
 
             for (ci, chart) in ws.charts.iter().enumerate() {
