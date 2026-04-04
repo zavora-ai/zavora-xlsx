@@ -8,7 +8,7 @@ use crate::xml::xml_writer::XmlWriter;
 use crate::features::conditional::StoredCf;
 use crate::features::sparkline::Sparkline;
 use crate::features::validation::{DataValidation, ValidationRule};
-use crate::worksheet::{Orientation, PrintSettings, SheetProtection};
+use crate::worksheet::{Hyperlink, Orientation, PrintSettings, SheetProtection};
 
 pub struct SheetCells<'a> {
     pub cells: &'a BTreeMap<RowNum, BTreeMap<ColNum, (CellType, u32)>>,
@@ -24,6 +24,14 @@ pub struct SheetCells<'a> {
     pub sparklines: &'a [Sparkline],
     pub protection: Option<&'a SheetProtection>,
     pub print_settings: Option<&'a PrintSettings>,
+    pub hidden_rows: &'a std::collections::BTreeSet<RowNum>,
+    pub hidden_cols: &'a std::collections::BTreeSet<ColNum>,
+    pub autofilter: Option<(RowNum, ColNum, RowNum, ColNum)>,
+    pub hyperlinks: &'a [Hyperlink],
+    #[allow(dead_code)]
+    pub hyperlink_rels: &'a [(String, String)], // (rId, target URL)
+    pub row_outline_levels: &'a BTreeMap<RowNum, u8>,
+    pub col_outline_levels: &'a BTreeMap<ColNum, u8>,
 }
 
 pub fn write_sheet(data: &SheetCells<'_>) -> Vec<u8> {
@@ -34,10 +42,14 @@ pub fn write_sheet(data: &SheetCells<'_>) -> Vec<u8> {
         ("xmlns:r", "http://schemas.openxmlformats.org/officeDocument/2006/relationships"),
     ]);
 
-    // sheetViews (freeze panes)
+    // 1. dimension
+    let dim = compute_dimension(data);
+    w.empty_tag("dimension", &[("ref", &dim)]);
+
+    // 2. sheetViews (always present)
+    w.start_tag("sheetViews", &[]);
+    w.start_tag("sheetView", &[("workbookViewId", "0")]);
     if data.freeze_row > 0 || data.freeze_col > 0 {
-        w.start_tag("sheetViews", &[]);
-        w.start_tag("sheetView", &[("tabSelected", "1"), ("workbookViewId", "0")]);
         let top_left = format!("{}{}", col_to_letter(data.freeze_col), data.freeze_row + 1);
         let mut pane_attrs: Vec<(&str, String)> = Vec::new();
         if data.freeze_col > 0 { pane_attrs.push(("xSplit", data.freeze_col.to_string())); }
@@ -46,31 +58,57 @@ pub fn write_sheet(data: &SheetCells<'_>) -> Vec<u8> {
         pane_attrs.push(("state", "frozen".into()));
         let refs: Vec<(&str, &str)> = pane_attrs.iter().map(|(k, v)| (*k, v.as_str())).collect();
         w.empty_tag("pane", &refs);
-        w.end_tag("sheetView");
-        w.end_tag("sheetViews");
     }
+    w.end_tag("sheetView");
+    w.end_tag("sheetViews");
 
-    // cols
-    if !data.col_widths.is_empty() {
+    // 3. sheetFormatPr
+    w.empty_tag("sheetFormatPr", &[("defaultRowHeight", "15")]);
+
+    // 4. cols (widths + hidden + outline)
+    let has_cols = !data.col_widths.is_empty() || !data.hidden_cols.is_empty() || !data.col_outline_levels.is_empty();
+    if has_cols {
+        // Collect all cols that need an entry
+        let mut all_cols: std::collections::BTreeSet<ColNum> = std::collections::BTreeSet::new();
+        for &c in data.col_widths.keys() { all_cols.insert(c); }
+        for &c in data.hidden_cols { all_cols.insert(c); }
+        for &c in data.col_outline_levels.keys() { all_cols.insert(c); }
         w.start_tag("cols", &[]);
-        for (&col, &width) in data.col_widths {
+        for &col in &all_cols {
             let c = (col + 1).to_string();
+            let width = data.col_widths.get(&col).copied().unwrap_or(8.43);
             let ws = format!("{width:.2}");
-            w.empty_tag("col", &[("min", &c), ("max", &c), ("width", &ws), ("customWidth", "1")]);
+            let mut attrs: Vec<(&str, &str)> = vec![("min", &c), ("max", &c), ("width", &ws)];
+            if data.col_widths.contains_key(&col) { attrs.push(("customWidth", "1")); }
+            let ol;
+            if let Some(&level) = data.col_outline_levels.get(&col) {
+                ol = level.to_string();
+                attrs.push(("outlineLevel", &ol));
+            }
+            if data.hidden_cols.contains(&col) { attrs.push(("hidden", "1")); }
+            w.empty_tag("col", &attrs);
         }
         w.end_tag("cols");
     }
 
-    // sheetData
+    // 5. sheetData
     w.start_tag("sheetData", &[]);
     for (&row, cols) in data.cells {
         let r = (row + 1).to_string();
+        let mut row_attrs: Vec<(&str, &str)> = vec![("r", &r)];
+        let hs;
         if let Some(&height) = data.row_heights.get(&row) {
-            let hs = format!("{height:.2}");
-            w.start_tag("row", &[("r", &r), ("ht", &hs), ("customHeight", "1")]);
-        } else {
-            w.start_tag("row", &[("r", &r)]);
+            hs = format!("{height:.2}");
+            row_attrs.push(("ht", &hs));
+            row_attrs.push(("customHeight", "1"));
         }
+        let ol;
+        if let Some(&level) = data.row_outline_levels.get(&row) {
+            ol = level.to_string();
+            row_attrs.push(("outlineLevel", &ol));
+        }
+        if data.hidden_rows.contains(&row) { row_attrs.push(("hidden", "1")); }
+        w.start_tag("row", &row_attrs);
         for (&col, (cell, xf_idx)) in cols {
             write_cell(&mut w, row, col, cell, *xf_idx);
         }
@@ -89,6 +127,12 @@ pub fn write_sheet(data: &SheetCells<'_>) -> Vec<u8> {
         if prot.objects { attrs.push(("objects", "1")); }
         if prot.scenarios { attrs.push(("scenarios", "1")); }
         w.empty_tag("sheetProtection", &attrs);
+    }
+
+    // autoFilter
+    if let Some((r1, c1, r2, c2)) = data.autofilter {
+        let ref_str = format!("{}{}:{}{}", col_to_letter(c1), r1 + 1, col_to_letter(c2), r2 + 1);
+        w.empty_tag("autoFilter", &[("ref", &ref_str)]);
     }
 
     // mergeCells
@@ -119,6 +163,21 @@ pub fn write_sheet(data: &SheetCells<'_>) -> Vec<u8> {
             write_data_validation(&mut w, dv);
         }
         w.end_tag("dataValidations");
+    }
+
+    // hyperlinks
+    if !data.hyperlinks.is_empty() {
+        w.start_tag("hyperlinks", &[]);
+        for (i, hl) in data.hyperlinks.iter().enumerate() {
+            let cell_ref = format!("{}{}", col_to_letter(hl.col), hl.row + 1);
+            if let Some(ref loc) = hl.location {
+                w.empty_tag("hyperlink", &[("ref", &cell_ref), ("location", loc)]);
+            } else if !hl.url.is_empty() {
+                let rid = format!("rId_hl{}", i + 1);
+                w.empty_tag("hyperlink", &[("ref", &cell_ref), ("r:id", &rid)]);
+            }
+        }
+        w.end_tag("hyperlinks");
     }
 
     // print settings
@@ -391,4 +450,18 @@ fn write_data_validation(w: &mut XmlWriter, dv: &DataValidation) {
         w.text_element("formula2", &[], f2);
     }
     w.end_tag("dataValidation");
+}
+
+fn compute_dimension(data: &SheetCells<'_>) -> String {
+    if data.cells.is_empty() { return "A1".to_string(); }
+    let min_r = *data.cells.keys().next().unwrap();
+    let max_r = *data.cells.keys().next_back().unwrap();
+    let mut min_c = u16::MAX;
+    let mut max_c = 0u16;
+    for cols in data.cells.values() {
+        if let Some(&c) = cols.keys().next() { min_c = min_c.min(c); }
+        if let Some(&c) = cols.keys().next_back() { max_c = max_c.max(c); }
+    }
+    if min_c == u16::MAX { min_c = 0; }
+    format!("{}{}:{}{}", col_to_letter(min_c), min_r + 1, col_to_letter(max_c), max_r + 1)
 }

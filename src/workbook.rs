@@ -4,8 +4,9 @@ use crate::model::shared_strings::SharedStringTable;
 use crate::model::style_registry::StyleRegistry;
 use crate::properties::{self, DocProperties};
 use crate::reader::xlsx_reader;
+use crate::utility::col_to_letter;
 use crate::writer::sheet_writer::{self, SheetCells};
-use crate::writer::{chart_writer, drawing_writer, rel_writer, sst_writer, style_writer, table_writer};
+use crate::writer::{chart_writer, comment_writer, drawing_writer, rel_writer, sst_writer, style_writer, table_writer};
 use crate::worksheet::Worksheet;
 use crate::xml::xml_writer::XmlWriter;
 use crate::zip::zip_writer::ZipOutput;
@@ -131,11 +132,13 @@ impl Workbook {
         let mut total_charts = 0usize;
         let mut total_tables = 0usize;
         let mut sheets_with_drawings = Vec::new();
+        let mut sheets_with_comments = Vec::new();
         let mut image_extensions: Vec<String> = Vec::new();
 
         for (i, ws) in self.worksheets.iter().enumerate() {
             let has_drawing = !ws.charts.is_empty() || !ws.images.is_empty();
             if has_drawing { sheets_with_drawings.push(i); }
+            if !ws.comments.is_empty() { sheets_with_comments.push(i); }
             total_charts += ws.charts.len();
             total_tables += ws.tables.len();
             for img in &ws.images {
@@ -146,7 +149,7 @@ impl Workbook {
         let has_vba = self.passthrough_entries.iter().any(|(n, _)| n.eq_ignore_ascii_case("xl/vbaProject.bin"));
 
         zip.add_file("[Content_Types].xml", &write_content_types_full(
-            sheet_count, has_props, total_charts, total_tables, &sheets_with_drawings, &image_extensions, has_vba, self.is_xlsm,
+            sheet_count, has_props, total_charts, total_tables, &sheets_with_drawings, &image_extensions, has_vba, self.is_xlsm, &sheets_with_comments,
         ))?;
         zip.add_file("_rels/.rels", &write_root_rels(has_props))?;
         zip.add_file("xl/_rels/workbook.xml.rels", &rel_writer::write_workbook_rels(sheet_count, has_vba))?;
@@ -188,6 +191,24 @@ impl Workbook {
                 next_rid += 1;
             }
 
+            // Hyperlink rels (external URLs only)
+            for (hi, hl) in ws.hyperlinks.iter().enumerate() {
+                if hl.location.is_none() && !hl.url.is_empty() {
+                    let rid = format!("rId_hl{}", hi + 1);
+                    sheet_rels.push((rid, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink".into(), hl.url.clone()));
+                }
+            }
+
+            // Comment rels
+            if !ws.comments.is_empty() {
+                let rid = format!("rId{next_rid}");
+                sheet_rels.push((rid, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments".into(), format!("../comments{}.xml", i + 1)));
+                next_rid += 1;
+                let rid2 = format!("rId{next_rid}");
+                sheet_rels.push((rid2, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/vmlDrawing".into(), format!("../drawings/vmlDrawing{}.vml", i + 1)));
+                let _ = next_rid;
+            }
+
             metas.push(SheetMeta {
                 drawing_rid, table_rids, sheet_rels,
                 global_chart_start: global_chart_idx,
@@ -216,6 +237,11 @@ impl Workbook {
                         validations: &ws.validations, sparklines: &ws.sparklines,
                         protection: ws.protection.as_ref(),
                         print_settings: ws.print_settings.as_ref(),
+                        hidden_rows: &ws.hidden_rows, hidden_cols: &ws.hidden_cols,
+                        autofilter: ws.autofilter,
+                        hyperlinks: &ws.hyperlinks, hyperlink_rels: &[],
+                        row_outline_levels: &ws.row_outline_levels,
+                        col_outline_levels: &ws.col_outline_levels,
                     };
                     Some(sheet_writer::write_sheet(&sc))
                 })
@@ -272,6 +298,14 @@ impl Workbook {
                 let idx = meta.global_table_start + ti + 1;
                 let table_path = format!("xl/tables/table{idx}.xml");
                 zip.add_file(&table_path, &table_writer::write_table_xml(table, idx))?;
+            }
+
+            // Write comments
+            if !ws.comments.is_empty() {
+                let comments_path = format!("xl/comments{}.xml", i + 1);
+                zip.add_file(&comments_path, &comment_writer::write_comments_xml(&ws.comments))?;
+                let vml_path = format!("xl/drawings/vmlDrawing{}.vml", i + 1);
+                zip.add_file(&vml_path, &comment_writer::write_vml_drawing(&ws.comments))?;
             }
         }
 
@@ -425,10 +459,33 @@ impl Workbook {
             w.empty_tag("workbookProtection", &attrs);
         }
 
-        if !self.defined_names.is_empty() {
+        // Collect all defined names including print_area/repeat_rows
+        let mut all_names: Vec<(String, String, Option<usize>)> = Vec::new();
+        for (name, formula) in &self.defined_names {
+            all_names.push((name.clone(), formula.clone(), None));
+        }
+        for (i, ws) in self.worksheets.iter().enumerate() {
+            if let Some(ref ps) = ws.print_settings {
+                if let Some((r1, c1, r2, c2)) = ps.print_area {
+                    let val = format!("'{}'!${}${}:${}${}", ws.name, col_to_letter(c1), r1 + 1, col_to_letter(c2), r2 + 1);
+                    all_names.push(("_xlnm.Print_Area".into(), val, Some(i)));
+                }
+                if let Some((first, last)) = ps.repeat_rows {
+                    let val = format!("'{}'!${}:${}", ws.name, first + 1, last + 1);
+                    all_names.push(("_xlnm.Print_Titles".into(), val, Some(i)));
+                }
+            }
+        }
+
+        if !all_names.is_empty() {
             w.start_tag("definedNames", &[]);
-            for (name, formula) in &self.defined_names {
-                w.text_element("definedName", &[("name", name.as_str())], formula);
+            for (name, formula, local_sheet) in &all_names {
+                if let Some(idx) = local_sheet {
+                    let ids = idx.to_string();
+                    w.text_element("definedName", &[("name", name.as_str()), ("localSheetId", &ids)], formula);
+                } else {
+                    w.text_element("definedName", &[("name", name.as_str())], formula);
+                }
             }
             w.end_tag("definedNames");
         }
@@ -442,7 +499,7 @@ impl Default for Workbook {
     fn default() -> Self { Self::new() }
 }
 
-fn write_content_types_full(sheet_count: usize, has_props: bool, chart_count: usize, table_count: usize, sheets_with_drawings: &[usize], image_extensions: &[String], has_vba: bool, is_xlsm: bool) -> Vec<u8> {
+fn write_content_types_full(sheet_count: usize, has_props: bool, chart_count: usize, table_count: usize, sheets_with_drawings: &[usize], image_extensions: &[String], has_vba: bool, is_xlsm: bool, sheets_with_comments: &[usize]) -> Vec<u8> {
     let mut w = XmlWriter::new();
     w.declaration();
     w.start_tag("Types", &[("xmlns", "http://schemas.openxmlformats.org/package/2006/content-types")]);
@@ -485,6 +542,14 @@ fn write_content_types_full(sheet_count: usize, has_props: bool, chart_count: us
     for i in 1..=table_count {
         let part = format!("/xl/tables/table{i}.xml");
         w.empty_tag("Override", &[("PartName", &part), ("ContentType", "application/vnd.openxmlformats-officedocument.spreadsheetml.table+xml")]);
+    }
+
+    for &si in sheets_with_comments {
+        let part = format!("/xl/comments{}.xml", si + 1);
+        w.empty_tag("Override", &[("PartName", &part), ("ContentType", "application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml")]);
+    }
+    if !sheets_with_comments.is_empty() {
+        w.empty_tag("Default", &[("Extension", "vml"), ("ContentType", "application/vnd.openxmlformats-officedocument.vmlDrawing")]);
     }
 
     if has_props {

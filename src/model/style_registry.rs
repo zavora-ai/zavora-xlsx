@@ -53,6 +53,8 @@ pub struct XfRecord {
     pub border_id: usize,
     pub num_fmt_id: u16,
     pub alignment: Option<AlignmentData>,
+    pub locked: Option<bool>,
+    pub formula_hidden: bool,
 }
 
 /// Centralized style registry with deduplication.
@@ -103,6 +105,7 @@ impl StyleRegistry {
         // Default xf record (style 0)
         let default_xf = XfRecord {
             font_id: 0, fill_id: 0, border_id: 0, num_fmt_id: 0, alignment: None,
+            locked: None, formula_hidden: false,
         };
         reg.xf_records.push(default_xf.clone());
         reg.xf_map.insert(default_xf, 0);
@@ -187,7 +190,7 @@ impl StyleRegistry {
         let border_id = self.intern_border(border);
         let num_fmt_id = self.intern_num_format(&fmt.num_format);
 
-        let xf = XfRecord { font_id, fill_id, border_id, num_fmt_id, alignment };
+        let xf = XfRecord { font_id, fill_id, border_id, num_fmt_id, alignment, locked: fmt.locked, formula_hidden: fmt.formula_hidden };
         if let Some(&idx) = self.xf_map.get(&xf) {
             return idx;
         }

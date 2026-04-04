@@ -40,6 +40,14 @@ pub struct Worksheet {
     // Phase 4 features
     pub(crate) protection: Option<SheetProtection>,
     pub(crate) print_settings: Option<PrintSettings>,
+    // Phase 5 features
+    pub(crate) hidden_rows: std::collections::BTreeSet<RowNum>,
+    pub(crate) hidden_cols: std::collections::BTreeSet<ColNum>,
+    pub(crate) autofilter: Option<(RowNum, ColNum, RowNum, ColNum)>,
+    pub(crate) hyperlinks: Vec<Hyperlink>,
+    pub(crate) comments: Vec<Comment>,
+    pub(crate) row_outline_levels: BTreeMap<RowNum, u8>,
+    pub(crate) col_outline_levels: BTreeMap<ColNum, u8>,
 }
 
 impl Worksheet {
@@ -56,6 +64,10 @@ impl Worksheet {
             charts: Vec::new(), images: Vec::new(), tables: Vec::new(),
             conditional_formats: Vec::new(), validations: Vec::new(), sparklines: Vec::new(),
             protection: None, print_settings: None,
+            hidden_rows: std::collections::BTreeSet::new(),
+            hidden_cols: std::collections::BTreeSet::new(),
+            autofilter: None, hyperlinks: Vec::new(), comments: Vec::new(),
+            row_outline_levels: BTreeMap::new(), col_outline_levels: BTreeMap::new(),
         }
     }
 
@@ -315,15 +327,12 @@ impl Worksheet {
 
     // ── Protection ──
 
-    /// Protect the sheet with an optional password. When protected, users cannot edit cells
-    /// unless they are explicitly unlocked via format.
     pub fn protect(&mut self) -> &mut Self {
         self.protection = Some(SheetProtection::default());
         self.dirty = true;
         self
     }
 
-    /// Protect the sheet with a password.
     pub fn protect_with_password(&mut self, password: &str) -> &mut Self {
         let mut prot = SheetProtection::default();
         prot.password_hash = Some(hash_password(password));
@@ -344,6 +353,90 @@ impl Worksheet {
         let ps = self.print_settings.get_or_insert_with(PrintSettings::default);
         ps.row_breaks = row_breaks.to_vec();
         ps.col_breaks = col_breaks.to_vec();
+        self.dirty = true;
+        self
+    }
+
+    // ── Hidden Rows/Columns ──
+
+    pub fn set_row_hidden(&mut self, row: RowNum, hidden: bool) -> &mut Self {
+        if hidden { self.hidden_rows.insert(row); } else { self.hidden_rows.remove(&row); }
+        self.dirty = true;
+        self
+    }
+
+    pub fn set_column_hidden(&mut self, col: ColNum, hidden: bool) -> &mut Self {
+        if hidden { self.hidden_cols.insert(col); } else { self.hidden_cols.remove(&col); }
+        self.dirty = true;
+        self
+    }
+
+    // ── Auto-filter ──
+
+    pub fn set_autofilter(&mut self, r1: RowNum, c1: ColNum, r2: RowNum, c2: ColNum) -> &mut Self {
+        self.autofilter = Some((r1, c1, r2, c2));
+        self.dirty = true;
+        self
+    }
+
+    // ── Hyperlinks ──
+
+    pub fn write_url(&mut self, row: RowNum, col: ColNum, url: &str, text: &str) -> crate::Result<&mut Self> {
+        self.ensure_deserialized();
+        self.dirty = true;
+        self.write_string_internal(row, col, if text.is_empty() { url } else { text }, None)?;
+        self.hyperlinks.push(Hyperlink { row, col, url: url.to_string(), location: None, tooltip: None });
+        Ok(self)
+    }
+
+    pub fn write_internal_link(&mut self, row: RowNum, col: ColNum, location: &str, text: &str) -> crate::Result<&mut Self> {
+        self.ensure_deserialized();
+        self.dirty = true;
+        self.write_string_internal(row, col, text, None)?;
+        self.hyperlinks.push(Hyperlink { row, col, url: String::new(), location: Some(location.to_string()), tooltip: None });
+        Ok(self)
+    }
+
+    // ── Comments ──
+
+    pub fn add_comment(&mut self, row: RowNum, col: ColNum, text: &str) -> &mut Self {
+        self.comments.push(Comment { row, col, text: text.to_string(), author: "Author".to_string() });
+        self.dirty = true;
+        self
+    }
+
+    pub fn add_comment_with_author(&mut self, row: RowNum, col: ColNum, text: &str, author: &str) -> &mut Self {
+        self.comments.push(Comment { row, col, text: text.to_string(), author: author.to_string() });
+        self.dirty = true;
+        self
+    }
+
+    // ── Row/Column Grouping ──
+
+    pub fn group_rows(&mut self, start: RowNum, end: RowNum, level: u8) -> &mut Self {
+        for r in start..=end { self.row_outline_levels.insert(r, level); }
+        self.dirty = true;
+        self
+    }
+
+    pub fn group_columns(&mut self, start: ColNum, end: ColNum, level: u8) -> &mut Self {
+        for c in start..=end { self.col_outline_levels.insert(c, level); }
+        self.dirty = true;
+        self
+    }
+
+    // ── Print Area / Repeat Rows ──
+
+    pub fn set_print_area(&mut self, r1: RowNum, c1: ColNum, r2: RowNum, c2: ColNum) -> &mut Self {
+        let ps = self.print_settings.get_or_insert_with(PrintSettings::default);
+        ps.print_area = Some((r1, c1, r2, c2));
+        self.dirty = true;
+        self
+    }
+
+    pub fn set_repeat_rows(&mut self, first: RowNum, last: RowNum) -> &mut Self {
+        let ps = self.print_settings.get_or_insert_with(PrintSettings::default);
+        ps.repeat_rows = Some((first, last));
         self.dirty = true;
         self
     }
@@ -620,6 +713,8 @@ pub struct PrintSettings {
     pub footer: Option<String>,
     pub row_breaks: Vec<RowNum>,
     pub col_breaks: Vec<ColNum>,
+    pub print_area: Option<(RowNum, ColNum, RowNum, ColNum)>,
+    pub repeat_rows: Option<(RowNum, RowNum)>,
 }
 
 impl PrintSettings {
@@ -662,4 +757,23 @@ fn hash_password(password: &str) -> String {
 
 pub(crate) fn hash_password_public(password: &str) -> String {
     hash_password(password)
+}
+
+/// A hyperlink on a cell.
+#[derive(Debug, Clone)]
+pub struct Hyperlink {
+    pub row: RowNum,
+    pub col: ColNum,
+    pub url: String,
+    pub location: Option<String>, // internal link like "Sheet2!A1"
+    pub tooltip: Option<String>,
+}
+
+/// A comment/note on a cell.
+#[derive(Debug, Clone)]
+pub struct Comment {
+    pub row: RowNum,
+    pub col: ColNum,
+    pub text: String,
+    pub author: String,
 }

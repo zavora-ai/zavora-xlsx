@@ -93,6 +93,9 @@ pub fn write_styles(reg: &StyleRegistry) -> Vec<u8> {
         if xf.border_id > 0 { attrs.push(("applyBorder", "1")); }
         if xf.num_fmt_id > 0 { attrs.push(("applyNumberFormat", "1")); }
 
+        let has_protection = xf.locked.is_some() || xf.formula_hidden;
+        if has_protection { attrs.push(("applyProtection", "1")); }
+
         if let Some(ref align) = xf.alignment {
             attrs.push(("applyAlignment", "1"));
             w.start_tag("xf", &attrs);
@@ -111,6 +114,19 @@ pub fn write_styles(reg: &StyleRegistry) -> Vec<u8> {
             if align.shrink { aa.push(("shrinkToFit", "1".into())); }
             let refs: Vec<(&str, &str)> = aa.iter().map(|(k, v)| (*k, v.as_str())).collect();
             w.empty_tag("alignment", &refs);
+            if has_protection {
+                let mut pa: Vec<(&str, &str)> = Vec::new();
+                if xf.locked == Some(false) { pa.push(("locked", "0")); }
+                if xf.formula_hidden { pa.push(("hidden", "1")); }
+                w.empty_tag("protection", &pa);
+            }
+            w.end_tag("xf");
+        } else if has_protection {
+            w.start_tag("xf", &attrs);
+            let mut pa: Vec<(&str, &str)> = Vec::new();
+            if xf.locked == Some(false) { pa.push(("locked", "0")); }
+            if xf.formula_hidden { pa.push(("hidden", "1")); }
+            w.empty_tag("protection", &pa);
             w.end_tag("xf");
         } else {
             w.empty_tag("xf", &attrs);

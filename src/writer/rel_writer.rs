@@ -5,7 +5,11 @@ pub fn write_rels(rels: &[(&str, &str, &str)]) -> Vec<u8> {
     w.declaration();
     w.start_tag("Relationships", &[("xmlns", "http://schemas.openxmlformats.org/package/2006/relationships")]);
     for &(id, rel_type, target) in rels {
-        w.empty_tag("Relationship", &[("Id", id), ("Type", rel_type), ("Target", target)]);
+        if rel_type.contains("hyperlink") {
+            w.empty_tag("Relationship", &[("Id", id), ("Type", rel_type), ("Target", target), ("TargetMode", "External")]);
+        } else {
+            w.empty_tag("Relationship", &[("Id", id), ("Type", rel_type), ("Target", target)]);
+        }
     }
     w.end_tag("Relationships");
     w.into_bytes()

@@ -22,6 +22,8 @@ pub struct Format {
     pub(crate) indent: u8,
     pub(crate) rotation: i16,
     pub(crate) num_format: String,
+    pub(crate) locked: Option<bool>,
+    pub(crate) formula_hidden: bool,
 }
 
 impl Format {
@@ -35,6 +37,7 @@ impl Format {
             border_color: None,
             h_align: 0, v_align: 0, wrap_text: false, shrink: false,
             indent: 0, rotation: 0, num_format: String::new(),
+            locked: None, formula_hidden: false,
         }
     }
 
@@ -75,6 +78,9 @@ impl Format {
     pub fn shrink_to_fit(mut self) -> Self { self.shrink = true; self }
     pub fn indent(mut self, level: u8) -> Self { self.indent = level; self }
     pub fn rotation(mut self, angle: i16) -> Self { self.rotation = angle; self }
+    pub fn unlocked(mut self) -> Self { self.locked = Some(false); self }
+    pub fn locked(mut self) -> Self { self.locked = Some(true); self }
+    pub fn formula_hidden(mut self) -> Self { self.formula_hidden = true; self }
 
     pub(crate) fn has_alignment(&self) -> bool {
         self.h_align != 0 || self.v_align != 0 || self.wrap_text || self.shrink || self.indent != 0 || self.rotation != 0
