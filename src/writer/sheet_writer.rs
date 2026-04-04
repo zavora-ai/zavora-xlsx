@@ -267,6 +267,10 @@ pub fn write_sheet(data: &SheetCells<'_>) -> Vec<u8> {
 
     // drawing reference
     if let Some(ref rid) = data.drawing_rid {
+        // pageMargins is required before drawing in many Excel implementations
+        if data.print_settings.is_none() {
+            w.empty_tag("pageMargins", &[("top", "0.75"), ("bottom", "0.75"), ("left", "0.7"), ("right", "0.7"), ("header", "0.3"), ("footer", "0.3")]);
+        }
         w.empty_tag("drawing", &[("r:id", rid)]);
     }
 
