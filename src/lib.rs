@@ -34,7 +34,7 @@ mod zip;
 pub use cell::{CellValue, IntoExcelData, RichText, RichTextRun};
 pub use datetime::ExcelDateTime;
 pub use error::{Error, Result};
-pub use features::chart::{Chart, ChartSeries, ChartType, LegendPosition};
+pub use features::chart::{Chart, ChartSeries, ChartType, DataLabelPosition, LegendPosition, TrendlineType};
 pub use features::conditional::{
     AverageType, CfOperator, ConditionalFormat, ConditionalFormat2ColorScale,
     ConditionalFormat3ColorScale, ConditionalFormatAverage, ConditionalFormatCell,
