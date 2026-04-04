@@ -30,6 +30,7 @@ impl SharedStringTable {
 
     /// Number of unique strings.
     pub fn len(&self) -> u32 { self.strings.len() as u32 }
+    #[allow(dead_code)]
     pub fn is_empty(&self) -> bool { self.strings.is_empty() }
 
     /// Iterate all strings in order.

@@ -1,11 +1,11 @@
 use quick_xml::events::Event;
-use quick_xml::name::QName;
 use quick_xml::reader::Reader;
 
 use crate::xml::xml_reader::get_attr_str;
 
 pub struct Rel {
     pub id: String,
+    #[allow(dead_code)]
     pub rel_type: String,
     pub target: String,
 }

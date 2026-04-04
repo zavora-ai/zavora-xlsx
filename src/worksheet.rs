@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 
-use crate::cell::{CellType, CellValue, IntoExcelData};
+use crate::cell::{CellType, CellValue, IntoExcelData, RichText};
 use crate::datetime::ExcelDateTime;
 use crate::features::chart::Chart;
 use crate::features::conditional::{ConditionalFormat, StoredCf};
@@ -15,6 +15,9 @@ use crate::model::style_registry::StyleRegistry;
 use crate::reader::sheet_reader::RawCell;
 use crate::utility::{ColNum, RowNum};
 
+/// A worksheet within a workbook. Contains cells, formatting, charts, images,
+/// tables, conditional formatting, data validation, and sparklines.
+/// All coordinates are 0-based: row 0 = Excel row 1, col 0 = column A.
 pub struct Worksheet {
     pub(crate) name: String,
     pub(crate) cells: BTreeMap<RowNum, BTreeMap<ColNum, (CellType, u32)>>,
@@ -34,6 +37,9 @@ pub struct Worksheet {
     pub(crate) conditional_formats: Vec<StoredCf>,
     pub(crate) validations: Vec<DataValidation>,
     pub(crate) sparklines: Vec<Sparkline>,
+    // Phase 4 features
+    pub(crate) protection: Option<SheetProtection>,
+    pub(crate) print_settings: Option<PrintSettings>,
 }
 
 impl Worksheet {
@@ -49,6 +55,7 @@ impl Worksheet {
             read_cells: None, raw_xml: None, dirty: false,
             charts: Vec::new(), images: Vec::new(), tables: Vec::new(),
             conditional_formats: Vec::new(), validations: Vec::new(), sparklines: Vec::new(),
+            protection: None, print_settings: None,
         }
     }
 
@@ -107,6 +114,13 @@ impl Worksheet {
         self.ensure_deserialized();
         self.dirty = true;
         self.cells.entry(row).or_default().insert(col, (CellType::Formula { text: formula.to_string(), cached_number: None }, 0));
+        Ok(self)
+    }
+
+    pub fn write_rich_text(&mut self, row: RowNum, col: ColNum, rich_text: &RichText) -> crate::Result<&mut Self> {
+        self.ensure_deserialized();
+        self.dirty = true;
+        self.cells.entry(row).or_default().insert(col, (CellType::RichText(rich_text.clone()), 0));
         Ok(self)
     }
 
@@ -205,6 +219,36 @@ impl Worksheet {
     pub fn set_row_height(&mut self, row: RowNum, height: f64) -> crate::Result<&mut Self> { self.row_heights.insert(row, height); self.dirty = true; Ok(self) }
     pub fn set_freeze_panes(&mut self, row: RowNum, col: ColNum) -> crate::Result<&mut Self> { self.freeze_row = row; self.freeze_col = col; self.dirty = true; Ok(self) }
 
+    /// Automatically set column widths based on cell content.
+    /// Estimates character widths using a simple heuristic (1 char ≈ 1.1 units, min 8, max 64).
+    pub fn autofit(&mut self) -> crate::Result<&mut Self> {
+        self.ensure_deserialized();
+        let mut max_widths: BTreeMap<ColNum, f64> = BTreeMap::new();
+        for cols in self.cells.values() {
+            for (&col, (cell, _)) in cols {
+                let len = match cell {
+                    CellType::Number(n) => format!("{n}").len(),
+                    CellType::InlineString(s) => s.len(),
+                    CellType::SharedString(_) => 8,
+                    CellType::Bool(_) => 5,
+                    CellType::Formula { text, .. } => text.len().min(20),
+                    CellType::DateTime(_) => 10,
+                    CellType::Error(e) => e.len(),
+                    CellType::RichText(rt) => rt.plain_text().len(),
+                    CellType::Empty => 0,
+                };
+                let width = (len as f64 * 1.1 + 2.0).max(8.0).min(64.0);
+                let entry = max_widths.entry(col).or_insert(8.0);
+                if width > *entry { *entry = width; }
+            }
+        }
+        for (col, w) in max_widths {
+            self.col_widths.insert(col, w);
+        }
+        self.dirty = true;
+        Ok(self)
+    }
+
     // ── Charts ──
 
     pub fn insert_chart(&mut self, row: RowNum, col: ColNum, chart: &Chart) -> crate::Result<&mut Self> {
@@ -267,6 +311,41 @@ impl Worksheet {
         self.sparklines.push(s);
         self.dirty = true;
         Ok(self)
+    }
+
+    // ── Protection ──
+
+    /// Protect the sheet with an optional password. When protected, users cannot edit cells
+    /// unless they are explicitly unlocked via format.
+    pub fn protect(&mut self) -> &mut Self {
+        self.protection = Some(SheetProtection::default());
+        self.dirty = true;
+        self
+    }
+
+    /// Protect the sheet with a password.
+    pub fn protect_with_password(&mut self, password: &str) -> &mut Self {
+        let mut prot = SheetProtection::default();
+        prot.password_hash = Some(hash_password(password));
+        self.protection = Some(prot);
+        self.dirty = true;
+        self
+    }
+
+    // ── Print Settings ──
+
+    pub fn set_print_settings(&mut self, settings: &PrintSettings) -> &mut Self {
+        self.print_settings = Some(settings.clone());
+        self.dirty = true;
+        self
+    }
+
+    pub fn set_page_breaks(&mut self, row_breaks: &[RowNum], col_breaks: &[ColNum]) -> &mut Self {
+        let ps = self.print_settings.get_or_insert_with(PrintSettings::default);
+        ps.row_breaks = row_breaks.to_vec();
+        ps.col_breaks = col_breaks.to_vec();
+        self.dirty = true;
+        self
     }
 
     // ── Row/Column operations ──
@@ -464,6 +543,7 @@ fn cell_type_to_value(cell: &CellType) -> CellValue {
         },
         CellType::DateTime(s) => CellValue::DateTime(ExcelDateTime::new(*s, false)),
         CellType::Error(e) => CellValue::Error(e.clone()),
+        CellType::RichText(rt) => CellValue::RichText(rt.clone()),
     }
 }
 
@@ -482,5 +562,104 @@ fn cell_value_to_type(value: &CellValue) -> CellType {
                 _ => None,
             },
         },
+        CellValue::RichText(rt) => CellType::RichText(rt.clone()),
     }
+}
+
+/// Sheet protection settings.
+#[derive(Debug, Clone)]
+pub struct SheetProtection {
+    pub(crate) password_hash: Option<String>,
+    pub sheet: bool,
+    pub objects: bool,
+    pub scenarios: bool,
+    pub format_cells: bool,
+    pub format_columns: bool,
+    pub format_rows: bool,
+    pub insert_columns: bool,
+    pub insert_rows: bool,
+    pub insert_hyperlinks: bool,
+    pub delete_columns: bool,
+    pub delete_rows: bool,
+    pub select_locked_cells: bool,
+    pub sort: bool,
+    pub auto_filter: bool,
+    pub pivot_tables: bool,
+    pub select_unlocked_cells: bool,
+}
+
+impl Default for SheetProtection {
+    fn default() -> Self {
+        Self {
+            password_hash: None,
+            sheet: true, objects: true, scenarios: true,
+            format_cells: true, format_columns: true, format_rows: true,
+            insert_columns: true, insert_rows: true, insert_hyperlinks: true,
+            delete_columns: true, delete_rows: true,
+            select_locked_cells: false, sort: true, auto_filter: true,
+            pivot_tables: true, select_unlocked_cells: false,
+        }
+    }
+}
+
+/// Print settings for a worksheet.
+#[derive(Debug, Clone, Default)]
+pub struct PrintSettings {
+    pub paper_size: Option<u8>,
+    pub orientation: Option<Orientation>,
+    pub fit_to_page: bool,
+    pub fit_to_width: Option<u16>,
+    pub fit_to_height: Option<u16>,
+    pub margin_top: Option<f64>,
+    pub margin_bottom: Option<f64>,
+    pub margin_left: Option<f64>,
+    pub margin_right: Option<f64>,
+    pub margin_header: Option<f64>,
+    pub margin_footer: Option<f64>,
+    pub header: Option<String>,
+    pub footer: Option<String>,
+    pub row_breaks: Vec<RowNum>,
+    pub col_breaks: Vec<ColNum>,
+}
+
+impl PrintSettings {
+    pub fn new() -> Self { Self::default() }
+    pub fn paper_size(mut self, size: u8) -> Self { self.paper_size = Some(size); self }
+    pub fn orientation(mut self, o: Orientation) -> Self { self.orientation = Some(o); self }
+    pub fn fit_to_page(mut self, width: u16, height: u16) -> Self {
+        self.fit_to_page = true;
+        self.fit_to_width = Some(width);
+        self.fit_to_height = Some(height);
+        self
+    }
+    pub fn margins(mut self, top: f64, bottom: f64, left: f64, right: f64) -> Self {
+        self.margin_top = Some(top); self.margin_bottom = Some(bottom);
+        self.margin_left = Some(left); self.margin_right = Some(right);
+        self
+    }
+    pub fn header(mut self, h: &str) -> Self { self.header = Some(h.to_string()); self }
+    pub fn footer(mut self, f: &str) -> Self { self.footer = Some(f.to_string()); self }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Orientation { Portrait, Landscape }
+
+/// Excel legacy password hash (XOR-based, 16-bit).
+fn hash_password(password: &str) -> String {
+    let bytes = password.as_bytes();
+    let mut hash: u16 = 0;
+    for (i, &b) in bytes.iter().rev().enumerate() {
+        let mut val = b as u16;
+        val ^= (i + 1) as u16;
+        // Rotate left by 1 within 15 bits
+        val = ((val >> 14) & 1) | ((val << 1) & 0x7FFF);
+        hash ^= val;
+    }
+    hash ^= bytes.len() as u16;
+    hash ^= 0xCE4B;
+    format!("{hash:04X}")
+}
+
+pub(crate) fn hash_password_public(password: &str) -> String {
+    hash_password(password)
 }

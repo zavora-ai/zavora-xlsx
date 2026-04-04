@@ -1,13 +1,14 @@
 use std::collections::BTreeMap;
 use std::fmt::Write;
 
-use crate::cell::CellType;
+use crate::cell::{CellType, RichText};
 use crate::utility::{col_to_letter, ColNum, RowNum};
 use crate::xml::xml_writer::XmlWriter;
 
 use crate::features::conditional::StoredCf;
 use crate::features::sparkline::Sparkline;
 use crate::features::validation::{DataValidation, ValidationRule};
+use crate::worksheet::{Orientation, PrintSettings, SheetProtection};
 
 pub struct SheetCells<'a> {
     pub cells: &'a BTreeMap<RowNum, BTreeMap<ColNum, (CellType, u32)>>,
@@ -16,13 +17,13 @@ pub struct SheetCells<'a> {
     pub row_heights: &'a BTreeMap<RowNum, f64>,
     pub freeze_row: RowNum,
     pub freeze_col: ColNum,
-    pub has_drawing: bool,
     pub drawing_rid: Option<String>,
-    pub table_parts: Vec<String>, // rIds for tables
+    pub table_parts: Vec<String>,
     pub conditional_formats: &'a [StoredCf],
     pub validations: &'a [DataValidation],
     pub sparklines: &'a [Sparkline],
-    pub sheet_name: &'a str,
+    pub protection: Option<&'a SheetProtection>,
+    pub print_settings: Option<&'a PrintSettings>,
 }
 
 pub fn write_sheet(data: &SheetCells<'_>) -> Vec<u8> {
@@ -77,6 +78,19 @@ pub fn write_sheet(data: &SheetCells<'_>) -> Vec<u8> {
     }
     w.end_tag("sheetData");
 
+    // sheetProtection
+    if let Some(prot) = data.protection {
+        let mut attrs: Vec<(&str, &str)> = vec![("sheet", "1")];
+        let pw;
+        if let Some(ref hash) = prot.password_hash {
+            pw = hash.clone();
+            attrs.push(("password", &pw));
+        }
+        if prot.objects { attrs.push(("objects", "1")); }
+        if prot.scenarios { attrs.push(("scenarios", "1")); }
+        w.empty_tag("sheetProtection", &attrs);
+    }
+
     // mergeCells
     if !data.merge_ranges.is_empty() {
         let count = data.merge_ranges.len().to_string();
@@ -105,6 +119,63 @@ pub fn write_sheet(data: &SheetCells<'_>) -> Vec<u8> {
             write_data_validation(&mut w, dv);
         }
         w.end_tag("dataValidations");
+    }
+
+    // print settings
+    if let Some(ps) = data.print_settings {
+        // pageMargins
+        let top = ps.margin_top.unwrap_or(0.75);
+        let bot = ps.margin_bottom.unwrap_or(0.75);
+        let left = ps.margin_left.unwrap_or(0.7);
+        let right = ps.margin_right.unwrap_or(0.7);
+        let hdr = ps.margin_header.unwrap_or(0.3);
+        let ftr = ps.margin_footer.unwrap_or(0.3);
+        let ts = format!("{top}"); let bs = format!("{bot}");
+        let ls = format!("{left}"); let rs = format!("{right}");
+        let hs = format!("{hdr}"); let fs = format!("{ftr}");
+        w.empty_tag("pageMargins", &[("top", &ts), ("bottom", &bs), ("left", &ls), ("right", &rs), ("header", &hs), ("footer", &fs)]);
+
+        // pageSetup
+        let mut setup_attrs: Vec<(&str, String)> = Vec::new();
+        if let Some(sz) = ps.paper_size { setup_attrs.push(("paperSize", sz.to_string())); }
+        if let Some(Orientation::Landscape) = ps.orientation { setup_attrs.push(("orientation", "landscape".into())); }
+        else if ps.orientation.is_some() { setup_attrs.push(("orientation", "portrait".into())); }
+        if ps.fit_to_page {
+            if let Some(fw) = ps.fit_to_width { setup_attrs.push(("fitToWidth", fw.to_string())); }
+            if let Some(fh) = ps.fit_to_height { setup_attrs.push(("fitToHeight", fh.to_string())); }
+        }
+        if !setup_attrs.is_empty() {
+            let refs: Vec<(&str, &str)> = setup_attrs.iter().map(|(k, v)| (*k, v.as_str())).collect();
+            w.empty_tag("pageSetup", &refs);
+        }
+
+        // headerFooter
+        if ps.header.is_some() || ps.footer.is_some() {
+            w.start_tag("headerFooter", &[]);
+            if let Some(ref h) = ps.header { w.text_element("oddHeader", &[], h); }
+            if let Some(ref f) = ps.footer { w.text_element("oddFooter", &[], f); }
+            w.end_tag("headerFooter");
+        }
+
+        // rowBreaks
+        if !ps.row_breaks.is_empty() {
+            let count = ps.row_breaks.len().to_string();
+            w.start_tag("rowBreaks", &[("count", &count), ("manualBreakCount", &count)]);
+            for &rb in &ps.row_breaks {
+                let id = (rb + 1).to_string();
+                w.empty_tag("brk", &[("id", &id), ("max", "16383"), ("man", "1")]);
+            }
+            w.end_tag("rowBreaks");
+        }
+        if !ps.col_breaks.is_empty() {
+            let count = ps.col_breaks.len().to_string();
+            w.start_tag("colBreaks", &[("count", &count), ("manualBreakCount", &count)]);
+            for &cb in &ps.col_breaks {
+                let id = (cb + 1).to_string();
+                w.empty_tag("brk", &[("id", &id), ("max", "1048575"), ("man", "1")]);
+            }
+            w.end_tag("colBreaks");
+        }
     }
 
     // drawing reference
@@ -227,7 +298,42 @@ fn write_cell(w: &mut XmlWriter, row: RowNum, col: ColNum, cell: &CellType, xf: 
             w.text_element("v", &[], e);
             w.end_tag("c");
         }
+        CellType::RichText(rt) => {
+            let mut attrs: Vec<(&str, &str)> = vec![("r", &ref_str), ("t", "inlineStr")];
+            if xf > 0 { attrs.push(("s", &xf_s)); }
+            w.start_tag("c", &attrs);
+            w.start_tag("is", &[]);
+            write_rich_text_runs(w, rt);
+            w.end_tag("is");
+            w.end_tag("c");
+        }
         CellType::Empty => {}
+    }
+}
+
+fn write_rich_text_runs(w: &mut XmlWriter, rt: &RichText) {
+    for run in &rt.runs {
+        w.start_tag("r", &[]);
+        let has_props = run.bold || run.italic || run.font_size.is_some() || run.font_name.is_some() || run.color.is_some();
+        if has_props {
+            w.start_tag("rPr", &[]);
+            if run.bold { w.empty_tag("b", &[]); }
+            if run.italic { w.empty_tag("i", &[]); }
+            if let Some(sz) = run.font_size {
+                let s = format!("{sz}");
+                w.empty_tag("sz", &[("val", &s)]);
+            }
+            if let Some(ref c) = run.color {
+                let argb = if c.len() == 6 { format!("FF{c}") } else { c.clone() };
+                w.empty_tag("color", &[("rgb", &argb)]);
+            }
+            if let Some(ref name) = run.font_name {
+                w.empty_tag("rFont", &[("val", name)]);
+            }
+            w.end_tag("rPr");
+        }
+        w.text_element("t", &[("xml:space", "preserve")], &run.text);
+        w.end_tag("r");
     }
 }
 
@@ -243,7 +349,6 @@ fn write_data_validation(w: &mut XmlWriter, dv: &DataValidation) {
         }
         ValidationRule::ListRange(range) => ("list".to_string(), Some(range.clone()), None),
         ValidationRule::WholeNumber { min, max } => {
-            let op = if min.is_some() && max.is_some() { "between" } else if min.is_some() { "greaterThanOrEqual" } else { "lessThanOrEqual" };
             ("whole".to_string(), min.map(|v| v.to_string()).or_else(|| max.map(|v| v.to_string())), max.map(|v| v.to_string()))
         }
         ValidationRule::Decimal { min, max } => {

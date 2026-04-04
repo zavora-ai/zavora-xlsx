@@ -1,4 +1,5 @@
-/// Cell formatting with builder pattern. Implements dedup-friendly internals.
+/// Cell format builder with font, background, borders, number format, and alignment.
+/// Formats are deduplicated internally — identical formats share the same xf index (4 bytes per cell).
 #[derive(Debug, Clone)]
 pub struct Format {
     pub(crate) bold: bool,

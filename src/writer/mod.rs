@@ -1,9 +1,7 @@
 pub mod chart_writer;
-pub mod content_types_writer;
 pub mod drawing_writer;
 pub mod rel_writer;
 pub mod sheet_writer;
 pub mod sst_writer;
 pub mod style_writer;
 pub mod table_writer;
-pub mod xlsx_writer;

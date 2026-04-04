@@ -2,7 +2,7 @@ use crate::format::Format;
 use crate::utility::{ColNum, RowNum};
 
 /// Trait for all conditional format types.
-pub trait ConditionalFormat {
+pub trait ConditionalFormat: Send + Sync {
     fn cf_type(&self) -> &str;
     fn write_rule(&self, w: &mut crate::xml::xml_writer::XmlWriter, priority: u32);
 }

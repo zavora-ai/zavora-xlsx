@@ -1,4 +1,4 @@
-use crate::model::style_registry::{StyleRegistry, BorderData};
+use crate::model::style_registry::StyleRegistry;
 use crate::xml::xml_writer::XmlWriter;
 
 pub fn write_styles(reg: &StyleRegistry) -> Vec<u8> {

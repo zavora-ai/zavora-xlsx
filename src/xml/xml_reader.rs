@@ -4,11 +4,13 @@ use quick_xml::name::QName;
 use quick_xml::reader::Reader as XmlReaderInner;
 
 /// Streaming XML reader with buffer reuse.
+#[allow(dead_code)]
 pub struct XmlReader<'a> {
     inner: XmlReaderInner<&'a [u8]>,
     buf: Vec<u8>,
 }
 
+#[allow(dead_code)]
 impl<'a> XmlReader<'a> {
     pub fn new(data: &'a [u8]) -> Self {
         let mut inner = XmlReaderInner::from_reader(data);

@@ -5,11 +5,15 @@ use crate::model::style_registry::StyleRegistry;
 use crate::properties::{self, DocProperties};
 use crate::reader::xlsx_reader;
 use crate::writer::sheet_writer::{self, SheetCells};
-use crate::writer::{chart_writer, content_types_writer, drawing_writer, rel_writer, sst_writer, style_writer, table_writer};
+use crate::writer::{chart_writer, drawing_writer, rel_writer, sst_writer, style_writer, table_writer};
 use crate::worksheet::Worksheet;
 use crate::xml::xml_writer::XmlWriter;
 use crate::zip::zip_writer::ZipOutput;
 
+/// An Excel workbook. Supports three modes:
+/// - `Workbook::new()` — Create a new workbook from scratch
+/// - `Workbook::open(path)` — Open an existing file for editing (lazy deserialization)
+/// - `Workbook::open_readonly(path)` — Open for reading only
 pub struct Workbook {
     worksheets: Vec<Worksheet>,
     sst: SharedStringTable,
@@ -18,6 +22,8 @@ pub struct Workbook {
     properties: DocProperties,
     /// Raw zip entries to pass through on save (edit mode).
     passthrough_entries: Vec<(String, Vec<u8>)>,
+    workbook_protection: Option<WorkbookProtection>,
+    is_xlsm: bool,
 }
 
 impl Workbook {
@@ -30,6 +36,8 @@ impl Workbook {
             defined_names: Vec::new(),
             properties: DocProperties::default(),
             passthrough_entries: Vec::new(),
+            workbook_protection: None,
+            is_xlsm: false,
         }
     }
 
@@ -48,6 +56,8 @@ impl Workbook {
             defined_names: data.defined_names,
             properties: data.properties,
             passthrough_entries: Vec::new(),
+            workbook_protection: None,
+            is_xlsm: false,
         })
     }
 
@@ -83,6 +93,8 @@ impl Workbook {
             }
         }
 
+        let is_xlsm = path.as_ref().extension().map_or(false, |e| e.eq_ignore_ascii_case("xlsm"));
+
         Ok(Self {
             worksheets,
             sst: data.sst,
@@ -90,6 +102,8 @@ impl Workbook {
             defined_names: data.defined_names,
             properties: data.properties,
             passthrough_entries: passthrough,
+            workbook_protection: None,
+            is_xlsm,
         })
     }
 
@@ -115,7 +129,6 @@ impl Workbook {
 
         // Count charts, images, tables across all sheets for content types
         let mut total_charts = 0usize;
-        let mut total_images = 0usize;
         let mut total_tables = 0usize;
         let mut sheets_with_drawings = Vec::new();
         let mut image_extensions: Vec<String> = Vec::new();
@@ -127,35 +140,35 @@ impl Workbook {
             total_tables += ws.tables.len();
             for img in &ws.images {
                 image_extensions.push(img.image_type.extension().to_string());
-                total_images += 1;
             }
         }
 
+        let has_vba = self.passthrough_entries.iter().any(|(n, _)| n.eq_ignore_ascii_case("xl/vbaProject.bin"));
+
         zip.add_file("[Content_Types].xml", &write_content_types_full(
-            sheet_count, has_props, total_charts, total_tables, &sheets_with_drawings, &image_extensions,
+            sheet_count, has_props, total_charts, total_tables, &sheets_with_drawings, &image_extensions, has_vba, self.is_xlsm,
         ))?;
         zip.add_file("_rels/.rels", &write_root_rels(has_props))?;
-        zip.add_file("xl/_rels/workbook.xml.rels", &rel_writer::write_workbook_rels(sheet_count))?;
+        zip.add_file("xl/_rels/workbook.xml.rels", &rel_writer::write_workbook_rels(sheet_count, has_vba))?;
         zip.add_file("xl/workbook.xml", &self.write_workbook_xml())?;
 
+        // Pre-compute per-sheet metadata for parallel assembly
+        struct SheetMeta {
+            drawing_rid: Option<String>,
+            table_rids: Vec<String>,
+            sheet_rels: Vec<(String, String, String)>,
+            global_chart_start: usize,
+            global_image_start: usize,
+            global_table_start: usize,
+        }
+
+        let mut metas = Vec::with_capacity(sheet_count);
         let mut global_chart_idx = 0usize;
         let mut global_image_idx = 0usize;
         let mut global_table_idx = 0usize;
 
         for (i, ws) in self.worksheets.iter().enumerate() {
-            let sheet_path = format!("xl/worksheets/sheet{}.xml", i + 1);
-
-            if let Some(ref raw) = ws.raw_xml {
-                if !ws.dirty {
-                    zip.add_file(&sheet_path, raw)?;
-                    continue;
-                }
-            }
-
             let has_drawing = !ws.charts.is_empty() || !ws.images.is_empty();
-            let has_tables = !ws.tables.is_empty();
-
-            // Build sheet rels
             let mut sheet_rels: Vec<(String, String, String)> = Vec::new();
             let mut next_rid = 1;
 
@@ -175,26 +188,65 @@ impl Workbook {
                 next_rid += 1;
             }
 
-            // Write sheet XML
-            let sc = SheetCells {
-                cells: &ws.cells, merge_ranges: &ws.merge_ranges,
-                col_widths: &ws.col_widths, row_heights: &ws.row_heights,
-                freeze_row: ws.freeze_row, freeze_col: ws.freeze_col,
-                has_drawing, drawing_rid, table_parts: table_rids,
-                conditional_formats: &ws.conditional_formats,
-                validations: &ws.validations, sparklines: &ws.sparklines,
-                sheet_name: &ws.name,
-            };
-            zip.add_file(&sheet_path, &sheet_writer::write_sheet(&sc))?;
+            metas.push(SheetMeta {
+                drawing_rid, table_rids, sheet_rels,
+                global_chart_start: global_chart_idx,
+                global_image_start: global_image_idx,
+                global_table_start: global_table_idx,
+            });
+
+            global_chart_idx += ws.charts.len();
+            global_image_idx += ws.images.len();
+            global_table_idx += ws.tables.len();
+        }
+
+        // Parallel sheet XML generation
+        let sheet_xmls: Vec<Option<Vec<u8>>> = std::thread::scope(|s| {
+            let handles: Vec<_> = self.worksheets.iter().zip(metas.iter()).map(|(ws, meta)| {
+                s.spawn(move || {
+                    if ws.raw_xml.is_some() && !ws.dirty {
+                        return None;
+                    }
+                    let sc = SheetCells {
+                        cells: &ws.cells, merge_ranges: &ws.merge_ranges,
+                        col_widths: &ws.col_widths, row_heights: &ws.row_heights,
+                        freeze_row: ws.freeze_row, freeze_col: ws.freeze_col,
+                        drawing_rid: meta.drawing_rid.clone(), table_parts: meta.table_rids.clone(),
+                        conditional_formats: &ws.conditional_formats,
+                        validations: &ws.validations, sparklines: &ws.sparklines,
+                        protection: ws.protection.as_ref(),
+                        print_settings: ws.print_settings.as_ref(),
+                    };
+                    Some(sheet_writer::write_sheet(&sc))
+                })
+            }).collect();
+            handles.into_iter().map(|h| h.join().unwrap()).collect()
+        });
+
+        // Sequential zip write
+        for (i, (ws, meta)) in self.worksheets.iter().zip(metas.iter()).enumerate() {
+            let sheet_path = format!("xl/worksheets/sheet{}.xml", i + 1);
+
+            match &sheet_xmls[i] {
+                None => {
+                    // Raw passthrough
+                    if let Some(ref raw) = ws.raw_xml {
+                        zip.add_file(&sheet_path, raw)?;
+                    }
+                }
+                Some(xml) => {
+                    zip.add_file(&sheet_path, xml)?;
+                }
+            }
 
             // Write sheet rels
-            if !sheet_rels.is_empty() {
+            if !meta.sheet_rels.is_empty() {
                 let rels_path = format!("xl/worksheets/_rels/sheet{}.xml.rels", i + 1);
-                let refs: Vec<(&str, &str, &str)> = sheet_rels.iter().map(|(a, b, c)| (a.as_str(), b.as_str(), c.as_str())).collect();
+                let refs: Vec<(&str, &str, &str)> = meta.sheet_rels.iter().map(|(a, b, c)| (a.as_str(), b.as_str(), c.as_str())).collect();
                 zip.add_file(&rels_path, &rel_writer::write_rels(&refs))?;
             }
 
-            // Write drawing + drawing rels
+            let has_drawing = !ws.charts.is_empty() || !ws.images.is_empty();
             if has_drawing {
                 let drawing_path = format!("xl/drawings/drawing{}.xml", i + 1);
                 zip.add_file(&drawing_path, &drawing_writer::write_drawing_xml(&ws.charts, &ws.images, i))?;
@@ -204,25 +256,22 @@ impl Workbook {
                 zip.add_file(&drawing_rels_path, &drawing_writer::write_drawing_rels(ws.charts.len(), ws.images.len(), &img_types))?;
             }
 
-            // Write charts
-            for chart in &ws.charts {
-                global_chart_idx += 1;
-                let chart_path = format!("xl/charts/chart{global_chart_idx}.xml");
-                zip.add_file(&chart_path, &chart_writer::write_chart_xml(chart, global_chart_idx))?;
+            for (ci, chart) in ws.charts.iter().enumerate() {
+                let idx = meta.global_chart_start + ci + 1;
+                let chart_path = format!("xl/charts/chart{idx}.xml");
+                zip.add_file(&chart_path, &chart_writer::write_chart_xml(chart, idx))?;
             }
 
-            // Write images as media
-            for img in &ws.images {
-                global_image_idx += 1;
-                let media_path = format!("xl/media/image{}.{}", global_image_idx, img.image_type.extension());
+            for (ii, img) in ws.images.iter().enumerate() {
+                let idx = meta.global_image_start + ii + 1;
+                let media_path = format!("xl/media/image{}.{}", idx, img.image_type.extension());
                 zip.add_file(&media_path, &img.data)?;
             }
 
-            // Write tables
-            for table in &ws.tables {
-                global_table_idx += 1;
-                let table_path = format!("xl/tables/table{global_table_idx}.xml");
-                zip.add_file(&table_path, &table_writer::write_table_xml(table, global_table_idx))?;
+            for (ti, table) in ws.tables.iter().enumerate() {
+                let idx = meta.global_table_start + ti + 1;
+                let table_path = format!("xl/tables/table{idx}.xml");
+                zip.add_file(&table_path, &table_writer::write_table_xml(table, idx))?;
             }
         }
 
@@ -334,6 +383,20 @@ impl Workbook {
 
     pub fn properties(&self) -> &DocProperties { &self.properties }
 
+    /// Protect the workbook structure (prevent adding/removing/renaming sheets).
+    pub fn protect(&mut self) -> &mut Self {
+        self.workbook_protection = Some(WorkbookProtection { password_hash: None });
+        self
+    }
+
+    /// Protect the workbook structure with a password.
+    pub fn protect_with_password(&mut self, password: &str) -> &mut Self {
+        self.workbook_protection = Some(WorkbookProtection {
+            password_hash: Some(crate::worksheet::hash_password_public(password)),
+        });
+        self
+    }
+
     // ── Internal ──
 
     fn write_workbook_xml(&self) -> Vec<u8> {
@@ -350,6 +413,17 @@ impl Workbook {
             w.empty_tag("sheet", &[("name", &ws.name), ("sheetId", &id), ("r:id", &rid)]);
         }
         w.end_tag("sheets");
+
+        // workbookProtection
+        if let Some(ref prot) = self.workbook_protection {
+            let mut attrs: Vec<(&str, &str)> = vec![("lockStructure", "1")];
+            let pw;
+            if let Some(ref hash) = prot.password_hash {
+                pw = hash.clone();
+                attrs.push(("workbookPassword", &pw));
+            }
+            w.empty_tag("workbookProtection", &attrs);
+        }
 
         if !self.defined_names.is_empty() {
             w.start_tag("definedNames", &[]);
@@ -368,12 +442,15 @@ impl Default for Workbook {
     fn default() -> Self { Self::new() }
 }
 
-fn write_content_types_full(sheet_count: usize, has_props: bool, chart_count: usize, table_count: usize, sheets_with_drawings: &[usize], image_extensions: &[String]) -> Vec<u8> {
+fn write_content_types_full(sheet_count: usize, has_props: bool, chart_count: usize, table_count: usize, sheets_with_drawings: &[usize], image_extensions: &[String], has_vba: bool, is_xlsm: bool) -> Vec<u8> {
     let mut w = XmlWriter::new();
     w.declaration();
     w.start_tag("Types", &[("xmlns", "http://schemas.openxmlformats.org/package/2006/content-types")]);
     w.empty_tag("Default", &[("Extension", "rels"), ("ContentType", "application/vnd.openxmlformats-package.relationships+xml")]);
     w.empty_tag("Default", &[("Extension", "xml"), ("ContentType", "application/xml")]);
+    if has_vba {
+        w.empty_tag("Default", &[("Extension", "bin"), ("ContentType", "application/vnd.ms-office.vbaProject")]);
+    }
 
     // Image defaults
     let mut seen_ext = std::collections::HashSet::new();
@@ -384,7 +461,12 @@ fn write_content_types_full(sheet_count: usize, has_props: bool, chart_count: us
         }
     }
 
-    w.empty_tag("Override", &[("PartName", "/xl/workbook.xml"), ("ContentType", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml")]);
+    let wb_ct = if is_xlsm || has_vba {
+        "application/vnd.ms-excel.sheet.macroEnabled.main+xml"
+    } else {
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"
+    };
+    w.empty_tag("Override", &[("PartName", "/xl/workbook.xml"), ("ContentType", wb_ct)]);
     for i in 1..=sheet_count {
         let part = format!("/xl/worksheets/sheet{i}.xml");
         w.empty_tag("Override", &[("PartName", &part), ("ContentType", "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml")]);
@@ -422,4 +504,9 @@ fn write_root_rels(has_props: bool) -> Vec<u8> {
         rels.push(("rId3", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties", "docProps/app.xml"));
     }
     rel_writer::write_rels(&rels)
+}
+
+#[derive(Debug, Clone)]
+pub struct WorkbookProtection {
+    pub(crate) password_hash: Option<String>,
 }

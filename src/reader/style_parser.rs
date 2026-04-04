@@ -1,5 +1,4 @@
 use quick_xml::events::Event;
-use quick_xml::name::QName;
 use quick_xml::reader::Reader;
 
 use crate::xml::xml_reader::get_attr;

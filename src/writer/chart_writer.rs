@@ -1,7 +1,7 @@
 use crate::features::chart::{Chart, ChartType, LegendPosition};
 use crate::xml::xml_writer::XmlWriter;
 
-pub fn write_chart_xml(chart: &Chart, chart_id: usize) -> Vec<u8> {
+pub fn write_chart_xml(chart: &Chart, _chart_id: usize) -> Vec<u8> {
     let mut w = XmlWriter::new();
     w.declaration();
     w.start_tag("c:chartSpace", &[

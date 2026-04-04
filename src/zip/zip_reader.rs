@@ -46,6 +46,7 @@ impl<R: Read + Seek> ZipReader<R> {
     }
 
     /// Check if an entry exists.
+    #[allow(dead_code)]
     pub fn has_entry(&self, path: &str) -> bool {
         let key = path.to_ascii_lowercase();
         self.path_cache.contains_key(&key)
@@ -54,7 +55,16 @@ impl<R: Read + Seek> ZipReader<R> {
 
 impl ZipReader<BufReader<std::fs::File>> {
     pub fn open(path: &std::path::Path) -> crate::Result<Self> {
-        let file = std::fs::File::open(path)?;
+        // Check for OLE/CFB magic bytes (password-protected xlsx files are CFB containers)
+        let mut file = std::fs::File::open(path)?;
+        let mut magic = [0u8; 8];
+        if std::io::Read::read(&mut file, &mut magic).is_ok()
+            && magic == [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]
+        {
+            return Err(crate::Error::Password);
+        }
+        // Reset to beginning for zip reading
+        std::io::Seek::seek(&mut file, std::io::SeekFrom::Start(0))?;
         Self::new(BufReader::new(file))
     }
 }

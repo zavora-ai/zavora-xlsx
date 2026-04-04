@@ -1,4 +1,3 @@
-use crate::format::IntoColor;
 use crate::utility::{ColNum, RowNum};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

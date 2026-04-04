@@ -1,9 +1,7 @@
 use quick_xml::events::Event;
-use quick_xml::name::QName;
 use quick_xml::reader::Reader;
 
 use crate::model::shared_strings::SharedStringTable;
-use crate::xml::xml_reader::get_attr;
 
 pub fn parse_sst(data: &[u8]) -> crate::Result<SharedStringTable> {
     let mut reader = Reader::from_reader(data);

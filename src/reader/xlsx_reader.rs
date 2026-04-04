@@ -23,6 +23,7 @@ pub struct XlsxData {
     pub sheets: Vec<SheetInfo>,
     pub sst: SharedStringTable,
     pub styles: ParsedStyles,
+    #[allow(dead_code)]
     pub is_1904: bool,
     pub defined_names: Vec<(String, String)>,
     pub properties: DocProperties,

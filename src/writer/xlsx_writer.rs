@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::model::shared_strings::SharedStringTable;
 use crate::model::style_registry::StyleRegistry;
 use crate::writer::{content_types_writer, rel_writer, sheet_writer, sst_writer, style_writer};
@@ -5,6 +6,7 @@ use crate::writer::sheet_writer::SheetCells;
 use crate::xml::xml_writer::XmlWriter;
 use crate::zip::zip_writer::ZipOutput;
 
+#[allow(dead_code)]
 pub struct WorksheetData<'a> {
     pub name: &'a str,
     pub cells: &'a SheetCells<'a>,

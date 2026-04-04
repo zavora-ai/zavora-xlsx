@@ -33,8 +33,8 @@ pub fn adjust_formula(
 
         // Try to parse a cell reference (letter+ digit+)
         if b.is_ascii_alphabetic() || b == b'$' {
-            let start = i;
-            if let Some((ref_str, end, row, col, abs_row, abs_col)) = try_parse_ref(bytes, i) {
+            let _start = i;
+            if let Some((_ref_str, end, row, col, abs_row, abs_col)) = try_parse_ref(bytes, i) {
                 let new_row = if let Some(at) = at_row {
                     if row >= at { (row as i64 + delta_row).max(0) as RowNum } else { row }
                 } else { row };

@@ -1,12 +1,11 @@
 use crate::features::chart::Chart;
 use crate::features::image::Image;
-use crate::utility::col_to_letter;
 use crate::xml::xml_writer::XmlWriter;
 
 /// EMU = English Metric Units. 1 inch = 914400 EMU. 1 pixel ≈ 9525 EMU at 96 DPI.
 const PX_TO_EMU: u64 = 9525;
 
-pub fn write_drawing_xml(charts: &[Chart], images: &[Image], sheet_idx: usize) -> Vec<u8> {
+pub fn write_drawing_xml(charts: &[Chart], images: &[Image], _sheet_idx: usize) -> Vec<u8> {
     let mut w = XmlWriter::new();
     w.declaration();
     w.start_tag("xdr:wsDr", &[

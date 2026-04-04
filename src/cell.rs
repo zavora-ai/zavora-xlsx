@@ -13,6 +13,7 @@ pub enum CellValue {
     DateTime(ExcelDateTime),
     Error(String),
     Formula { formula: String, cached_value: Box<CellValue> },
+    RichText(RichText),
 }
 
 impl CellValue {
@@ -45,6 +46,7 @@ pub(crate) enum CellType {
     Formula { text: String, cached_number: Option<f64> },
     DateTime(f64),       // serial date
     Error(String),
+    RichText(RichText),
 }
 
 /// Trait for types that can be written to a cell.
@@ -104,4 +106,71 @@ impl IntoExcelData for ExcelDateTime {
     fn write_cell_with_format(self, ws: &mut Worksheet, row: RowNum, col: ColNum, fmt: &Format) -> crate::Result<()> {
         ws.write_datetime_internal(row, col, self, Some(fmt))
     }
+}
+
+/// Rich text: multiple styled runs in a single cell.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RichText {
+    pub runs: Vec<RichTextRun>,
+}
+
+impl RichText {
+    pub fn new() -> Self { Self { runs: Vec::new() } }
+
+    pub fn add_run(mut self, text: &str) -> Self {
+        self.runs.push(RichTextRun { text: text.to_string(), bold: false, italic: false, font_size: None, font_name: None, color: None });
+        self
+    }
+
+    pub fn add_bold(mut self, text: &str) -> Self {
+        self.runs.push(RichTextRun { text: text.to_string(), bold: true, italic: false, font_size: None, font_name: None, color: None });
+        self
+    }
+
+    pub fn add_italic(mut self, text: &str) -> Self {
+        self.runs.push(RichTextRun { text: text.to_string(), bold: false, italic: true, font_size: None, font_name: None, color: None });
+        self
+    }
+
+    pub fn add_styled(mut self, text: &str, run: RichTextRun) -> Self {
+        let mut r = run;
+        r.text = text.to_string();
+        self.runs.push(r);
+        self
+    }
+
+    /// Get the plain text content (all runs concatenated).
+    pub fn plain_text(&self) -> String {
+        self.runs.iter().map(|r| r.text.as_str()).collect()
+    }
+}
+
+impl Default for RichText {
+    fn default() -> Self { Self::new() }
+}
+
+/// A single styled run within rich text.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RichTextRun {
+    pub text: String,
+    pub bold: bool,
+    pub italic: bool,
+    pub font_size: Option<f64>,
+    pub font_name: Option<String>,
+    pub color: Option<String>, // hex RGB e.g. "FF0000"
+}
+
+impl RichTextRun {
+    pub fn new() -> Self {
+        Self { text: String::new(), bold: false, italic: false, font_size: None, font_name: None, color: None }
+    }
+    pub fn bold(mut self) -> Self { self.bold = true; self }
+    pub fn italic(mut self) -> Self { self.italic = true; self }
+    pub fn font_size(mut self, size: f64) -> Self { self.font_size = Some(size); self }
+    pub fn font_name(mut self, name: &str) -> Self { self.font_name = Some(name.to_string()); self }
+    pub fn color(mut self, hex: &str) -> Self { self.color = Some(hex.to_string()); self }
+}
+
+impl Default for RichTextRun {
+    fn default() -> Self { Self::new() }
 }
