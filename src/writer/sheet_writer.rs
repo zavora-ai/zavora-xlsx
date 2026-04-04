@@ -32,6 +32,7 @@ pub struct SheetCells<'a> {
     pub hyperlink_rels: &'a [(String, String)], // (rId, target URL)
     pub row_outline_levels: &'a BTreeMap<RowNum, u8>,
     pub col_outline_levels: &'a BTreeMap<ColNum, u8>,
+    pub legacy_drawing_rid: Option<String>,
 }
 
 pub fn write_sheet(data: &SheetCells<'_>) -> Vec<u8> {
@@ -240,6 +241,11 @@ pub fn write_sheet(data: &SheetCells<'_>) -> Vec<u8> {
     // drawing reference
     if let Some(ref rid) = data.drawing_rid {
         w.empty_tag("drawing", &[("r:id", rid)]);
+    }
+
+    // legacyDrawing (for comments VML)
+    if let Some(ref rid) = data.legacy_drawing_rid {
+        w.empty_tag("legacyDrawing", &[("r:id", rid)]);
     }
 
     // tableParts

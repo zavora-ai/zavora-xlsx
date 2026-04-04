@@ -160,6 +160,7 @@ impl Workbook {
             drawing_rid: Option<String>,
             table_rids: Vec<String>,
             sheet_rels: Vec<(String, String, String)>,
+            legacy_drawing_rid: Option<String>,
             global_chart_start: usize,
             global_image_start: usize,
             global_table_start: usize,
@@ -200,17 +201,19 @@ impl Workbook {
             }
 
             // Comment rels
+            let mut legacy_drawing_rid = None;
             if !ws.comments.is_empty() {
                 let rid = format!("rId{next_rid}");
                 sheet_rels.push((rid, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments".into(), format!("../comments{}.xml", i + 1)));
                 next_rid += 1;
                 let rid2 = format!("rId{next_rid}");
-                sheet_rels.push((rid2, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/vmlDrawing".into(), format!("../drawings/vmlDrawing{}.vml", i + 1)));
+                sheet_rels.push((rid2.clone(), "http://schemas.openxmlformats.org/officeDocument/2006/relationships/vmlDrawing".into(), format!("../drawings/vmlDrawing{}.vml", i + 1)));
+                legacy_drawing_rid = Some(rid2);
                 let _ = next_rid;
             }
 
             metas.push(SheetMeta {
-                drawing_rid, table_rids, sheet_rels,
+                drawing_rid, table_rids, sheet_rels, legacy_drawing_rid,
                 global_chart_start: global_chart_idx,
                 global_image_start: global_image_idx,
                 global_table_start: global_table_idx,
@@ -242,6 +245,7 @@ impl Workbook {
                         hyperlinks: &ws.hyperlinks, hyperlink_rels: &[],
                         row_outline_levels: &ws.row_outline_levels,
                         col_outline_levels: &ws.col_outline_levels,
+                        legacy_drawing_rid: meta.legacy_drawing_rid.clone(),
                     };
                     Some(sheet_writer::write_sheet(&sc))
                 })
@@ -440,15 +444,7 @@ impl Workbook {
             ("xmlns", "http://schemas.openxmlformats.org/spreadsheetml/2006/main"),
             ("xmlns:r", "http://schemas.openxmlformats.org/officeDocument/2006/relationships"),
         ]);
-        w.start_tag("sheets", &[]);
-        for (i, ws) in self.worksheets.iter().enumerate() {
-            let id = (i + 1).to_string();
-            let rid = format!("rId{}", i + 1);
-            w.empty_tag("sheet", &[("name", &ws.name), ("sheetId", &id), ("r:id", &rid)]);
-        }
-        w.end_tag("sheets");
-
-        // workbookProtection
+        // workbookProtection (must come before sheets per OOXML spec)
         if let Some(ref prot) = self.workbook_protection {
             let mut attrs: Vec<(&str, &str)> = vec![("lockStructure", "1")];
             let pw;
@@ -458,6 +454,14 @@ impl Workbook {
             }
             w.empty_tag("workbookProtection", &attrs);
         }
+
+        w.start_tag("sheets", &[]);
+        for (i, ws) in self.worksheets.iter().enumerate() {
+            let id = (i + 1).to_string();
+            let rid = format!("rId{}", i + 1);
+            w.empty_tag("sheet", &[("name", &ws.name), ("sheetId", &id), ("r:id", &rid)]);
+        }
+        w.end_tag("sheets");
 
         // Collect all defined names including print_area/repeat_rows
         let mut all_names: Vec<(String, String, Option<usize>)> = Vec::new();
