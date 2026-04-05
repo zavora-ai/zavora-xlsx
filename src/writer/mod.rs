@@ -6,3 +6,4 @@ pub mod sheet_writer;
 pub mod sst_writer;
 pub mod style_writer;
 pub mod table_writer;
+pub mod theme_writer;

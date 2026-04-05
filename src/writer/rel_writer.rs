@@ -35,6 +35,8 @@ pub fn write_workbook_rels(sheet_count: usize, has_vba: bool) -> Vec<u8> {
     rels.push((format!("rId{next}"), "http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles", "styles.xml".into()));
     next += 1;
     rels.push((format!("rId{next}"), "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings", "sharedStrings.xml".into()));
+    next += 1;
+    rels.push((format!("rId{next}"), "http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme", "theme/theme1.xml".into()));
     if has_vba {
         next += 1;
         rels.push((format!("rId{next}"), "http://schemas.microsoft.com/office/2006/relationships/vbaProject", "vbaProject.bin".into()));

@@ -85,7 +85,7 @@ impl Workbook {
 
         // Collect passthrough entries (media, charts, drawings, etc.)
         let known_prefixes = ["xl/worksheets/", "xl/workbook.xml", "xl/sharedStrings.xml",
-            "xl/styles.xml", "[Content_Types].xml", "_rels/", "xl/_rels/workbook.xml.rels"];
+            "xl/styles.xml", "xl/theme/", "[Content_Types].xml", "_rels/", "xl/_rels/workbook.xml.rels"];
         let mut passthrough = Vec::new();
         let entry_names: Vec<String> = (0..zip.archive.len())
             .filter_map(|i| zip.archive.by_index_raw(i).ok().map(|e| e.name().to_string()))
@@ -334,6 +334,7 @@ impl Workbook {
 
         zip.add_file("xl/styles.xml", &style_writer::write_styles(&self.styles))?;
         zip.add_file("xl/sharedStrings.xml", &sst_writer::write_sst(&self.sst))?;
+        zip.add_file("xl/theme/theme1.xml", &crate::writer::theme_writer::write_theme())?;
 
         if has_props {
             zip.add_file("docProps/core.xml", &properties::write_core_xml(&self.properties))?;
@@ -569,6 +570,7 @@ fn write_content_types_full(sheet_count: usize, has_props: bool, chart_count: us
         w.empty_tag("Override", &[("PartName", &part), ("ContentType", "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml")]);
     }
     w.empty_tag("Override", &[("PartName", "/xl/styles.xml"), ("ContentType", "application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml")]);
+    w.empty_tag("Override", &[("PartName", "/xl/theme/theme1.xml"), ("ContentType", "application/vnd.openxmlformats-officedocument.theme+xml")]);
     w.empty_tag("Override", &[("PartName", "/xl/sharedStrings.xml"), ("ContentType", "application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml")]);
 
     for &si in sheets_with_drawings {
