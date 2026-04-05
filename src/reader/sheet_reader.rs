@@ -24,6 +24,8 @@ pub struct SheetMeta {
     pub row_heights: Vec<(RowNum, f64)>,
     pub freeze_row: RowNum,
     pub freeze_col: ColNum,
+    pub drawing_rid: Option<String>,
+    pub legacy_drawing_rid: Option<String>,
 }
 
 /// Read cells AND metadata from sheet XML in one pass.
@@ -136,15 +138,24 @@ pub fn read_sheet_full(
         }
     }
 
-    // Post-sheetData: scan for mergeCells (may appear after sheetData)
+    // Post-sheetData: scan for mergeCells, drawing, legacyDrawing
     loop {
         cell_buf.clear();
         match reader.read_event_into(&mut cell_buf)? {
             Event::Start(e) | Event::Empty(e) => {
-                if e.local_name().as_ref() == b"mergeCell" {
-                    if let Some(r) = get_attr(e.attributes(), b"ref").and_then(|v| std::str::from_utf8(v).ok()) {
-                        if let Some(m) = crate::utility::parse_range(r) { meta.merge_ranges.push(m); }
+                match e.local_name().as_ref() {
+                    b"mergeCell" => {
+                        if let Some(r) = get_attr(e.attributes(), b"ref").and_then(|v| std::str::from_utf8(v).ok()) {
+                            if let Some(m) = crate::utility::parse_range(r) { meta.merge_ranges.push(m); }
+                        }
                     }
+                    b"drawing" => {
+                        meta.drawing_rid = get_attr(e.attributes(), b"r:id").and_then(|v| std::str::from_utf8(v).ok()).map(|s| s.to_string());
+                    }
+                    b"legacyDrawing" => {
+                        meta.legacy_drawing_rid = get_attr(e.attributes(), b"r:id").and_then(|v| std::str::from_utf8(v).ok()).map(|s| s.to_string());
+                    }
+                    _ => {}
                 }
             }
             Event::Eof => break,

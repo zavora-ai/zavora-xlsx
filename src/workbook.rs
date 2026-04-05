@@ -104,11 +104,21 @@ impl Workbook {
 
     fn from_xlsx_data_edit<R: std::io::Read + std::io::Seek>(data: xlsx_reader::XlsxData, zip: &mut crate::zip::zip_reader::ZipReader<R>) -> crate::Result<Self> {
         let mut worksheets = Vec::with_capacity(data.sheets.len());
-        for sheet_info in &data.sheets {
+        for (i, sheet_info) in data.sheets.iter().enumerate() {
             let mut ws = Worksheet::new(&sheet_info.name);
             if let Some(raw) = zip.read_entry(&sheet_info.path) {
                 ws.raw_xml = Some(raw?);
             }
+            // Store original sheet rels for dirty-sheet passthrough
+            let rels_path = format!("xl/worksheets/_rels/sheet{}.xml.rels", i + 1);
+            if let Some(Ok(rels_data)) = zip.read_entry(&rels_path) {
+                ws.original_rels = Some(rels_data);
+            }
+            ws.visibility = match sheet_info.visibility {
+                1 => crate::worksheet::SheetVisibility::Hidden,
+                2 => crate::worksheet::SheetVisibility::VeryHidden,
+                _ => crate::worksheet::SheetVisibility::Visible,
+            };
             worksheets.push(ws);
         }
         let known_prefixes = ["xl/worksheets/", "xl/workbook.xml", "xl/sharedStrings.xml",
@@ -244,6 +254,9 @@ impl Workbook {
                 sheet_rels.push((rid.clone(), "http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing".into(), format!("../drawings/drawing{}.xml", i + 1)));
                 next_rid += 1;
                 Some(rid)
+            } else if ws.original_drawing_rid.is_some() {
+                // Dirty sheet preserving original drawing reference
+                ws.original_drawing_rid.clone()
             } else { None };
 
             let mut table_rids = Vec::new();
@@ -273,6 +286,8 @@ impl Workbook {
                 sheet_rels.push((rid2.clone(), "http://schemas.openxmlformats.org/officeDocument/2006/relationships/vmlDrawing".into(), format!("../drawings/vmlDrawing{}.vml", i + 1)));
                 legacy_drawing_rid = Some(rid2);
                 let _ = next_rid;
+            } else if ws.original_legacy_drawing_rid.is_some() {
+                legacy_drawing_rid = ws.original_legacy_drawing_rid.clone();
             }
 
             metas.push(SheetMeta {
@@ -351,6 +366,11 @@ impl Workbook {
                 let rels_path = format!("xl/worksheets/_rels/sheet{}.xml.rels", i + 1);
                 let refs: Vec<(&str, &str, &str)> = meta.sheet_rels.iter().map(|(a, b, c)| (a.as_str(), b.as_str(), c.as_str())).collect();
                 zip.add_file(&rels_path, &rel_writer::write_rels(&refs))?;
+            } else if ws.dirty && ws.original_rels.is_some() {
+                // Dirty sheet with no new drawings/tables — pass through original rels
+                // to preserve drawing/chart/comment references
+                let rels_path = format!("xl/worksheets/_rels/sheet{}.xml.rels", i + 1);
+                zip.add_file(&rels_path, ws.original_rels.as_ref().unwrap())?;
             }
 
             let has_drawing = !ws.charts.is_empty() || !ws.images.is_empty();
@@ -429,12 +449,19 @@ impl Workbook {
         // Lazy deserialization for edit mode
         if ws.raw_xml.is_some() && ws.read_cells.is_none() {
             let raw = ws.raw_xml.as_ref().unwrap();
-            let cells = crate::reader::sheet_reader::read_sheet_cells(
+            let (cells, meta) = crate::reader::sheet_reader::read_sheet_full(
                 raw, &self.sst, &crate::reader::style_parser::ParsedStyles::default(),
             )?;
             let map: std::collections::BTreeMap<_, _> = cells.iter().map(|rc| ((rc.row, rc.col), rc.value.clone())).collect();
             ws.read_cells_map = Some(map);
             ws.read_cells = Some(cells);
+            ws.merge_ranges = meta.merge_ranges;
+            for (c, w) in meta.col_widths { ws.col_widths.insert(c, w); }
+            for (r, h) in meta.row_heights { ws.row_heights.insert(r, h); }
+            ws.freeze_row = meta.freeze_row;
+            ws.freeze_col = meta.freeze_col;
+            ws.original_drawing_rid = meta.drawing_rid;
+            ws.original_legacy_drawing_rid = meta.legacy_drawing_rid;
         }
         Ok(ws)
     }
