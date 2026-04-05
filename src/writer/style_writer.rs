@@ -43,13 +43,17 @@ pub fn write_styles(reg: &StyleRegistry) -> Vec<u8> {
     w.start_tag("fills", &[("count", &fillc)]);
     for f in &reg.fills {
         w.start_tag("fill", &[]);
-        let pat = match f.pattern {
-            0 => "none", 1 => "solid", 17 => "gray125", _ => "none",
-        };
-        if let Some(rgb) = f.fg_rgb {
-            let hex = format!("FF{:02X}{:02X}{:02X}", rgb[0], rgb[1], rgb[2]);
+        let pat = pattern_name(f.pattern);
+        if f.fg_rgb.is_some() || f.bg_rgb.is_some() {
             w.start_tag("patternFill", &[("patternType", pat)]);
-            w.empty_tag("fgColor", &[("rgb", &hex)]);
+            if let Some(rgb) = f.fg_rgb {
+                let hex = format!("FF{:02X}{:02X}{:02X}", rgb[0], rgb[1], rgb[2]);
+                w.empty_tag("fgColor", &[("rgb", &hex)]);
+            }
+            if let Some(rgb) = f.bg_rgb {
+                let hex = format!("FF{:02X}{:02X}{:02X}", rgb[0], rgb[1], rgb[2]);
+                w.empty_tag("bgColor", &[("rgb", &hex)]);
+            }
             w.end_tag("patternFill");
         } else {
             w.empty_tag("patternFill", &[("patternType", pat)]);
@@ -62,12 +66,15 @@ pub fn write_styles(reg: &StyleRegistry) -> Vec<u8> {
     let bc = reg.borders.len().to_string();
     w.start_tag("borders", &[("count", &bc)]);
     for b in &reg.borders {
-        w.start_tag("border", &[]);
+        let mut border_attrs: Vec<(&str, &str)> = Vec::new();
+        if b.diagonal_type == 1 || b.diagonal_type == 3 { border_attrs.push(("diagonalUp", "1")); }
+        if b.diagonal_type == 2 || b.diagonal_type == 3 { border_attrs.push(("diagonalDown", "1")); }
+        w.start_tag("border", &border_attrs);
         write_border_side(&mut w, "left", b.left, b.color_rgb);
         write_border_side(&mut w, "right", b.right, b.color_rgb);
         write_border_side(&mut w, "top", b.top, b.color_rgb);
         write_border_side(&mut w, "bottom", b.bottom, b.color_rgb);
-        w.empty_tag("diagonal", &[]);
+        write_border_side(&mut w, "diagonal", b.diagonal, b.color_rgb);
         w.end_tag("border");
     }
     w.end_tag("borders");
@@ -95,6 +102,7 @@ pub fn write_styles(reg: &StyleRegistry) -> Vec<u8> {
 
         let has_protection = xf.locked.is_some() || xf.formula_hidden;
         if has_protection { attrs.push(("applyProtection", "1")); }
+        if xf.quote_prefix { attrs.push(("quotePrefix", "1")); }
 
         if let Some(ref align) = xf.alignment {
             attrs.push(("applyAlignment", "1"));
@@ -208,5 +216,15 @@ fn write_border_side(w: &mut XmlWriter, name: &str, style: u8, color: Option<[u8
         w.start_tag(name, &[("style", style_name)]);
         w.empty_tag("color", &[("auto", "1")]);
         w.end_tag(name);
+    }
+}
+
+fn pattern_name(p: u8) -> &'static str {
+    match p {
+        0 => "none", 1 => "solid", 2 => "mediumGray", 3 => "darkGray", 4 => "lightGray",
+        5 => "darkHorizontal", 6 => "darkVertical", 7 => "darkDown", 8 => "darkUp",
+        9 => "darkGrid", 10 => "darkTrellis", 11 => "lightHorizontal", 12 => "lightVertical",
+        13 => "lightDown", 14 => "lightUp", 15 => "lightGrid", 16 => "lightTrellis",
+        17 => "gray125", _ => "none",
     }
 }

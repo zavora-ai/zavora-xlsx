@@ -24,6 +24,12 @@ pub struct Format {
     pub(crate) num_format: String,
     pub(crate) locked: Option<bool>,
     pub(crate) formula_hidden: bool,
+    // Sprint 9
+    pub(crate) diagonal_border: BorderStyle,
+    pub(crate) diagonal_type: DiagonalType,
+    pub(crate) fg_color: Option<[u8; 3]>,
+    pub(crate) pattern: Pattern,
+    pub(crate) quote_prefix: bool,
 }
 
 impl Format {
@@ -38,6 +44,8 @@ impl Format {
             h_align: 0, v_align: 0, wrap_text: false, shrink: false,
             indent: 0, rotation: 0, num_format: String::new(),
             locked: None, formula_hidden: false,
+            diagonal_border: BorderStyle::None, diagonal_type: DiagonalType::None,
+            fg_color: None, pattern: Pattern::None, quote_prefix: false,
         }
     }
 
@@ -82,6 +90,17 @@ impl Format {
     pub fn locked(mut self) -> Self { self.locked = Some(true); self }
     pub fn formula_hidden(mut self) -> Self { self.formula_hidden = true; self }
 
+    /// Set diagonal border (up, down, or both).
+    pub fn diagonal_border(mut self, style: BorderStyle, diag_type: DiagonalType) -> Self {
+        self.diagonal_border = style; self.diagonal_type = diag_type; self
+    }
+    /// Set foreground color for pattern fills.
+    pub fn foreground_color(mut self, c: impl IntoColor) -> Self { self.fg_color = Some(c.into_color().to_rgb()); self }
+    /// Set pattern fill type.
+    pub fn pattern_fill(mut self, p: Pattern) -> Self { self.pattern = p; self }
+    /// Force text display (leading apostrophe).
+    pub fn quote_prefix(mut self) -> Self { self.quote_prefix = true; self }
+
     pub(crate) fn has_alignment(&self) -> bool {
         self.h_align != 0 || self.v_align != 0 || self.wrap_text || self.shrink || self.indent != 0 || self.rotation != 0
     }
@@ -103,7 +122,12 @@ pub enum BorderStyle { None = 0, Thin = 1, Medium = 2, Thick = 3, Dashed = 4, Do
 pub enum Align { Left, Center, Right, Fill, Justify, Top, VerticalCenter, Bottom }
 
 #[derive(Debug, Clone, Copy)]
-pub enum Pattern { None, Solid, Gray125 }
+pub enum Pattern { None, Solid, Gray125, MediumGray, DarkGray, LightGray,
+    DarkHorizontal, DarkVertical, DarkDown, DarkUp, DarkGrid, DarkTrellis,
+    LightHorizontal, LightVertical, LightDown, LightUp, LightGrid, LightTrellis }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum DiagonalType { #[default] None, Up, Down, Both }
 
 #[derive(Debug, Clone, Copy)]
 pub enum Color {

@@ -32,6 +32,8 @@ pub struct BorderData {
     pub left: u8,
     pub right: u8,
     pub color_rgb: Option<[u8; 3]>,
+    pub diagonal: u8,
+    pub diagonal_type: u8, // 0=none, 1=up, 2=down, 3=both
 }
 
 /// Internal alignment data.
@@ -55,6 +57,7 @@ pub struct XfRecord {
     pub alignment: Option<AlignmentData>,
     pub locked: Option<bool>,
     pub formula_hidden: bool,
+    pub quote_prefix: bool,
 }
 
 /// Centralized style registry with deduplication.
@@ -116,7 +119,7 @@ impl StyleRegistry {
         // Default xf record (style 0)
         let default_xf = XfRecord {
             font_id: 0, fill_id: 0, border_id: 0, num_fmt_id: 0, alignment: None,
-            locked: None, formula_hidden: false,
+            locked: None, formula_hidden: false, quote_prefix: false,
         };
         reg.xf_records.push(default_xf.clone());
         reg.xf_map.insert(default_xf, 0);
@@ -172,7 +175,10 @@ impl StyleRegistry {
             color_rgb: fmt.font_color,
         };
         let fill = if let Some(bg) = fmt.bg_color {
-            FillData { pattern: 1, fg_rgb: Some(bg), bg_rgb: None }
+            let p = if matches!(fmt.pattern, crate::format::Pattern::None) { 1u8 } else { fmt.pattern as u8 };
+            FillData { pattern: p, fg_rgb: fmt.fg_color.or(Some(bg)), bg_rgb: Some(bg) }
+        } else if !matches!(fmt.pattern, crate::format::Pattern::None) {
+            FillData { pattern: fmt.pattern as u8, fg_rgb: fmt.fg_color, bg_rgb: None }
         } else {
             FillData::default()
         };
@@ -182,6 +188,8 @@ impl StyleRegistry {
             left: fmt.border_left as u8,
             right: fmt.border_right as u8,
             color_rgb: fmt.border_color,
+            diagonal: fmt.diagonal_border as u8,
+            diagonal_type: fmt.diagonal_type as u8,
         };
         let alignment = if fmt.has_alignment() {
             Some(AlignmentData {
@@ -201,7 +209,7 @@ impl StyleRegistry {
         let border_id = self.intern_border(border);
         let num_fmt_id = self.intern_num_format(&fmt.num_format);
 
-        let xf = XfRecord { font_id, fill_id, border_id, num_fmt_id, alignment, locked: fmt.locked, formula_hidden: fmt.formula_hidden };
+        let xf = XfRecord { font_id, fill_id, border_id, num_fmt_id, alignment, locked: fmt.locked, formula_hidden: fmt.formula_hidden, quote_prefix: fmt.quote_prefix };
         if let Some(&idx) = self.xf_map.get(&xf) {
             return idx;
         }
@@ -222,7 +230,7 @@ impl StyleRegistry {
         } else { None };
         let fill = fmt.bg_color.map(|bg| FillData { pattern: 1, fg_rgb: Some(bg), bg_rgb: None });
         let border = if fmt.border_top as u8 > 0 || fmt.border_bottom as u8 > 0 || fmt.border_left as u8 > 0 || fmt.border_right as u8 > 0 {
-            Some(BorderData { top: fmt.border_top as u8, bottom: fmt.border_bottom as u8, left: fmt.border_left as u8, right: fmt.border_right as u8, color_rgb: fmt.border_color })
+            Some(BorderData { top: fmt.border_top as u8, bottom: fmt.border_bottom as u8, left: fmt.border_left as u8, right: fmt.border_right as u8, color_rgb: fmt.border_color, diagonal: 0, diagonal_type: 0 })
         } else { None };
         let num_format = if fmt.num_format.is_empty() { None } else { Some(fmt.num_format.clone()) };
         let idx = self.dxf_formats.len() as u32;

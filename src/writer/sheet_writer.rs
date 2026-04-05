@@ -506,11 +506,13 @@ fn write_cell(w: &mut XmlWriter, row: RowNum, col: ColNum, cell: &CellType, xf: 
 fn write_rich_text_runs(w: &mut XmlWriter, rt: &RichText) {
     for run in &rt.runs {
         w.start_tag("r", &[]);
-        let has_props = run.bold || run.italic || run.font_size.is_some() || run.font_name.is_some() || run.color.is_some();
+        let has_props = run.bold || run.italic || run.font_size.is_some() || run.font_name.is_some() || run.color.is_some() || run.superscript || run.subscript;
         if has_props {
             w.start_tag("rPr", &[]);
             if run.bold { w.empty_tag("b", &[]); }
             if run.italic { w.empty_tag("i", &[]); }
+            if run.superscript { w.empty_tag("vertAlign", &[("val", "superscript")]); }
+            if run.subscript { w.empty_tag("vertAlign", &[("val", "subscript")]); }
             if let Some(sz) = run.font_size {
                 let s = format!("{sz}");
                 w.empty_tag("sz", &[("val", &s)]);

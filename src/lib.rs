@@ -47,7 +47,7 @@ pub use features::image::Image;
 pub use features::sparkline::{Sparkline, SparklineType};
 pub use features::table::{Table, TableColumn, TableStyle};
 pub use features::validation::{DataValidation, ErrorStyle, ValidationRule};
-pub use format::{Align, BorderStyle, Color, Format, IntoColor, NamedColor, Pattern, Underline};
+pub use format::{Align, BorderStyle, Color, DiagonalType, Format, IntoColor, NamedColor, Pattern, Underline};
 pub use properties::DocProperties;
 pub use utility::{ColNum, RowNum};
 pub use workbook::{Workbook, CalcMode};

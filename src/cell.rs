@@ -120,17 +120,17 @@ impl RichText {
     pub fn new() -> Self { Self { runs: Vec::new() } }
 
     pub fn add_run(mut self, text: &str) -> Self {
-        self.runs.push(RichTextRun { text: text.to_string(), bold: false, italic: false, font_size: None, font_name: None, color: None });
+        self.runs.push(RichTextRun { text: text.to_string(), bold: false, italic: false, font_size: None, font_name: None, color: None, superscript: false, subscript: false });
         self
     }
 
     pub fn add_bold(mut self, text: &str) -> Self {
-        self.runs.push(RichTextRun { text: text.to_string(), bold: true, italic: false, font_size: None, font_name: None, color: None });
+        self.runs.push(RichTextRun { text: text.to_string(), bold: true, italic: false, font_size: None, font_name: None, color: None, superscript: false, subscript: false });
         self
     }
 
     pub fn add_italic(mut self, text: &str) -> Self {
-        self.runs.push(RichTextRun { text: text.to_string(), bold: false, italic: true, font_size: None, font_name: None, color: None });
+        self.runs.push(RichTextRun { text: text.to_string(), bold: false, italic: true, font_size: None, font_name: None, color: None, superscript: false, subscript: false });
         self
     }
 
@@ -159,18 +159,22 @@ pub struct RichTextRun {
     pub italic: bool,
     pub font_size: Option<f64>,
     pub font_name: Option<String>,
-    pub color: Option<String>, // hex RGB e.g. "FF0000"
+    pub color: Option<String>,
+    pub superscript: bool,
+    pub subscript: bool,
 }
 
 impl RichTextRun {
     pub fn new() -> Self {
-        Self { text: String::new(), bold: false, italic: false, font_size: None, font_name: None, color: None }
+        Self { text: String::new(), bold: false, italic: false, font_size: None, font_name: None, color: None, superscript: false, subscript: false }
     }
     pub fn bold(mut self) -> Self { self.bold = true; self }
     pub fn italic(mut self) -> Self { self.italic = true; self }
     pub fn font_size(mut self, size: f64) -> Self { self.font_size = Some(size); self }
     pub fn font_name(mut self, name: &str) -> Self { self.font_name = Some(name.to_string()); self }
     pub fn color(mut self, hex: &str) -> Self { self.color = Some(hex.to_string()); self }
+    pub fn superscript(mut self) -> Self { self.superscript = true; self }
+    pub fn subscript(mut self) -> Self { self.subscript = true; self }
 }
 
 impl Default for RichTextRun {
