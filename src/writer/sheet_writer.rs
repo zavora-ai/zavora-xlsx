@@ -499,7 +499,11 @@ fn write_cell(w: &mut XmlWriter, row: RowNum, col: ColNum, cell: &CellType, xf: 
             w.end_tag("is");
             w.end_tag("c");
         }
-        CellType::Empty => {}
+        CellType::Empty => {
+            if xf > 0 {
+                w.empty_tag("c", &[("r", &ref_str), ("s", &xf_s)]);
+            }
+        }
     }
 }
 
