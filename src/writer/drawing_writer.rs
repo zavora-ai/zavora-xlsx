@@ -75,7 +75,7 @@ fn write_two_cell_anchor_chart(w: &mut XmlWriter, chart: &Chart, r_id: &str) {
     w.end_tag("xdr:xfrm");
     w.start_tag("a:graphic", &[]);
     w.start_tag("a:graphicData", &[("uri", "http://schemas.openxmlformats.org/drawingml/2006/chart")]);
-    w.empty_tag("c:chart", &[("xmlns:c", "http://schemas.openxmlformats.org/drawingml/2006/chart"), ("r:id", r_id)]);
+    w.empty_tag("c:chart", &[("xmlns:c", "http://schemas.openxmlformats.org/drawingml/2006/chart"), ("xmlns:r", "http://schemas.openxmlformats.org/officeDocument/2006/relationships"), ("r:id", r_id)]);
     w.end_tag("a:graphicData");
     w.end_tag("a:graphic");
     w.end_tag("xdr:graphicFrame");
