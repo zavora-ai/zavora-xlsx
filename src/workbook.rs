@@ -209,13 +209,20 @@ impl Workbook {
         let mut image_extensions: Vec<String> = Vec::new();
 
         for (i, ws) in self.worksheets.iter().enumerate() {
-            let has_drawing = !ws.charts.is_empty() || !ws.images.is_empty();
+            let has_drawing = !ws.charts.is_empty() || !ws.images.is_empty() || ws.original_drawing_rid.is_some();
             if has_drawing { sheets_with_drawings.push(i); }
-            if !ws.comments.is_empty() { sheets_with_comments.push(i); }
+            if !ws.comments.is_empty() || ws.original_legacy_drawing_rid.is_some() { sheets_with_comments.push(i); }
             total_charts += ws.charts.len();
             total_tables += ws.tables.len();
             for img in &ws.images {
                 image_extensions.push(img.image_type.extension().to_string());
+            }
+        }
+
+        // Count passthrough charts
+        for (name, _) in &self.passthrough_entries {
+            if name.starts_with("xl/charts/chart") && name.ends_with(".xml") {
+                total_charts += 1;
             }
         }
 
