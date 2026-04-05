@@ -467,8 +467,8 @@ fn write_cell(w: &mut XmlWriter, row: RowNum, col: ColNum, cell: &CellType, xf: 
             w.end_tag("c");
         }
         CellType::DynamicFormula { text, range } => {
-            if xf > 0 { w.start_tag("c", &[("r", &ref_str), ("s", &xf_s), ("cm", "1")]); }
-            else { w.start_tag("c", &[("r", &ref_str), ("cm", "1")]); }
+            if xf > 0 { w.start_tag("c", &[("r", &ref_str), ("s", &xf_s)]); }
+            else { w.start_tag("c", &[("r", &ref_str)]); }
             w.text_element("f", &[("t", "array"), ("ref", range)], text);
             w.end_tag("c");
         }
