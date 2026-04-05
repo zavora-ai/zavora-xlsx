@@ -113,9 +113,20 @@ fn write_chart_type_block(w: &mut XmlWriter, ct: ChartType, series: &[(usize, &c
         ChartType::Radar => { w.empty_tag("c:radarStyle", &[("val", "marker")]); }
         _ => {}
     }
+    w.empty_tag("c:varyColors", &[("val", "0")]);
 
     for &(idx, s) in series {
         write_series(w, idx, s, ct);
+    }
+
+    // Chart-type-level elements after series
+    if matches!(ct, ChartType::Bar | ChartType::Column) {
+        w.empty_tag("c:gapWidth", &[("val", "219")]);
+        w.empty_tag("c:overlap", &[("val", "-27")]);
+    }
+    if matches!(ct, ChartType::Line) {
+        w.empty_tag("c:marker", &[("val", "1")]);
+        w.empty_tag("c:smooth", &[("val", "0")]);
     }
 
     if !matches!(ct, ChartType::Pie | ChartType::Doughnut) {
@@ -137,16 +148,27 @@ fn write_series(w: &mut XmlWriter, idx: usize, s: &crate::features::chart::Chart
         w.end_tag("c:tx");
     }
 
+    // Bar/column: invertIfNegative
+    if matches!(ct, ChartType::Bar | ChartType::Column) {
+        w.empty_tag("c:invertIfNegative", &[("val", "0")]);
+    }
+
+    // Line: marker
+    if matches!(ct, ChartType::Line) {
+        w.start_tag("c:marker", &[]);
+        w.empty_tag("c:symbol", &[("val", "none")]);
+        w.end_tag("c:marker");
+    }
+
     // Data labels (per-series)
     if s.data_labels {
         w.start_tag("c:dLbls", &[]);
-        if let Some(pos) = s.data_label_pos {
-            w.empty_tag("c:dLblPos", &[("val", pos.xml_str())]);
-        }
+        w.empty_tag("c:showLegendKey", &[("val", "0")]);
         w.empty_tag("c:showVal", &[("val", "1")]);
         w.empty_tag("c:showCatName", &[("val", "0")]);
         w.empty_tag("c:showSerName", &[("val", "0")]);
         w.empty_tag("c:showPercent", &[("val", "0")]);
+        w.empty_tag("c:showBubbleSize", &[("val", "0")]);
         w.end_tag("c:dLbls");
     }
 
@@ -172,6 +194,11 @@ fn write_series(w: &mut XmlWriter, idx: usize, s: &crate::features::chart::Chart
     w.text_element("c:f", &[], &s.values);
     w.end_tag("c:numRef");
     w.end_tag(val_tag);
+
+    // Line: smooth
+    if matches!(ct, ChartType::Line) {
+        w.empty_tag("c:smooth", &[("val", "0")]);
+    }
 
     w.end_tag("c:ser");
 }
