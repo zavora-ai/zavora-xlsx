@@ -23,12 +23,14 @@ pub struct Worksheet {
     pub(crate) name: String,
     pub(crate) cells: BTreeMap<RowNum, BTreeMap<ColNum, (CellType, u32)>>,
     pub(crate) pending_formats: HashMap<(RowNum, ColNum), Format>,
+    pub(crate) range_formats: Vec<(RowNum, ColNum, RowNum, ColNum, Format)>,
     pub(crate) merge_ranges: Vec<(RowNum, ColNum, RowNum, ColNum)>,
     pub(crate) col_widths: BTreeMap<ColNum, f64>,
     pub(crate) row_heights: BTreeMap<RowNum, f64>,
     pub(crate) freeze_row: RowNum,
     pub(crate) freeze_col: ColNum,
     pub(crate) read_cells: Option<Vec<RawCell>>,
+    pub(crate) read_cells_map: Option<BTreeMap<(RowNum, ColNum), CellValue>>,
     pub(crate) raw_xml: Option<Vec<u8>>,
     pub(crate) dirty: bool,
     // Phase 3 features
@@ -63,11 +65,12 @@ impl Worksheet {
             name: name.to_string(),
             cells: BTreeMap::new(),
             pending_formats: HashMap::new(),
+            range_formats: Vec::new(),
             merge_ranges: Vec::new(),
             col_widths: BTreeMap::new(),
             row_heights: BTreeMap::new(),
             freeze_row: 0, freeze_col: 0,
-            read_cells: None, raw_xml: None, dirty: false,
+            read_cells: None, read_cells_map: None, raw_xml: None, dirty: false,
             charts: Vec::new(), images: Vec::new(), tables: Vec::new(),
             conditional_formats: Vec::new(), validations: Vec::new(), sparklines: Vec::new(),
             protection: None, print_settings: None,
@@ -83,6 +86,7 @@ impl Worksheet {
     pub fn name(&self) -> &str { &self.name }
 
     pub fn set_name(&mut self, name: &str) -> crate::Result<&mut Self> {
+        validate_sheet_name(name)?;
         self.name = name.to_string();
         Ok(self)
     }
@@ -153,11 +157,7 @@ impl Worksheet {
     }
 
     pub(crate) fn write_string_internal(&mut self, row: RowNum, col: ColNum, s: &str, fmt: Option<&Format>) -> crate::Result<()> {
-        let cell = if let Some(formula) = s.strip_prefix('=') {
-            CellType::Formula { text: formula.to_string(), cached_number: None }
-        } else {
-            CellType::InlineString(s.to_string())
-        };
+        let cell = CellType::InlineString(s.to_string());
         self.cells.entry(row).or_default().insert(col, (cell, 0));
         if let Some(f) = fmt { self.pending_formats.insert((row, col), f.clone()); }
         Ok(())
@@ -183,9 +183,9 @@ impl Worksheet {
                 return cell_type_to_value(cell);
             }
         }
-        if let Some(ref raw) = self.read_cells {
-            for rc in raw {
-                if rc.row == row && rc.col == col { return rc.value.clone(); }
+        if let Some(ref map) = self.read_cells_map {
+            if let Some(rc) = map.get(&(row, col)) {
+                return rc.clone();
             }
         }
         CellValue::Empty
@@ -202,10 +202,10 @@ impl Worksheet {
                 found = true;
             }
         }
-        if let Some(ref raw) = self.read_cells {
-            for rc in raw {
-                min_r = min_r.min(rc.row); max_r = max_r.max(rc.row);
-                min_c = min_c.min(rc.col); max_c = max_c.max(rc.col);
+        if let Some(ref map) = self.read_cells_map {
+            for &(r, c) in map.keys() {
+                min_r = min_r.min(r); max_r = max_r.max(r);
+                min_c = min_c.min(c); max_c = max_c.max(c);
                 found = true;
             }
         }
@@ -221,7 +221,7 @@ impl Worksheet {
     }
 
     pub fn set_range_format(&mut self, r1: RowNum, c1: ColNum, r2: RowNum, c2: ColNum, format: &Format) -> crate::Result<&mut Self> {
-        for r in r1..=r2 { for c in c1..=c2 { self.pending_formats.insert((r, c), format.clone()); } }
+        self.range_formats.push((r1, c1, r2, c2, format.clone()));
         self.dirty = true;
         Ok(self)
     }
@@ -636,6 +636,20 @@ impl Worksheet {
                 .and_modify(|e| e.1 = xf)
                 .or_insert((CellType::Empty, xf));
         }
+        // Apply range formats only to existing cells (don't create empty cells)
+        let ranges = std::mem::take(&mut self.range_formats);
+        for (r1, c1, r2, c2, fmt) in ranges {
+            let xf = styles.register_format(&fmt);
+            for r in r1..=r2 {
+                if let Some(cols) = self.cells.get_mut(&r) {
+                    for c in c1..=c2 {
+                        if let Some(cell) = cols.get_mut(&c) {
+                            cell.1 = xf;
+                        }
+                    }
+                }
+            }
+        }
         for cols in self.cells.values_mut() {
             for (cell, _) in cols.values_mut() {
                 if let CellType::InlineString(s) = cell {
@@ -800,6 +814,22 @@ pub struct Hyperlink {
     pub url: String,
     pub location: Option<String>, // internal link like "Sheet2!A1"
     pub tooltip: Option<String>,
+}
+
+/// Validate an Excel sheet name.
+pub(crate) fn validate_sheet_name(name: &str) -> crate::Result<()> {
+    if name.is_empty() {
+        return Err(crate::Error::InvalidData("Sheet name cannot be empty".into()));
+    }
+    if name.len() > 31 {
+        return Err(crate::Error::InvalidData(format!("Sheet name '{}' exceeds 31 characters", name)));
+    }
+    for c in name.chars() {
+        if matches!(c, '/' | '\\' | '*' | '?' | '[' | ']' | ':') {
+            return Err(crate::Error::InvalidData(format!("Sheet name '{}' contains invalid character '{}'", name, c)));
+        }
+    }
+    Ok(())
 }
 
 /// A comment/note on a cell.

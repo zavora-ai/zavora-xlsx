@@ -54,6 +54,8 @@ impl Workbook {
         for sheet_info in &data.sheets {
             let mut ws = Worksheet::new(&sheet_info.name);
             let cells = xlsx_reader::read_sheet_data(&mut zip, &sheet_info.path, &data.sst, &data.styles)?;
+            let map: std::collections::BTreeMap<_, _> = cells.iter().map(|rc| ((rc.row, rc.col), rc.value.clone())).collect();
+            ws.read_cells_map = Some(map);
             ws.read_cells = Some(cells);
             worksheets.push(ws);
         }
@@ -85,7 +87,8 @@ impl Workbook {
 
         // Collect passthrough entries (media, charts, drawings, etc.)
         let known_prefixes = ["xl/worksheets/", "xl/workbook.xml", "xl/sharedStrings.xml",
-            "xl/styles.xml", "xl/theme/", "[Content_Types].xml", "_rels/", "xl/_rels/workbook.xml.rels"];
+            "xl/styles.xml", "xl/theme/", "[Content_Types].xml", "_rels/", "xl/_rels/workbook.xml.rels",
+            "docProps/"];
         let mut passthrough = Vec::new();
         let entry_names: Vec<String> = (0..zip.archive.len())
             .filter_map(|i| zip.archive.by_index_raw(i).ok().map(|e| e.name().to_string()))
@@ -357,6 +360,7 @@ impl Workbook {
     }
 
     pub fn add_worksheet_with_name(&mut self, name: &str) -> crate::Result<&mut Worksheet> {
+        crate::worksheet::validate_sheet_name(name)?;
         if self.worksheets.iter().any(|ws| ws.name == name) {
             return Err(crate::Error::InvalidData(format!("Sheet '{name}' already exists")));
         }
@@ -373,6 +377,8 @@ impl Workbook {
             let cells = crate::reader::sheet_reader::read_sheet_cells(
                 raw, &self.sst, &crate::reader::style_parser::ParsedStyles::default(),
             )?;
+            let map: std::collections::BTreeMap<_, _> = cells.iter().map(|rc| ((rc.row, rc.col), rc.value.clone())).collect();
+            ws.read_cells_map = Some(map);
             ws.read_cells = Some(cells);
         }
         Ok(ws)
@@ -398,6 +404,7 @@ impl Workbook {
 
     /// Rename a worksheet by index.
     pub fn rename_worksheet(&mut self, index: usize, name: &str) -> crate::Result<()> {
+        crate::worksheet::validate_sheet_name(name)?;
         if self.worksheets.iter().any(|ws| ws.name == name) {
             return Err(crate::Error::InvalidData(format!("Sheet '{name}' already exists")));
         }

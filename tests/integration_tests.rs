@@ -160,7 +160,7 @@ fn formula_roundtrip() {
         let ws = wb.worksheet(0).unwrap();
         ws.write(0, 0, 10.0).unwrap();
         ws.write(0, 1, 20.0).unwrap();
-        ws.write(0, 2, "=A1+B1").unwrap(); // formula via = prefix
+        ws.write_formula(0, 2, "A1+B1").unwrap();
         wb.save(&path).unwrap();
     }
 

@@ -31,9 +31,15 @@ impl<R: Read + Seek> ZipReader<R> {
 
     /// Read an entry's full contents as bytes. Returns None if not found.
     pub fn read_entry(&mut self, path: &str) -> Option<crate::Result<Vec<u8>>> {
+        const MAX_DECOMPRESSED: u64 = 200 * 1024 * 1024; // 200 MB
         let resolved = self.resolve_path(path).to_string();
         match self.archive.by_name(&resolved) {
             Ok(mut entry) => {
+                if entry.size() > MAX_DECOMPRESSED {
+                    return Some(Err(crate::Error::InvalidData(
+                        format!("Entry '{}' decompressed size {} exceeds limit", path, entry.size()),
+                    )));
+                }
                 let mut buf = Vec::with_capacity(entry.size() as usize);
                 match std::io::Read::read_to_end(&mut entry, &mut buf) {
                     Ok(_) => Some(Ok(buf)),

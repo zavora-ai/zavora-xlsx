@@ -9,15 +9,6 @@ pub enum LegendPosition { Top, Bottom, Left, Right, None }
 #[derive(Debug, Clone, Copy)]
 pub enum TrendlineType { Linear, Exponential, Polynomial(u8), Power, Logarithmic, MovingAverage(u8) }
 
-#[derive(Debug, Clone, Copy)]
-pub enum DataLabelPosition { OutsideEnd, InsideEnd, Center, InsideBase }
-
-impl DataLabelPosition {
-    pub fn xml_str(&self) -> &str {
-        match self { Self::OutsideEnd => "outEnd", Self::InsideEnd => "inEnd", Self::Center => "ctr", Self::InsideBase => "inBase" }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct ChartSeries {
     pub(crate) values: String,
@@ -25,7 +16,6 @@ pub struct ChartSeries {
     pub(crate) name: Option<String>,
     pub(crate) secondary_axis: bool,
     pub(crate) data_labels: bool,
-    pub(crate) data_label_pos: Option<DataLabelPosition>,
     pub(crate) trendline: Option<TrendlineType>,
     pub(crate) chart_type_override: Option<ChartType>,
 }
@@ -33,7 +23,7 @@ pub struct ChartSeries {
 impl ChartSeries {
     pub fn new() -> Self {
         Self { values: String::new(), categories: None, name: None,
-            secondary_axis: false, data_labels: false, data_label_pos: None,
+            secondary_axis: false, data_labels: false,
             trendline: None, chart_type_override: None }
     }
     pub fn set_values(&mut self, range: &str) -> &mut Self { self.values = range.into(); self }
@@ -41,7 +31,6 @@ impl ChartSeries {
     pub fn set_name(&mut self, name: &str) -> &mut Self { self.name = Some(name.into()); self }
     pub fn set_secondary_axis(&mut self, v: bool) -> &mut Self { self.secondary_axis = v; self }
     pub fn set_data_labels(&mut self, v: bool) -> &mut Self { self.data_labels = v; self }
-    pub fn set_data_label_position(&mut self, pos: DataLabelPosition) -> &mut Self { self.data_label_pos = Some(pos); self.data_labels = true; self }
     pub fn set_trendline(&mut self, t: TrendlineType) -> &mut Self { self.trendline = Some(t); self }
     pub fn set_chart_type(&mut self, ct: ChartType) -> &mut Self { self.chart_type_override = Some(ct); self }
 }

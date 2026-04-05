@@ -152,6 +152,7 @@ impl StreamingWorkbook {
 
         zip.add_file("xl/styles.xml", &style_writer::write_styles(&self.styles))?;
         zip.add_file("xl/sharedStrings.xml", &sst_writer::write_sst(&self.sst))?;
+        zip.add_file("xl/theme/theme1.xml", &crate::writer::theme_writer::write_theme())?;
 
         if has_props {
             zip.add_file("docProps/core.xml", &properties::write_core_xml(&self.properties))?;
@@ -314,6 +315,7 @@ fn write_streaming_content_types(sheet_count: usize, has_props: bool) -> Vec<u8>
         w.empty_tag("Override", &[("PartName", &part), ("ContentType", "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml")]);
     }
     w.empty_tag("Override", &[("PartName", "/xl/styles.xml"), ("ContentType", "application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml")]);
+    w.empty_tag("Override", &[("PartName", "/xl/theme/theme1.xml"), ("ContentType", "application/vnd.openxmlformats-officedocument.theme+xml")]);
     w.empty_tag("Override", &[("PartName", "/xl/sharedStrings.xml"), ("ContentType", "application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml")]);
     if has_props {
         w.empty_tag("Override", &[("PartName", "/docProps/core.xml"), ("ContentType", "application/vnd.openxmlformats-package.core-properties+xml")]);
