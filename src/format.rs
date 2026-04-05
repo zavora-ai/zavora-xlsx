@@ -122,9 +122,12 @@ pub enum BorderStyle { None = 0, Thin = 1, Medium = 2, Thick = 3, Dashed = 4, Do
 pub enum Align { Left, Center, Right, Fill, Justify, Top, VerticalCenter, Bottom }
 
 #[derive(Debug, Clone, Copy)]
-pub enum Pattern { None, Solid, Gray125, MediumGray, DarkGray, LightGray,
-    DarkHorizontal, DarkVertical, DarkDown, DarkUp, DarkGrid, DarkTrellis,
-    LightHorizontal, LightVertical, LightDown, LightUp, LightGrid, LightTrellis }
+pub enum Pattern {
+    None = 0, Solid = 1, MediumGray = 2, DarkGray = 3, LightGray = 4,
+    DarkHorizontal = 5, DarkVertical = 6, DarkDown = 7, DarkUp = 8,
+    DarkGrid = 9, DarkTrellis = 10, LightHorizontal = 11, LightVertical = 12,
+    LightDown = 13, LightUp = 14, LightGrid = 15, LightTrellis = 16, Gray125 = 17,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum DiagonalType { #[default] None, Up, Down, Both }
