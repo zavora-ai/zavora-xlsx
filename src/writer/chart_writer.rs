@@ -69,14 +69,14 @@ fn write_single_chart_type(w: &mut XmlWriter, chart: &Chart, has_secondary: bool
     let primary: Vec<(usize, &crate::features::chart::ChartSeries)> =
         chart.series.iter().enumerate().filter(|(_, s)| !s.secondary_axis).collect();
     if !primary.is_empty() {
-        write_chart_type_block(w, ct, &primary, "1", "2");
+        write_chart_type_block(w, ct, &primary, "111111111", "222222222");
     }
     // Secondary series (same chart type, different axes)
     if has_secondary {
         let secondary: Vec<(usize, &crate::features::chart::ChartSeries)> =
             chart.series.iter().enumerate().filter(|(_, s)| s.secondary_axis).collect();
         if !secondary.is_empty() {
-            write_chart_type_block(w, ct, &secondary, "3", "4");
+            write_chart_type_block(w, ct, &secondary, "333333333", "444444444");
         }
     }
 }
@@ -94,7 +94,7 @@ fn write_combo_chart(w: &mut XmlWriter, chart: &Chart, has_secondary: bool) {
     }
     for (ct, series_list) in &groups {
         let any_secondary = series_list.iter().any(|(_, s)| s.secondary_axis);
-        let (cat_ax, val_ax) = if any_secondary { ("3", "4") } else { ("1", "2") };
+        let (cat_ax, val_ax) = if any_secondary { ("333333333", "444444444") } else { ("111111111", "222222222") };
         write_chart_type_block(w, *ct, series_list, cat_ax, val_ax);
     }
     // If combo has secondary axis series but no explicit secondary group, axes still needed
@@ -199,45 +199,57 @@ fn write_trendline(w: &mut XmlWriter, tl: &crate::features::chart::TrendlineType
 }
 
 fn write_axes(w: &mut XmlWriter, chart: &Chart, has_secondary: bool) {
-    // Primary category axis (axId=1, crossAx=2)
+    // Primary category axis
     w.start_tag("c:catAx", &[]);
-    w.empty_tag("c:axId", &[("val", "1")]);
+    w.empty_tag("c:axId", &[("val", "111111111")]);
     w.start_tag("c:scaling", &[]); w.empty_tag("c:orientation", &[("val", "minMax")]); w.end_tag("c:scaling");
-    w.empty_tag("c:delete", &[("val", "0")]);
     w.empty_tag("c:axPos", &[("val", "b")]);
     if let Some(ref name) = chart.x_axis_name { write_axis_title(w, name); }
-    w.empty_tag("c:crossAx", &[("val", "2")]);
+    w.empty_tag("c:tickLblPos", &[("val", "nextTo")]);
+    w.empty_tag("c:crossAx", &[("val", "222222222")]);
+    w.empty_tag("c:crosses", &[("val", "autoZero")]);
+    w.empty_tag("c:auto", &[("val", "1")]);
+    w.empty_tag("c:lblAlgn", &[("val", "ctr")]);
+    w.empty_tag("c:lblOffset", &[("val", "100")]);
     w.end_tag("c:catAx");
 
-    // Primary value axis (axId=2, crossAx=1)
+    // Primary value axis
     w.start_tag("c:valAx", &[]);
-    w.empty_tag("c:axId", &[("val", "2")]);
+    w.empty_tag("c:axId", &[("val", "222222222")]);
     w.start_tag("c:scaling", &[]); w.empty_tag("c:orientation", &[("val", "minMax")]); w.end_tag("c:scaling");
-    w.empty_tag("c:delete", &[("val", "0")]);
     w.empty_tag("c:axPos", &[("val", "l")]);
+    w.empty_tag("c:majorGridlines", &[]);
     if let Some(ref name) = chart.y_axis_name { write_axis_title(w, name); }
-    w.empty_tag("c:crossAx", &[("val", "1")]);
+    w.empty_tag("c:numFmt", &[("formatCode", "General"), ("sourceLinked", "1")]);
+    w.empty_tag("c:tickLblPos", &[("val", "nextTo")]);
+    w.empty_tag("c:crossAx", &[("val", "111111111")]);
+    w.empty_tag("c:crosses", &[("val", "autoZero")]);
+    w.empty_tag("c:crossBetween", &[("val", "between")]);
     w.end_tag("c:valAx");
 
     if has_secondary {
-        // Secondary category axis (axId=3, crossAx=4) — hidden, just for axis pairing
+        // Secondary category axis — hidden
         w.start_tag("c:catAx", &[]);
-        w.empty_tag("c:axId", &[("val", "3")]);
+        w.empty_tag("c:axId", &[("val", "333333333")]);
         w.start_tag("c:scaling", &[]); w.empty_tag("c:orientation", &[("val", "minMax")]); w.end_tag("c:scaling");
         w.empty_tag("c:delete", &[("val", "1")]);
         w.empty_tag("c:axPos", &[("val", "b")]);
-        w.empty_tag("c:crossAx", &[("val", "4")]);
+        w.empty_tag("c:tickLblPos", &[("val", "nextTo")]);
+        w.empty_tag("c:crossAx", &[("val", "444444444")]);
+        w.empty_tag("c:crosses", &[("val", "autoZero")]);
         w.end_tag("c:catAx");
 
-        // Secondary value axis (axId=4, crossAx=3) — right side
+        // Secondary value axis — right side
         w.start_tag("c:valAx", &[]);
-        w.empty_tag("c:axId", &[("val", "4")]);
+        w.empty_tag("c:axId", &[("val", "444444444")]);
         w.start_tag("c:scaling", &[]); w.empty_tag("c:orientation", &[("val", "minMax")]); w.end_tag("c:scaling");
-        w.empty_tag("c:delete", &[("val", "0")]);
         w.empty_tag("c:axPos", &[("val", "r")]);
         if let Some(ref name) = chart.y2_axis_name { write_axis_title(w, name); }
-        w.empty_tag("c:crossAx", &[("val", "3")]);
+        w.empty_tag("c:numFmt", &[("formatCode", "General"), ("sourceLinked", "1")]);
+        w.empty_tag("c:tickLblPos", &[("val", "nextTo")]);
+        w.empty_tag("c:crossAx", &[("val", "333333333")]);
         w.empty_tag("c:crosses", &[("val", "max")]);
+        w.empty_tag("c:crossBetween", &[("val", "between")]);
         w.end_tag("c:valAx");
     }
 }
