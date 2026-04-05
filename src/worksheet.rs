@@ -57,6 +57,15 @@ pub struct Worksheet {
     pub(crate) show_headings: bool,
     pub(crate) right_to_left: bool,
     pub(crate) tab_color: Option<[u8; 3]>,
+    // Parity features
+    pub(crate) visibility: SheetVisibility,
+    pub(crate) selection: Option<(RowNum, ColNum)>,
+    pub(crate) top_left_cell: Option<(RowNum, ColNum)>,
+    pub(crate) default_row_height: Option<f64>,
+    pub(crate) col_formats: BTreeMap<ColNum, Format>,
+    pub(crate) row_formats: BTreeMap<RowNum, Format>,
+    pub(crate) ignored_errors: Vec<(String, String)>,
+    pub(crate) autofilter_columns: Vec<(ColNum, Vec<String>)>,
 }
 
 impl Worksheet {
@@ -80,6 +89,12 @@ impl Worksheet {
             row_outline_levels: BTreeMap::new(), col_outline_levels: BTreeMap::new(),
             zoom: None, show_gridlines: true, show_headings: true,
             right_to_left: false, tab_color: None,
+            visibility: SheetVisibility::Visible,
+            selection: None, top_left_cell: None,
+            default_row_height: None,
+            col_formats: BTreeMap::new(), row_formats: BTreeMap::new(),
+            ignored_errors: Vec::new(),
+            autofilter_columns: Vec::new(),
         }
     }
 
@@ -472,6 +487,74 @@ impl Worksheet {
         self
     }
 
+    // ── Sprint 7: Parity quick wins ──
+
+    /// Write a blank cell with formatting (borders/background on empty cells).
+    pub fn write_blank(&mut self, row: RowNum, col: ColNum, format: &Format) -> crate::Result<&mut Self> {
+        self.ensure_deserialized();
+        self.dirty = true;
+        self.cells.entry(row).or_default().insert(col, (CellType::Empty, 0));
+        self.pending_formats.insert((row, col), format.clone());
+        Ok(self)
+    }
+
+    /// Remove a cell value.
+    pub fn clear_cell(&mut self, row: RowNum, col: ColNum) -> &mut Self {
+        self.ensure_deserialized();
+        self.dirty = true;
+        if let Some(cols) = self.cells.get_mut(&row) { cols.remove(&col); }
+        self.pending_formats.remove(&(row, col));
+        self
+    }
+
+    /// Set default row height for the sheet.
+    pub fn set_default_row_height(&mut self, height: f64) -> &mut Self {
+        self.default_row_height = Some(height); self.dirty = true; self
+    }
+
+    /// Apply a format to an entire column (via `<col>` style attribute).
+    pub fn set_column_format(&mut self, col: ColNum, format: &Format) -> &mut Self {
+        self.col_formats.insert(col, format.clone()); self.dirty = true; self
+    }
+
+    /// Apply a format to an entire row.
+    pub fn set_row_format(&mut self, row: RowNum, format: &Format) -> &mut Self {
+        self.row_formats.insert(row, format.clone()); self.dirty = true; self
+    }
+
+    /// Hide the sheet (user can unhide via right-click).
+    pub fn set_hidden(&mut self) -> &mut Self {
+        self.visibility = SheetVisibility::Hidden; self
+    }
+
+    /// Very-hide the sheet (only accessible via VBA).
+    pub fn set_very_hidden(&mut self) -> &mut Self {
+        self.visibility = SheetVisibility::VeryHidden; self
+    }
+
+    /// Set the active cell (cursor position) when the sheet opens.
+    pub fn set_selection(&mut self, row: RowNum, col: ColNum) -> &mut Self {
+        self.selection = Some((row, col)); self
+    }
+
+    /// Set the top-left visible cell (scroll position) when the sheet opens.
+    pub fn set_top_left_cell(&mut self, row: RowNum, col: ColNum) -> &mut Self {
+        self.top_left_cell = Some((row, col)); self
+    }
+
+    /// Suppress a green triangle error indicator on a range.
+    /// Error types: "numberStoredAsText", "formula", "formulaRange", "unlockedFormula", etc.
+    pub fn ignore_error(&mut self, error_type: &str, range: &str) -> &mut Self {
+        self.ignored_errors.push((error_type.to_string(), range.to_string()));
+        self.dirty = true; self
+    }
+
+    /// Set autofilter criteria for a specific column.
+    pub fn filter_column(&mut self, col: ColNum, values: &[&str]) -> &mut Self {
+        self.autofilter_columns.push((col, values.iter().map(|s| s.to_string()).collect()));
+        self.dirty = true; self
+    }
+
     // ── Row/Column operations ──
 
     /// Insert `count` rows at the given 0-based row index. Shifts existing rows down.
@@ -782,6 +865,9 @@ impl PrintSettings {
     pub fn header(mut self, h: &str) -> Self { self.header = Some(h.to_string()); self }
     pub fn footer(mut self, f: &str) -> Self { self.footer = Some(f.to_string()); self }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SheetVisibility { #[default] Visible, Hidden, VeryHidden }
 
 #[derive(Debug, Clone, Copy)]
 pub enum Orientation { Portrait, Landscape }

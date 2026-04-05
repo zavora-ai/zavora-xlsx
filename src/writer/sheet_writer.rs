@@ -38,6 +38,15 @@ pub struct SheetCells<'a> {
     pub show_headings: bool,
     pub right_to_left: bool,
     pub tab_color: Option<[u8; 3]>,
+    // Sprint 7
+    pub is_active: bool,
+    pub selection: Option<(RowNum, ColNum)>,
+    pub top_left_cell: Option<(RowNum, ColNum)>,
+    pub default_row_height: Option<f64>,
+    pub col_formats: &'a BTreeMap<ColNum, u32>,
+    pub row_formats: &'a BTreeMap<RowNum, u32>,
+    pub ignored_errors: &'a [(String, String)],
+    pub autofilter_columns: &'a [(ColNum, Vec<String>)],
 }
 
 pub fn write_sheet(data: &SheetCells<'_>) -> Vec<u8> {
@@ -70,10 +79,14 @@ pub fn write_sheet(data: &SheetCells<'_>) -> Vec<u8> {
     // 2. sheetViews (always present)
     w.start_tag("sheetViews", &[]);
     let mut sv_attrs: Vec<(&str, String)> = vec![("workbookViewId", "0".into())];
+    if data.is_active { sv_attrs.push(("tabSelected", "1".into())); }
     if !data.show_gridlines { sv_attrs.push(("showGridLines", "0".into())); }
     if !data.show_headings { sv_attrs.push(("showRowColHeaders", "0".into())); }
     if data.right_to_left { sv_attrs.push(("rightToLeft", "1".into())); }
     if let Some(z) = data.zoom { sv_attrs.push(("zoomScale", z.to_string())); sv_attrs.push(("zoomScaleNormal", z.to_string())); }
+    if let Some((r, c)) = data.top_left_cell {
+        sv_attrs.push(("topLeftCell", format!("{}{}", col_to_letter(c), r + 1)));
+    }
     let sv_refs: Vec<(&str, &str)> = sv_attrs.iter().map(|(k, v)| (*k, v.as_str())).collect();
     w.start_tag("sheetView", &sv_refs);
     if data.freeze_row > 0 || data.freeze_col > 0 {
@@ -86,20 +99,25 @@ pub fn write_sheet(data: &SheetCells<'_>) -> Vec<u8> {
         let refs: Vec<(&str, &str)> = pane_attrs.iter().map(|(k, v)| (*k, v.as_str())).collect();
         w.empty_tag("pane", &refs);
     }
+    if let Some((r, c)) = data.selection {
+        let cell = format!("{}{}", col_to_letter(c), r + 1);
+        w.empty_tag("selection", &[("activeCell", &cell), ("sqref", &cell)]);
+    }
     w.end_tag("sheetView");
     w.end_tag("sheetViews");
 
     // 3. sheetFormatPr
-    w.empty_tag("sheetFormatPr", &[("defaultRowHeight", "15")]);
+    let drh = data.default_row_height.map(|h| format!("{h}")).unwrap_or_else(|| "15".into());
+    w.empty_tag("sheetFormatPr", &[("defaultRowHeight", &drh)]);
 
-    // 4. cols (widths + hidden + outline)
-    let has_cols = !data.col_widths.is_empty() || !data.hidden_cols.is_empty() || !data.col_outline_levels.is_empty();
+    // 4. cols (widths + hidden + outline + col formats)
+    let has_cols = !data.col_widths.is_empty() || !data.hidden_cols.is_empty() || !data.col_outline_levels.is_empty() || !data.col_formats.is_empty();
     if has_cols {
-        // Collect all cols that need an entry
         let mut all_cols: std::collections::BTreeSet<ColNum> = std::collections::BTreeSet::new();
         for &c in data.col_widths.keys() { all_cols.insert(c); }
         for &c in data.hidden_cols { all_cols.insert(c); }
         for &c in data.col_outline_levels.keys() { all_cols.insert(c); }
+        for &c in data.col_formats.keys() { all_cols.insert(c); }
         w.start_tag("cols", &[]);
         for &col in &all_cols {
             let c = (col + 1).to_string();
@@ -113,6 +131,11 @@ pub fn write_sheet(data: &SheetCells<'_>) -> Vec<u8> {
                 attrs.push(("outlineLevel", &ol));
             }
             if data.hidden_cols.contains(&col) { attrs.push(("hidden", "1")); }
+            let sf;
+            if let Some(&xf) = data.col_formats.get(&col) {
+                sf = xf.to_string();
+                attrs.push(("style", &sf));
+            }
             w.empty_tag("col", &attrs);
         }
         w.end_tag("cols");
@@ -135,6 +158,12 @@ pub fn write_sheet(data: &SheetCells<'_>) -> Vec<u8> {
             row_attrs.push(("outlineLevel", &ol));
         }
         if data.hidden_rows.contains(&row) { row_attrs.push(("hidden", "1")); }
+        let rf;
+        if let Some(&xf) = data.row_formats.get(&row) {
+            rf = xf.to_string();
+            row_attrs.push(("s", &rf));
+            row_attrs.push(("customFormat", "1"));
+        }
         w.start_tag("row", &row_attrs);
         for (&col, (cell, xf_idx)) in cols {
             write_cell(&mut w, row, col, cell, *xf_idx);
@@ -159,7 +188,22 @@ pub fn write_sheet(data: &SheetCells<'_>) -> Vec<u8> {
     // autoFilter
     if let Some((r1, c1, r2, c2)) = data.autofilter {
         let ref_str = format!("{}{}:{}{}", col_to_letter(c1), r1 + 1, col_to_letter(c2), r2 + 1);
-        w.empty_tag("autoFilter", &[("ref", &ref_str)]);
+        if data.autofilter_columns.is_empty() {
+            w.empty_tag("autoFilter", &[("ref", &ref_str)]);
+        } else {
+            w.start_tag("autoFilter", &[("ref", &ref_str)]);
+            for (col, values) in data.autofilter_columns {
+                let col_id = (col - c1).to_string();
+                w.start_tag("filterColumn", &[("colId", &col_id)]);
+                w.start_tag("filters", &[]);
+                for v in values {
+                    w.empty_tag("filter", &[("val", v)]);
+                }
+                w.end_tag("filters");
+                w.end_tag("filterColumn");
+            }
+            w.end_tag("autoFilter");
+        }
     }
 
     // mergeCells
@@ -315,6 +359,15 @@ pub fn write_sheet(data: &SheetCells<'_>) -> Vec<u8> {
         w.end_tag("x14:sparklineGroups");
         w.end_tag("ext");
         w.end_tag("extLst");
+    }
+
+    // ignoredErrors
+    if !data.ignored_errors.is_empty() {
+        w.start_tag("ignoredErrors", &[]);
+        for (err_type, range) in data.ignored_errors {
+            w.empty_tag("ignoredError", &[("sqref", range), (err_type, "1")]);
+        }
+        w.end_tag("ignoredErrors");
     }
 
     w.end_tag("worksheet");

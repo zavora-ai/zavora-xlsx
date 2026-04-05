@@ -26,6 +26,7 @@ pub struct Workbook {
     workbook_protection: Option<WorkbookProtection>,
     is_xlsm: bool,
     calc_mode: Option<CalcMode>,
+    active_sheet: Option<usize>,
 }
 
 /// Calculation mode for the workbook.
@@ -43,7 +44,7 @@ impl Workbook {
             properties: DocProperties::default(),
             passthrough_entries: Vec::new(),
             workbook_protection: None,
-            is_xlsm: false, calc_mode: None,
+            is_xlsm: false, calc_mode: None, active_sheet: None,
         }
     }
 
@@ -65,7 +66,7 @@ impl Workbook {
             properties: data.properties,
             passthrough_entries: Vec::new(),
             workbook_protection: None,
-            is_xlsm: false, calc_mode: None,
+            is_xlsm: false, calc_mode: None, active_sheet: None,
         })
     }
 
@@ -114,6 +115,7 @@ impl Workbook {
             workbook_protection: None,
             is_xlsm,
             calc_mode: None,
+            active_sheet: None,
         })
     }
 
@@ -140,6 +142,22 @@ impl Workbook {
                     cf.dxf_id = Some(self.styles.register_dxf(&fmt_clone));
                 }
             }
+        }
+
+        // Register col/row formats and store resolved xf indices
+        let mut col_format_xfs: Vec<std::collections::BTreeMap<u16, u32>> = Vec::new();
+        let mut row_format_xfs: Vec<std::collections::BTreeMap<u32, u32>> = Vec::new();
+        for ws in &self.worksheets {
+            let mut cf_map = std::collections::BTreeMap::new();
+            for (col, fmt) in &ws.col_formats {
+                cf_map.insert(*col, self.styles.register_format(fmt));
+            }
+            col_format_xfs.push(cf_map);
+            let mut rf_map = std::collections::BTreeMap::new();
+            for (row, fmt) in &ws.row_formats {
+                rf_map.insert(*row, self.styles.register_format(fmt));
+            }
+            row_format_xfs.push(rf_map);
         }
 
         let mut zip = ZipOutput::new();
@@ -245,7 +263,10 @@ impl Workbook {
 
         // Parallel sheet XML generation
         let sheet_xmls: Vec<Option<Vec<u8>>> = std::thread::scope(|s| {
-            let handles: Vec<_> = self.worksheets.iter().zip(metas.iter()).map(|(ws, meta)| {
+            let handles: Vec<_> = self.worksheets.iter().zip(metas.iter()).enumerate().map(|(idx, (ws, meta))| {
+                let active = self.active_sheet.map_or(idx == 0, |a| a == idx);
+                let cf_xfs = &col_format_xfs[idx];
+                let rf_xfs = &row_format_xfs[idx];
                 s.spawn(move || {
                     if ws.raw_xml.is_some() && !ws.dirty {
                         return None;
@@ -268,6 +289,14 @@ impl Workbook {
                         zoom: ws.zoom, show_gridlines: ws.show_gridlines,
                         show_headings: ws.show_headings, right_to_left: ws.right_to_left,
                         tab_color: ws.tab_color,
+                        is_active: active,
+                        selection: ws.selection,
+                        top_left_cell: ws.top_left_cell,
+                        default_row_height: ws.default_row_height,
+                        col_formats: cf_xfs,
+                        row_formats: rf_xfs,
+                        ignored_errors: &ws.ignored_errors,
+                        autofilter_columns: &ws.autofilter_columns,
                     };
                     Some(sheet_writer::write_sheet(&sc))
                 })
@@ -464,6 +493,9 @@ impl Workbook {
 
     pub fn set_calc_mode(&mut self, mode: CalcMode) -> &mut Self { self.calc_mode = Some(mode); self }
 
+    /// Set which sheet is active (selected) when the workbook opens.
+    pub fn set_active_sheet(&mut self, index: usize) -> &mut Self { self.active_sheet = Some(index); self }
+
     // ── Internal ──
 
     fn write_workbook_xml(&self) -> Vec<u8> {
@@ -484,11 +516,26 @@ impl Workbook {
             w.empty_tag("workbookProtection", &attrs);
         }
 
+        // bookViews (activeTab)
+        if let Some(idx) = self.active_sheet {
+            let idx_s = idx.to_string();
+            w.start_tag("bookViews", &[]);
+            w.empty_tag("workbookView", &[("activeTab", &idx_s)]);
+            w.end_tag("bookViews");
+        }
+
         w.start_tag("sheets", &[]);
         for (i, ws) in self.worksheets.iter().enumerate() {
             let id = (i + 1).to_string();
             let rid = format!("rId{}", i + 1);
-            w.empty_tag("sheet", &[("name", &ws.name), ("sheetId", &id), ("r:id", &rid)]);
+            use crate::worksheet::SheetVisibility;
+            let mut attrs: Vec<(&str, &str)> = vec![("name", &ws.name), ("sheetId", &id), ("r:id", &rid)];
+            match ws.visibility {
+                SheetVisibility::Hidden => attrs.push(("state", "hidden")),
+                SheetVisibility::VeryHidden => attrs.push(("state", "veryHidden")),
+                SheetVisibility::Visible => {}
+            }
+            w.empty_tag("sheet", &attrs);
         }
         w.end_tag("sheets");
 

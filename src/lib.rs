@@ -51,5 +51,5 @@ pub use format::{Align, BorderStyle, Color, Format, IntoColor, NamedColor, Patte
 pub use properties::DocProperties;
 pub use utility::{ColNum, RowNum};
 pub use workbook::{Workbook, CalcMode};
-pub use worksheet::{Comment, Hyperlink, Orientation, PrintSettings, SheetProtection, Worksheet};
+pub use worksheet::{Comment, Hyperlink, Orientation, PrintSettings, SheetProtection, SheetVisibility, Worksheet};
 pub use streaming::StreamingWorkbook;
