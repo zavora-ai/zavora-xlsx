@@ -11,7 +11,6 @@ pub fn write_drawing_xml(charts: &[Chart], images: &[Image], _sheet_idx: usize) 
     w.start_tag("xdr:wsDr", &[
         ("xmlns:xdr", "http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing"),
         ("xmlns:a", "http://schemas.openxmlformats.org/drawingml/2006/main"),
-        ("xmlns:r", "http://schemas.openxmlformats.org/officeDocument/2006/relationships"),
     ]);
 
     let mut rid = 1;

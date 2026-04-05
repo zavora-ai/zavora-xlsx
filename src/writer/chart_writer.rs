@@ -9,6 +9,7 @@ pub fn write_chart_xml(chart: &Chart, _chart_id: usize) -> Vec<u8> {
         ("xmlns:a", "http://schemas.openxmlformats.org/drawingml/2006/main"),
         ("xmlns:r", "http://schemas.openxmlformats.org/officeDocument/2006/relationships"),
     ]);
+    w.empty_tag("c:lang", &[("val", "en-US")]);
     w.start_tag("c:chart", &[]);
 
     // Title
@@ -53,6 +54,11 @@ pub fn write_chart_xml(chart: &Chart, _chart_id: usize) -> Vec<u8> {
 
     w.empty_tag("c:plotVisOnly", &[("val", "1")]);
     w.end_tag("c:chart");
+    w.start_tag("c:printSettings", &[]);
+    w.empty_tag("c:headerFooter", &[]);
+    w.empty_tag("c:pageMargins", &[("b", "0.75"), ("l", "0.7"), ("r", "0.7"), ("t", "0.75"), ("header", "0.3"), ("footer", "0.3")]);
+    w.empty_tag("c:pageSetup", &[]);
+    w.end_tag("c:printSettings");
     w.end_tag("c:chartSpace");
     w.into_bytes()
 }
