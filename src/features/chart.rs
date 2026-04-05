@@ -1,7 +1,7 @@
 use crate::utility::{ColNum, RowNum};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ChartType { Bar, Column, Line, Pie, Scatter, Area, Doughnut, Radar }
+pub enum ChartType { Bar, Column, Line, Pie, Scatter, Area, Doughnut, Radar, Stock }
 
 #[derive(Debug, Clone, Copy)]
 pub enum LegendPosition { Top, Bottom, Left, Right, None }
@@ -48,6 +48,9 @@ pub struct Chart {
     pub(crate) height: u32,
     pub(crate) row: RowNum,
     pub(crate) col: ColNum,
+    pub(crate) x_offset: u32,
+    pub(crate) y_offset: u32,
+    pub(crate) show_data_table: bool,
 }
 
 impl Chart {
@@ -57,6 +60,7 @@ impl Chart {
             x_axis_name: None, y_axis_name: None, y2_axis_name: None,
             legend_pos: LegendPosition::Bottom,
             width: 480, height: 288, row: 0, col: 0,
+            x_offset: 0, y_offset: 0, show_data_table: false,
         }
     }
 
@@ -72,4 +76,5 @@ impl Chart {
     pub fn set_legend_position(&mut self, pos: LegendPosition) -> &mut Self { self.legend_pos = pos; self }
     pub fn set_width(&mut self, w: u32) -> &mut Self { self.width = w; self }
     pub fn set_height(&mut self, h: u32) -> &mut Self { self.height = h; self }
+    pub fn show_data_table(&mut self, v: bool) -> &mut Self { self.show_data_table = v; self }
 }

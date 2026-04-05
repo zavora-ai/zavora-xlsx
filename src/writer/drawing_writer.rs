@@ -56,8 +56,10 @@ pub fn write_drawing_rels(chart_count: usize, image_count: usize, image_types: &
 
 fn write_two_cell_anchor_chart(w: &mut XmlWriter, chart: &Chart, r_id: &str) {
     w.start_tag("xdr:twoCellAnchor", &[]);
-    // From
-    write_marker(w, "xdr:from", chart.col, chart.row, 0, 0);
+    // From (with pixel offset: 1px ≈ 9525 EMU)
+    let x_off = chart.x_offset as u64 * 9525;
+    let y_off = chart.y_offset as u64 * 9525;
+    write_marker(w, "xdr:from", chart.col, chart.row, x_off, y_off);
     // To: approximate end position based on width/height
     let end_col = chart.col + (chart.width / 64).max(1) as u16; // ~64px per col
     let end_row = chart.row + (chart.height / 20).max(1);       // ~20px per row

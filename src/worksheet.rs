@@ -328,6 +328,18 @@ impl Worksheet {
         Ok(self)
     }
 
+    /// Insert a chart with pixel offset from the cell corner.
+    pub fn insert_chart_with_offset(&mut self, row: RowNum, col: ColNum, chart: &Chart, x_px: u32, y_px: u32) -> crate::Result<&mut Self> {
+        let mut c = chart.clone();
+        c.row = row;
+        c.col = col;
+        c.x_offset = x_px;
+        c.y_offset = y_px;
+        self.charts.push(c);
+        self.dirty = true;
+        Ok(self)
+    }
+
     // ── Images ──
 
     pub fn insert_image(&mut self, row: RowNum, col: ColNum, image: &Image) -> crate::Result<&mut Self> {

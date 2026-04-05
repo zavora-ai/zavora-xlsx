@@ -39,6 +39,16 @@ pub fn write_chart_xml(chart: &Chart, _chart_id: usize) -> Vec<u8> {
 
     w.end_tag("c:plotArea");
 
+    // Data table
+    if chart.show_data_table {
+        w.start_tag("c:dTable", &[]);
+        w.empty_tag("c:showHorzBorder", &[("val", "1")]);
+        w.empty_tag("c:showVertBorder", &[("val", "1")]);
+        w.empty_tag("c:showOutline", &[("val", "1")]);
+        w.empty_tag("c:showKeys", &[("val", "1")]);
+        w.end_tag("c:dTable");
+    }
+
     // Legend
     if !matches!(chart.legend_pos, LegendPosition::None) {
         let pos = match chart.legend_pos {
@@ -287,6 +297,7 @@ fn chart_type_tag(ct: ChartType) -> &'static str {
         ChartType::Line => "c:lineChart", ChartType::Pie => "c:pieChart",
         ChartType::Scatter => "c:scatterChart", ChartType::Area => "c:areaChart",
         ChartType::Doughnut => "c:doughnutChart", ChartType::Radar => "c:radarChart",
+        ChartType::Stock => "c:stockChart",
     }
 }
 

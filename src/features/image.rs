@@ -43,6 +43,8 @@ impl Image {
         if self.height_px > 0 { self.scale_height = px as f64 / self.height_px as f64; }
         self
     }
+    pub fn set_scale_width(&mut self, scale: f64) -> &mut Self { self.scale_width = scale; self }
+    pub fn set_scale_height(&mut self, scale: f64) -> &mut Self { self.scale_height = scale; self }
 }
 
 fn detect_image(data: &[u8]) -> crate::Result<(ImageType, u32, u32)> {
