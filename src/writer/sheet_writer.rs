@@ -187,6 +187,19 @@ pub fn write_sheet(data: &SheetCells<'_>) -> Vec<u8> {
         w.empty_tag("sheetProtection", &attrs);
     }
 
+    // protectedRanges
+    if let Some(ps) = data.print_settings {
+        if !ps.protected_ranges.is_empty() {
+            w.start_tag("protectedRanges", &[]);
+            for (name, sqref, pw_hash) in &ps.protected_ranges {
+                let mut attrs: Vec<(&str, &str)> = vec![("sqref", sqref), ("name", name)];
+                if let Some(ref h) = pw_hash { attrs.push(("password", h)); }
+                w.empty_tag("protectedRange", &attrs);
+            }
+            w.end_tag("protectedRanges");
+        }
+    }
+
     // autoFilter
     if let Some((r1, c1, r2, c2)) = data.autofilter {
         let ref_str = format!("{}{}:{}{}", col_to_letter(c1), r1 + 1, col_to_letter(c2), r2 + 1);
@@ -255,6 +268,17 @@ pub fn write_sheet(data: &SheetCells<'_>) -> Vec<u8> {
 
     // print settings
     if let Some(ps) = data.print_settings {
+        // printOptions
+        let need_print_opts = ps.print_gridlines || ps.print_headings || ps.center_horizontally || ps.center_vertically;
+        if need_print_opts {
+            let mut po_attrs: Vec<(&str, &str)> = Vec::new();
+            if ps.print_gridlines { po_attrs.push(("gridLines", "1")); }
+            if ps.print_headings { po_attrs.push(("headings", "1")); }
+            if ps.center_horizontally { po_attrs.push(("horizontalCentered", "1")); }
+            if ps.center_vertically { po_attrs.push(("verticalCentered", "1")); }
+            w.empty_tag("printOptions", &po_attrs);
+        }
+
         // pageMargins
         let top = ps.margin_top.unwrap_or(0.75);
         let bot = ps.margin_bottom.unwrap_or(0.75);
@@ -276,6 +300,11 @@ pub fn write_sheet(data: &SheetCells<'_>) -> Vec<u8> {
         if ps.fit_to_page {
             if let Some(fw) = ps.fit_to_width { setup_attrs.push(("fitToWidth", fw.to_string())); }
             if let Some(fh) = ps.fit_to_height { setup_attrs.push(("fitToHeight", fh.to_string())); }
+        }
+        if ps.black_and_white { setup_attrs.push(("blackAndWhite", "1".into())); }
+        if let Some(fpn) = ps.first_page_number {
+            setup_attrs.push(("firstPageNumber", fpn.to_string()));
+            setup_attrs.push(("useFirstPageNumber", "1".into()));
         }
         if !setup_attrs.is_empty() {
             let refs: Vec<(&str, &str)> = setup_attrs.iter().map(|(k, v)| (*k, v.as_str())).collect();
@@ -429,6 +458,18 @@ fn write_cell(w: &mut XmlWriter, row: RowNum, col: ColNum, cell: &CellType, xf: 
                 let _ = write!(v, "{n}");
                 w.text_element("v", &[], &v);
             }
+            w.end_tag("c");
+        }
+        CellType::ArrayFormula { text, range } => {
+            if xf > 0 { w.start_tag("c", &[("r", &ref_str), ("s", &xf_s)]); }
+            else { w.start_tag("c", &[("r", &ref_str)]); }
+            w.text_element("f", &[("t", "array"), ("ref", range)], text);
+            w.end_tag("c");
+        }
+        CellType::DynamicFormula { text, range } => {
+            if xf > 0 { w.start_tag("c", &[("r", &ref_str), ("s", &xf_s), ("cm", "1")]); }
+            else { w.start_tag("c", &[("r", &ref_str), ("cm", "1")]); }
+            w.text_element("f", &[("t", "array"), ("ref", range)], text);
             w.end_tag("c");
         }
         CellType::DateTime(serial) => {

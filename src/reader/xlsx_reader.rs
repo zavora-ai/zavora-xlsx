@@ -31,7 +31,11 @@ pub struct XlsxData {
 
 pub fn read_xlsx(path: &Path) -> crate::Result<(XlsxData, ZipReader<std::io::BufReader<std::fs::File>>)> {
     let mut zip = ZipReader::open(path)?;
+    let data = read_xlsx_from_zip(&mut zip)?;
+    Ok((data, zip))
+}
 
+pub fn read_xlsx_from_zip<R: std::io::Read + std::io::Seek>(zip: &mut ZipReader<R>) -> crate::Result<XlsxData> {
     let rels_map = if let Some(data) = zip.read_entry("xl/_rels/workbook.xml.rels") {
         let data = data?;
         let rels = rel_parser::parse_rels(&data)?;
@@ -119,7 +123,7 @@ pub fn read_xlsx(path: &Path) -> crate::Result<(XlsxData, ZipReader<std::io::Buf
     };
 
     let xlsx_data = XlsxData { sheets, sst, styles, is_1904, defined_names, properties: doc_props };
-    Ok((xlsx_data, zip))
+    Ok(xlsx_data)
 }
 
 pub fn read_sheet_data<R: Read + Seek>(

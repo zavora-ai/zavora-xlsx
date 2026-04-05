@@ -157,6 +157,32 @@ impl Worksheet {
         Ok(self)
     }
 
+    /// Write a formula with a cached result value (avoids #VALUE! before recalc).
+    pub fn write_formula_with_result(&mut self, row: RowNum, col: ColNum, formula: &str, result: f64) -> crate::Result<&mut Self> {
+        self.ensure_deserialized();
+        self.dirty = true;
+        self.cells.entry(row).or_default().insert(col, (CellType::Formula { text: formula.to_string(), cached_number: Some(result) }, 0));
+        Ok(self)
+    }
+
+    /// Write a legacy array formula (Ctrl+Shift+Enter) spanning a range.
+    pub fn write_array_formula(&mut self, r1: RowNum, c1: ColNum, r2: RowNum, c2: ColNum, formula: &str) -> crate::Result<&mut Self> {
+        self.ensure_deserialized();
+        self.dirty = true;
+        let range = format!("{}{}:{}{}", crate::utility::col_to_letter(c1), r1 + 1, crate::utility::col_to_letter(c2), r2 + 1);
+        self.cells.entry(r1).or_default().insert(c1, (CellType::ArrayFormula { text: formula.to_string(), range }, 0));
+        Ok(self)
+    }
+
+    /// Write a dynamic array formula (Excel 365 spill formula).
+    pub fn write_dynamic_formula(&mut self, row: RowNum, col: ColNum, formula: &str) -> crate::Result<&mut Self> {
+        self.ensure_deserialized();
+        self.dirty = true;
+        let range = format!("{}{}", crate::utility::col_to_letter(col), row + 1);
+        self.cells.entry(row).or_default().insert(col, (CellType::DynamicFormula { text: formula.to_string(), range }, 0));
+        Ok(self)
+    }
+
     pub fn write_rich_text(&mut self, row: RowNum, col: ColNum, rich_text: &RichText) -> crate::Result<&mut Self> {
         self.ensure_deserialized();
         self.dirty = true;
@@ -267,7 +293,7 @@ impl Worksheet {
                     CellType::InlineString(s) => s.len(),
                     CellType::SharedString(_) => 8,
                     CellType::Bool(_) => 5,
-                    CellType::Formula { text, .. } => text.len().min(20),
+                    CellType::Formula { text, .. } | CellType::ArrayFormula { text, .. } | CellType::DynamicFormula { text, .. } => text.len().min(20),
                     CellType::DateTime(_) => 10,
                     CellType::Error(e) => e.len(),
                     CellType::RichText(rt) => rt.plain_text().len(),
@@ -361,6 +387,22 @@ impl Worksheet {
         let mut prot = SheetProtection::default();
         prot.password_hash = Some(hash_password(password));
         self.protection = Some(prot);
+        self.dirty = true;
+        self
+    }
+
+    /// Allow editing a specific range on a protected sheet.
+    pub fn unprotect_range(&mut self, name: &str, range: &str) -> &mut Self {
+        let ps = self.print_settings.get_or_insert_with(PrintSettings::default);
+        ps.protected_ranges.push((name.to_string(), range.to_string(), None));
+        self.dirty = true;
+        self
+    }
+
+    /// Allow editing a specific range with a password.
+    pub fn unprotect_range_with_password(&mut self, name: &str, range: &str, password: &str) -> &mut Self {
+        let ps = self.print_settings.get_or_insert_with(PrintSettings::default);
+        ps.protected_ranges.push((name.to_string(), range.to_string(), Some(hash_password(password))));
         self.dirty = true;
         self
     }
@@ -765,6 +807,9 @@ fn cell_type_to_value(cell: &CellType) -> CellValue {
         CellType::DateTime(s) => CellValue::DateTime(ExcelDateTime::new(*s, false)),
         CellType::Error(e) => CellValue::Error(e.clone()),
         CellType::RichText(rt) => CellValue::RichText(rt.clone()),
+        CellType::ArrayFormula { text, .. } | CellType::DynamicFormula { text, .. } => CellValue::Formula {
+            formula: text.clone(), cached_value: Box::new(CellValue::Empty),
+        },
     }
 }
 
@@ -845,6 +890,15 @@ pub struct PrintSettings {
     pub print_area: Option<(RowNum, ColNum, RowNum, ColNum)>,
     pub repeat_rows: Option<(RowNum, RowNum)>,
     pub repeat_cols: Option<(ColNum, ColNum)>,
+    // Sprint 8: print options
+    pub print_gridlines: bool,
+    pub print_headings: bool,
+    pub center_horizontally: bool,
+    pub center_vertically: bool,
+    pub black_and_white: bool,
+    pub first_page_number: Option<u16>,
+    // Sprint 8: unprotect ranges
+    pub(crate) protected_ranges: Vec<(String, String, Option<String>)>, // (name, sqref, password)
 }
 
 impl PrintSettings {
@@ -864,6 +918,12 @@ impl PrintSettings {
     }
     pub fn header(mut self, h: &str) -> Self { self.header = Some(h.to_string()); self }
     pub fn footer(mut self, f: &str) -> Self { self.footer = Some(f.to_string()); self }
+    pub fn print_gridlines(mut self, v: bool) -> Self { self.print_gridlines = v; self }
+    pub fn print_headings(mut self, v: bool) -> Self { self.print_headings = v; self }
+    pub fn center_horizontally(mut self, v: bool) -> Self { self.center_horizontally = v; self }
+    pub fn center_vertically(mut self, v: bool) -> Self { self.center_vertically = v; self }
+    pub fn black_and_white(mut self, v: bool) -> Self { self.black_and_white = v; self }
+    pub fn first_page_number(mut self, n: u16) -> Self { self.first_page_number = Some(n); self }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

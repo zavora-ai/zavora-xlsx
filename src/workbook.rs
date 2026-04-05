@@ -51,10 +51,30 @@ impl Workbook {
     /// Open an existing xlsx file for reading only.
     pub fn open_readonly(path: impl AsRef<Path>) -> crate::Result<Self> {
         let (data, mut zip) = xlsx_reader::read_xlsx(path.as_ref())?;
+        Self::from_xlsx_data(data, &mut zip, false)
+    }
+
+    /// Open an xlsx from an in-memory buffer for reading only.
+    pub fn open_readonly_from_buffer(bytes: &[u8]) -> crate::Result<Self> {
+        let cursor = std::io::Cursor::new(bytes);
+        let mut zip = crate::zip::zip_reader::ZipReader::new(cursor)?;
+        let data = xlsx_reader::read_xlsx_from_zip(&mut zip)?;
+        Self::from_xlsx_data(data, &mut zip, false)
+    }
+
+    /// Open an xlsx from an in-memory buffer for editing.
+    pub fn open_from_buffer(bytes: &[u8]) -> crate::Result<Self> {
+        let cursor = std::io::Cursor::new(bytes);
+        let mut zip = crate::zip::zip_reader::ZipReader::new(cursor)?;
+        let data = xlsx_reader::read_xlsx_from_zip(&mut zip)?;
+        Self::from_xlsx_data_edit(data, &mut zip)
+    }
+
+    fn from_xlsx_data<R: std::io::Read + std::io::Seek>(data: xlsx_reader::XlsxData, zip: &mut crate::zip::zip_reader::ZipReader<R>, _edit: bool) -> crate::Result<Self> {
         let mut worksheets = Vec::with_capacity(data.sheets.len());
         for sheet_info in &data.sheets {
             let mut ws = Worksheet::new(&sheet_info.name);
-            let cells = xlsx_reader::read_sheet_data(&mut zip, &sheet_info.path, &data.sst, &data.styles)?;
+            let cells = xlsx_reader::read_sheet_data(zip, &sheet_info.path, &data.sst, &data.styles)?;
             let map: std::collections::BTreeMap<_, _> = cells.iter().map(|rc| ((rc.row, rc.col), rc.value.clone())).collect();
             ws.read_cells_map = Some(map);
             ws.read_cells = Some(cells);
@@ -70,23 +90,15 @@ impl Workbook {
         })
     }
 
-    /// Open an existing xlsx file for editing.
-    /// Sheets are lazily deserialized — only parsed when first accessed.
-    /// Unmodified sheets are written back as raw bytes.
-    pub fn open(path: impl AsRef<Path>) -> crate::Result<Self> {
-        let (data, mut zip) = xlsx_reader::read_xlsx(path.as_ref())?;
+    fn from_xlsx_data_edit<R: std::io::Read + std::io::Seek>(data: xlsx_reader::XlsxData, zip: &mut crate::zip::zip_reader::ZipReader<R>) -> crate::Result<Self> {
         let mut worksheets = Vec::with_capacity(data.sheets.len());
-
         for sheet_info in &data.sheets {
             let mut ws = Worksheet::new(&sheet_info.name);
-            // Store raw XML for lazy deserialization
             if let Some(raw) = zip.read_entry(&sheet_info.path) {
                 ws.raw_xml = Some(raw?);
             }
             worksheets.push(ws);
         }
-
-        // Collect passthrough entries (media, charts, drawings, etc.)
         let known_prefixes = ["xl/worksheets/", "xl/workbook.xml", "xl/sharedStrings.xml",
             "xl/styles.xml", "xl/theme/", "[Content_Types].xml", "_rels/", "xl/_rels/workbook.xml.rels",
             "docProps/"];
@@ -102,21 +114,23 @@ impl Workbook {
                 }
             }
         }
-
-        let is_xlsm = path.as_ref().extension().map_or(false, |e| e.eq_ignore_ascii_case("xlsm"));
-
         Ok(Self {
-            worksheets,
-            sst: data.sst,
-            styles: StyleRegistry::new(),
+            worksheets, sst: data.sst, styles: StyleRegistry::new(),
             defined_names: data.defined_names,
             properties: data.properties,
             passthrough_entries: passthrough,
             workbook_protection: None,
-            is_xlsm,
-            calc_mode: None,
-            active_sheet: None,
+            is_xlsm: false, calc_mode: None, active_sheet: None,
         })
+    }
+
+    /// Open an existing xlsx file for editing.
+    pub fn open(path: impl AsRef<Path>) -> crate::Result<Self> {
+        let (data, mut zip) = xlsx_reader::read_xlsx(path.as_ref())?;
+        let is_xlsm = path.as_ref().extension().map_or(false, |e| e.eq_ignore_ascii_case("xlsm"));
+        let mut wb = Self::from_xlsx_data_edit(data, &mut zip)?;
+        wb.is_xlsm = is_xlsm;
+        Ok(wb)
     }
 
     /// Save the workbook to an xlsx file.

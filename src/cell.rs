@@ -44,6 +44,8 @@ pub(crate) enum CellType {
     InlineString(String),
     Bool(bool),
     Formula { text: String, cached_number: Option<f64> },
+    ArrayFormula { text: String, range: String },
+    DynamicFormula { text: String, range: String },
     DateTime(f64),       // serial date
     Error(String),
     RichText(RichText),
