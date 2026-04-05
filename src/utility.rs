@@ -67,13 +67,15 @@ pub fn parse_cell_ref(s: &str) -> crate::Result<(RowNum, ColNum)> {
 
 /// Parse "A1:C3" → (start_row, start_col, end_row, end_col).
 pub fn parse_range_ref(s: &str) -> crate::Result<(RowNum, ColNum, RowNum, ColNum)> {
-    let parts: Vec<&str> = s.split(':').collect();
-    if parts.len() != 2 {
-        return Err(crate::Error::InvalidRange(format!("expected ':' in '{s}'")));
-    }
-    let (r1, c1) = parse_cell_ref(parts[0])?;
-    let (r2, c2) = parse_cell_ref(parts[1])?;
-    Ok((r1, c1, r2, c2))
+    parse_range(s).ok_or_else(|| crate::Error::InvalidRange(format!("invalid range '{s}'")))
+}
+
+/// Parse "A1:B5" into (r1, c1, r2, c2) 0-based. Returns None on failure.
+pub fn parse_range(s: &str) -> Option<(RowNum, ColNum, RowNum, ColNum)> {
+    let (a, b) = s.split_once(':')?;
+    let (r1, c1) = parse_cell_ref(a).ok()?;
+    let (r2, c2) = parse_cell_ref(b).ok()?;
+    Some((r1, c1, r2, c2))
 }
 
 /// Parse column+row from raw bytes of an `r` attribute (e.g. b"B3").

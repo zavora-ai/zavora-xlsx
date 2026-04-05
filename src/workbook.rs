@@ -74,10 +74,22 @@ impl Workbook {
         let mut worksheets = Vec::with_capacity(data.sheets.len());
         for sheet_info in &data.sheets {
             let mut ws = Worksheet::new(&sheet_info.name);
-            let cells = xlsx_reader::read_sheet_data(zip, &sheet_info.path, &data.sst, &data.styles)?;
+            let raw = zip.read_entry(&sheet_info.path)
+                .ok_or_else(|| crate::Error::SheetNotFound(sheet_info.path.clone()))??;
+            let (cells, meta) = crate::reader::sheet_reader::read_sheet_full(&raw, &data.sst, &data.styles)?;
             let map: std::collections::BTreeMap<_, _> = cells.iter().map(|rc| ((rc.row, rc.col), rc.value.clone())).collect();
             ws.read_cells_map = Some(map);
             ws.read_cells = Some(cells);
+            ws.merge_ranges = meta.merge_ranges;
+            for (c, w) in meta.col_widths { ws.col_widths.insert(c, w); }
+            for (r, h) in meta.row_heights { ws.row_heights.insert(r, h); }
+            ws.freeze_row = meta.freeze_row;
+            ws.freeze_col = meta.freeze_col;
+            ws.visibility = match sheet_info.visibility {
+                1 => crate::worksheet::SheetVisibility::Hidden,
+                2 => crate::worksheet::SheetVisibility::VeryHidden,
+                _ => crate::worksheet::SheetVisibility::Visible,
+            };
             worksheets.push(ws);
         }
         Ok(Self {
@@ -509,6 +521,23 @@ impl Workbook {
 
     /// Set which sheet is active (selected) when the workbook opens.
     pub fn set_active_sheet(&mut self, index: usize) -> &mut Self { self.active_sheet = Some(index); self }
+
+    /// Extract embedded images from the workbook. Returns (filename, bytes) pairs.
+    pub fn pictures<R: std::io::Read + std::io::Seek>(zip: &mut crate::zip::zip_reader::ZipReader<R>) -> Vec<(String, Vec<u8>)> {
+        let mut pics = Vec::new();
+        let names: Vec<String> = (0..zip.archive.len())
+            .filter_map(|i| zip.archive.by_index_raw(i).ok().map(|e| e.name().to_string()))
+            .collect();
+        for name in names {
+            if name.starts_with("xl/media/") {
+                if let Some(Ok(data)) = zip.read_entry(&name) {
+                    let filename = name.rsplit('/').next().unwrap_or(&name).to_string();
+                    pics.push((filename, data));
+                }
+            }
+        }
+        pics
+    }
 
     // ── Internal ──
 

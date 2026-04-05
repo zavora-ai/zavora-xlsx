@@ -17,6 +17,7 @@ pub use crate::reader::sheet_reader::RawCell;
 pub struct SheetInfo {
     pub name: String,
     pub path: String,
+    pub visibility: u8, // 0=visible, 1=hidden, 2=veryHidden
 }
 
 pub struct XlsxData {
@@ -76,7 +77,10 @@ pub fn read_xlsx_from_zip<R: std::io::Read + std::io::Seek>(zip: &mut ZipReader<
                                 .and_then(|v| std::str::from_utf8(v).ok())
                                 .unwrap_or("").to_string();
                             if let Some(target) = rels_map.get(&rid) {
-                                sheets.push(SheetInfo { name, path: normalize_sheet_path(target) });
+                                let vis = get_attr(e.attributes(), b"state")
+                                    .map(|v| if v == b"hidden" { 1 } else if v == b"veryHidden" { 2 } else { 0 })
+                                    .unwrap_or(0);
+                                sheets.push(SheetInfo { name, path: normalize_sheet_path(target), visibility: vis });
                             }
                         }
                         b"definedName" => {

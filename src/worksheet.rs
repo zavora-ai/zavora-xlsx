@@ -99,6 +99,12 @@ impl Worksheet {
     }
 
     pub fn name(&self) -> &str { &self.name }
+    pub fn visibility(&self) -> SheetVisibility { self.visibility }
+    pub fn is_hidden(&self) -> bool { self.visibility == SheetVisibility::Hidden }
+    pub fn is_very_hidden(&self) -> bool { self.visibility == SheetVisibility::VeryHidden }
+    pub fn merge_ranges(&self) -> &[(RowNum, ColNum, RowNum, ColNum)] { &self.merge_ranges }
+    pub fn column_width(&self, col: ColNum) -> Option<f64> { self.col_widths.get(&col).copied() }
+    pub fn row_height(&self, row: RowNum) -> Option<f64> { self.row_heights.get(&row).copied() }
 
     pub fn set_name(&mut self, name: &str) -> crate::Result<&mut Self> {
         validate_sheet_name(name)?;

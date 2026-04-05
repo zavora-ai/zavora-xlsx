@@ -16,23 +16,54 @@ pub struct RawCell {
     pub xf_index: u32,
 }
 
-pub fn read_sheet_cells(
+/// Metadata parsed from sheet XML (merges, widths, heights, freeze panes).
+#[derive(Default)]
+pub struct SheetMeta {
+    pub merge_ranges: Vec<(RowNum, ColNum, RowNum, ColNum)>,
+    pub col_widths: Vec<(ColNum, f64)>,
+    pub row_heights: Vec<(RowNum, f64)>,
+    pub freeze_row: RowNum,
+    pub freeze_col: ColNum,
+}
+
+/// Read cells AND metadata from sheet XML in one pass.
+pub fn read_sheet_full(
     data: &[u8],
     sst: &SharedStringTable,
     styles: &ParsedStyles,
-) -> crate::Result<Vec<RawCell>> {
+) -> crate::Result<(Vec<RawCell>, SheetMeta)> {
     let mut reader = Reader::from_reader(data);
     reader.config_mut().check_end_names = false;
     reader.config_mut().expand_empty_elements = true;
     let mut buf = Vec::with_capacity(1024);
     let mut cells = Vec::new();
+    let mut meta = SheetMeta::default();
 
-    // Scan to <sheetData>
+    // Pre-sheetData scan: cols, pane, merges
     loop {
         buf.clear();
         match reader.read_event_into(&mut buf)? {
-            Event::Start(e) if e.local_name().as_ref() == b"sheetData" => break,
-            Event::Eof => return Ok(cells),
+            Event::Start(e) | Event::Empty(e) => {
+                match e.local_name().as_ref() {
+                    b"col" => {
+                        let min = get_attr(e.attributes(), b"min").and_then(|v| atoi_simd::parse::<u16>(v).ok()).unwrap_or(1);
+                        let width = get_attr(e.attributes(), b"width").and_then(|v| std::str::from_utf8(v).ok()).and_then(|s| s.parse::<f64>().ok());
+                        if let Some(w) = width { meta.col_widths.push((min - 1, w)); }
+                    }
+                    b"pane" => {
+                        meta.freeze_row = get_attr(e.attributes(), b"ySplit").and_then(|v| atoi_simd::parse::<u32>(v).ok()).unwrap_or(0);
+                        meta.freeze_col = get_attr(e.attributes(), b"xSplit").and_then(|v| atoi_simd::parse::<u16>(v).ok()).unwrap_or(0);
+                    }
+                    b"mergeCell" => {
+                        if let Some(r) = get_attr(e.attributes(), b"ref").and_then(|v| std::str::from_utf8(v).ok()) {
+                            if let Some(m) = crate::utility::parse_range(r) { meta.merge_ranges.push(m); }
+                        }
+                    }
+                    b"sheetData" => break,
+                    _ => {}
+                }
+            }
+            Event::Eof => return Ok((cells, meta)),
             _ => {}
         }
     }
@@ -51,6 +82,13 @@ pub fn read_sheet_cells(
         match reader.read_event_into(&mut cell_buf)? {
             Event::Start(e) => {
                 match e.local_name().as_ref() {
+                    b"row" => {
+                        if let Some(ht) = get_attr(e.attributes(), b"ht").and_then(|v| std::str::from_utf8(v).ok()).and_then(|s| s.parse::<f64>().ok()) {
+                            if let Some(r) = get_attr(e.attributes(), b"r").and_then(|v| atoi_simd::parse::<u32>(v).ok()) {
+                                meta.row_heights.push((r - 1, ht));
+                            }
+                        }
+                    }
                     b"c" => {
                         cell_pos = get_attr(e.attributes(), b"r").and_then(parse_cell_attr);
                         cell_type = get_attr(e.attributes(), b"t").map(|v| v.to_vec());
@@ -97,7 +135,33 @@ pub fn read_sheet_cells(
             _ => {}
         }
     }
-    Ok(cells)
+
+    // Post-sheetData: scan for mergeCells (may appear after sheetData)
+    loop {
+        cell_buf.clear();
+        match reader.read_event_into(&mut cell_buf)? {
+            Event::Start(e) | Event::Empty(e) => {
+                if e.local_name().as_ref() == b"mergeCell" {
+                    if let Some(r) = get_attr(e.attributes(), b"ref").and_then(|v| std::str::from_utf8(v).ok()) {
+                        if let Some(m) = crate::utility::parse_range(r) { meta.merge_ranges.push(m); }
+                    }
+                }
+            }
+            Event::Eof => break,
+            _ => {}
+        }
+    }
+
+    Ok((cells, meta))
+}
+
+/// Backward-compatible wrapper: read cells only.
+pub fn read_sheet_cells(
+    data: &[u8],
+    sst: &SharedStringTable,
+    styles: &ParsedStyles,
+) -> crate::Result<Vec<RawCell>> {
+    read_sheet_full(data, sst, styles).map(|(cells, _)| cells)
 }
 
 fn resolve_cell_value(
