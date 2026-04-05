@@ -108,7 +108,9 @@ pub fn write_sheet(data: &SheetCells<'_>) -> Vec<u8> {
 
     // 3. sheetFormatPr
     let drh = data.default_row_height.map(|h| format!("{h}")).unwrap_or_else(|| "15".into());
-    w.empty_tag("sheetFormatPr", &[("defaultRowHeight", &drh)]);
+    let mut sfp_attrs: Vec<(&str, &str)> = vec![("defaultRowHeight", &drh)];
+    if data.default_row_height.is_some() { sfp_attrs.push(("customHeight", "1")); }
+    w.empty_tag("sheetFormatPr", &sfp_attrs);
 
     // 4. cols (widths + hidden + outline + col formats)
     let has_cols = !data.col_widths.is_empty() || !data.hidden_cols.is_empty() || !data.col_outline_levels.is_empty() || !data.col_formats.is_empty();
