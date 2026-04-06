@@ -110,4 +110,16 @@ impl Worksheet {
     pub fn filter_column(&mut self, col: ColNum, values: &[&str]) -> &mut Self {
         self.autofilter_columns.push((col, values.iter().map(|s| s.to_string()).collect())); self.dirty = true; self
     }
+
+    /// Set width for a range of columns.
+    pub fn set_column_range_width(&mut self, first: ColNum, last: ColNum, width: f64) -> &mut Self {
+        for c in first..=last { self.col_widths.insert(c, width); }
+        self.dirty = true; self
+    }
+
+    /// Hide a range of columns.
+    pub fn set_column_range_hidden(&mut self, first: ColNum, last: ColNum) -> &mut Self {
+        for c in first..=last { self.hidden_cols.insert(c); }
+        self.dirty = true; self
+    }
 }

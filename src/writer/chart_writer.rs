@@ -148,6 +148,7 @@ fn write_chart_type_block(w: &mut XmlWriter, ct: ChartType, series: &[(usize, &c
 }
 
 fn write_series(w: &mut XmlWriter, idx: usize, s: &crate::features::chart::ChartSeries, ct: ChartType) {
+    use crate::features::chart::MarkerType;
     let idx_s = idx.to_string();
     w.start_tag("c:ser", &[]);
     w.empty_tag("c:idx", &[("val", &idx_s)]);
@@ -158,16 +159,54 @@ fn write_series(w: &mut XmlWriter, idx: usize, s: &crate::features::chart::Chart
         w.end_tag("c:tx");
     }
 
+    // Series fill color
+    if let Some(rgb) = s.color {
+        w.start_tag("c:spPr", &[]);
+        w.start_tag("a:solidFill", &[]);
+        let hex = format!("{:02X}{:02X}{:02X}", rgb[0], rgb[1], rgb[2]);
+        w.empty_tag("a:srgbClr", &[("val", &hex)]);
+        w.end_tag("a:solidFill");
+        w.end_tag("c:spPr");
+    }
+
     // Bar/column: invertIfNegative
     if matches!(ct, ChartType::Bar | ChartType::Column) {
         w.empty_tag("c:invertIfNegative", &[("val", "0")]);
     }
 
-    // Line: marker
-    if matches!(ct, ChartType::Line) {
+    // Marker (line/scatter)
+    if let Some(marker) = s.marker {
+        w.start_tag("c:marker", &[]);
+        let sym = match marker {
+            MarkerType::None => "none", MarkerType::Circle => "circle",
+            MarkerType::Diamond => "diamond", MarkerType::Square => "square",
+            MarkerType::Triangle => "triangle", MarkerType::Star => "star",
+            MarkerType::Plus => "plus", MarkerType::X => "x",
+        };
+        w.empty_tag("c:symbol", &[("val", sym)]);
+        if let Some(sz) = s.marker_size {
+            let sz_s = sz.to_string();
+            w.empty_tag("c:size", &[("val", &sz_s)]);
+        }
+        w.end_tag("c:marker");
+    } else if matches!(ct, ChartType::Line) {
         w.start_tag("c:marker", &[]);
         w.empty_tag("c:symbol", &[("val", "none")]);
         w.end_tag("c:marker");
+    }
+
+    // Point colors
+    for &(pt_idx, rgb) in &s.point_colors {
+        let pt_s = pt_idx.to_string();
+        w.start_tag("c:dPt", &[]);
+        w.empty_tag("c:idx", &[("val", &pt_s)]);
+        w.start_tag("c:spPr", &[]);
+        w.start_tag("a:solidFill", &[]);
+        let hex = format!("{:02X}{:02X}{:02X}", rgb[0], rgb[1], rgb[2]);
+        w.empty_tag("a:srgbClr", &[("val", &hex)]);
+        w.end_tag("a:solidFill");
+        w.end_tag("c:spPr");
+        w.end_tag("c:dPt");
     }
 
     // Data labels (per-series)
@@ -183,8 +222,8 @@ fn write_series(w: &mut XmlWriter, idx: usize, s: &crate::features::chart::Chart
     }
 
     // Trendline
-    if let Some(ref tl) = s.trendline {
-        write_trendline(w, tl);
+    if s.trendline.is_some() {
+        write_trendline(w, s);
     }
 
     // Categories
@@ -213,8 +252,9 @@ fn write_series(w: &mut XmlWriter, idx: usize, s: &crate::features::chart::Chart
     w.end_tag("c:ser");
 }
 
-fn write_trendline(w: &mut XmlWriter, tl: &crate::features::chart::TrendlineType) {
+fn write_trendline(w: &mut XmlWriter, s: &crate::features::chart::ChartSeries) {
     use crate::features::chart::TrendlineType;
+    let tl = s.trendline.as_ref().unwrap();
     w.start_tag("c:trendline", &[]);
     match tl {
         TrendlineType::Linear => w.empty_tag("c:trendlineType", &[("val", "linear")]),
@@ -232,6 +272,8 @@ fn write_trendline(w: &mut XmlWriter, tl: &crate::features::chart::TrendlineType
             w.empty_tag("c:period", &[("val", &p)]);
         }
     }
+    if s.trendline_display_rsquared { w.empty_tag("c:dispRSqr", &[("val", "1")]); }
+    if s.trendline_display_equation { w.empty_tag("c:dispEq", &[("val", "1")]); }
     w.end_tag("c:trendline");
 }
 
@@ -239,7 +281,10 @@ fn write_axes(w: &mut XmlWriter, chart: &Chart, has_secondary: bool) {
     // Primary category axis
     w.start_tag("c:catAx", &[]);
     w.empty_tag("c:axId", &[("val", "111111111")]);
-    w.start_tag("c:scaling", &[]); w.empty_tag("c:orientation", &[("val", "minMax")]); w.end_tag("c:scaling");
+    w.start_tag("c:scaling", &[]);
+    let x_orient = if chart.x_axis_reverse { "maxMin" } else { "minMax" };
+    w.empty_tag("c:orientation", &[("val", x_orient)]);
+    w.end_tag("c:scaling");
     w.empty_tag("c:axPos", &[("val", "b")]);
     if let Some(ref name) = chart.x_axis_name { write_axis_title(w, name); }
     w.empty_tag("c:tickLblPos", &[("val", "nextTo")]);
@@ -253,7 +298,13 @@ fn write_axes(w: &mut XmlWriter, chart: &Chart, has_secondary: bool) {
     // Primary value axis
     w.start_tag("c:valAx", &[]);
     w.empty_tag("c:axId", &[("val", "222222222")]);
-    w.start_tag("c:scaling", &[]); w.empty_tag("c:orientation", &[("val", "minMax")]); w.end_tag("c:scaling");
+    w.start_tag("c:scaling", &[]);
+    let y_orient = if chart.y_axis_reverse { "maxMin" } else { "minMax" };
+    w.empty_tag("c:orientation", &[("val", y_orient)]);
+    if let Some(max) = chart.y_axis_max { let s = format!("{max}"); w.empty_tag("c:max", &[("val", &s)]); }
+    if let Some(min) = chart.y_axis_min { let s = format!("{min}"); w.empty_tag("c:min", &[("val", &s)]); }
+    if let Some(base) = chart.y_axis_log_base { let s = format!("{base}"); w.empty_tag("c:logBase", &[("val", &s)]); }
+    w.end_tag("c:scaling");
     w.empty_tag("c:axPos", &[("val", "l")]);
     w.empty_tag("c:majorGridlines", &[]);
     if let Some(ref name) = chart.y_axis_name { write_axis_title(w, name); }

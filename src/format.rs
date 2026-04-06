@@ -15,6 +15,10 @@ pub struct Format {
     pub(crate) border_left: BorderStyle,
     pub(crate) border_right: BorderStyle,
     pub(crate) border_color: Option<[u8; 3]>,
+    pub(crate) border_top_color: Option<[u8; 3]>,
+    pub(crate) border_bottom_color: Option<[u8; 3]>,
+    pub(crate) border_left_color: Option<[u8; 3]>,
+    pub(crate) border_right_color: Option<[u8; 3]>,
     pub(crate) h_align: u8,
     pub(crate) v_align: u8,
     pub(crate) wrap_text: bool,
@@ -41,6 +45,8 @@ impl Format {
             border_top: BorderStyle::None, border_bottom: BorderStyle::None,
             border_left: BorderStyle::None, border_right: BorderStyle::None,
             border_color: None,
+            border_top_color: None, border_bottom_color: None,
+            border_left_color: None, border_right_color: None,
             h_align: 0, v_align: 0, wrap_text: false, shrink: false,
             indent: 0, rotation: 0, num_format: String::new(),
             locked: None, formula_hidden: false,
@@ -64,6 +70,10 @@ impl Format {
         self.border_left = s; self.border_right = s; self
     }
     pub fn border_color(mut self, c: impl IntoColor) -> Self { self.border_color = Some(c.into_color().to_rgb()); self }
+    pub fn border_top_color(mut self, c: impl IntoColor) -> Self { self.border_top_color = Some(c.into_color().to_rgb()); self }
+    pub fn border_bottom_color(mut self, c: impl IntoColor) -> Self { self.border_bottom_color = Some(c.into_color().to_rgb()); self }
+    pub fn border_left_color(mut self, c: impl IntoColor) -> Self { self.border_left_color = Some(c.into_color().to_rgb()); self }
+    pub fn border_right_color(mut self, c: impl IntoColor) -> Self { self.border_right_color = Some(c.into_color().to_rgb()); self }
     pub fn border_top(mut self, s: BorderStyle) -> Self { self.border_top = s; self }
     pub fn border_bottom(mut self, s: BorderStyle) -> Self { self.border_bottom = s; self }
     pub fn border_left(mut self, s: BorderStyle) -> Self { self.border_left = s; self }

@@ -32,6 +32,10 @@ pub struct BorderData {
     pub left: u8,
     pub right: u8,
     pub color_rgb: Option<[u8; 3]>,
+    pub top_color: Option<[u8; 3]>,
+    pub bottom_color: Option<[u8; 3]>,
+    pub left_color: Option<[u8; 3]>,
+    pub right_color: Option<[u8; 3]>,
     pub diagonal: u8,
     pub diagonal_type: u8, // 0=none, 1=up, 2=down, 3=both
 }
@@ -188,6 +192,10 @@ impl StyleRegistry {
             left: fmt.border_left as u8,
             right: fmt.border_right as u8,
             color_rgb: fmt.border_color,
+            top_color: fmt.border_top_color,
+            bottom_color: fmt.border_bottom_color,
+            left_color: fmt.border_left_color,
+            right_color: fmt.border_right_color,
             diagonal: fmt.diagonal_border as u8,
             diagonal_type: fmt.diagonal_type as u8,
         };
@@ -230,7 +238,7 @@ impl StyleRegistry {
         } else { None };
         let fill = fmt.bg_color.map(|bg| FillData { pattern: 1, fg_rgb: Some(bg), bg_rgb: None });
         let border = if fmt.border_top as u8 > 0 || fmt.border_bottom as u8 > 0 || fmt.border_left as u8 > 0 || fmt.border_right as u8 > 0 {
-            Some(BorderData { top: fmt.border_top as u8, bottom: fmt.border_bottom as u8, left: fmt.border_left as u8, right: fmt.border_right as u8, color_rgb: fmt.border_color, diagonal: 0, diagonal_type: 0 })
+            Some(BorderData { top: fmt.border_top as u8, bottom: fmt.border_bottom as u8, left: fmt.border_left as u8, right: fmt.border_right as u8, color_rgb: fmt.border_color, top_color: None, bottom_color: None, left_color: None, right_color: None, diagonal: 0, diagonal_type: 0 })
         } else { None };
         let num_format = if fmt.num_format.is_empty() { None } else { Some(fmt.num_format.clone()) };
         let idx = self.dxf_formats.len() as u32;

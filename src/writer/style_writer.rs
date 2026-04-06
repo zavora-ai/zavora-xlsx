@@ -70,10 +70,10 @@ pub fn write_styles(reg: &StyleRegistry) -> Vec<u8> {
         if b.diagonal_type == 1 || b.diagonal_type == 3 { border_attrs.push(("diagonalUp", "1")); }
         if b.diagonal_type == 2 || b.diagonal_type == 3 { border_attrs.push(("diagonalDown", "1")); }
         w.start_tag("border", &border_attrs);
-        write_border_side(&mut w, "left", b.left, b.color_rgb);
-        write_border_side(&mut w, "right", b.right, b.color_rgb);
-        write_border_side(&mut w, "top", b.top, b.color_rgb);
-        write_border_side(&mut w, "bottom", b.bottom, b.color_rgb);
+        write_border_side(&mut w, "left", b.left, b.left_color.or(b.color_rgb));
+        write_border_side(&mut w, "right", b.right, b.right_color.or(b.color_rgb));
+        write_border_side(&mut w, "top", b.top, b.top_color.or(b.color_rgb));
+        write_border_side(&mut w, "bottom", b.bottom, b.bottom_color.or(b.color_rgb));
         write_border_side(&mut w, "diagonal", b.diagonal, b.color_rgb);
         w.end_tag("border");
     }
