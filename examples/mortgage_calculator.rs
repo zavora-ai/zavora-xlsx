@@ -161,13 +161,17 @@ fn main() -> Result<()> {
     chart.set_legend_position(LegendPosition::Bottom);
 
     // Use first 60 months for chart readability
+    let cat_range = format!("'Mortgage Calculator'!$E${}:$E${}", sched_start + 1, sched_start + 60);
+
     let cs = chart.add_series();
     cs.set_values(&format!("'Mortgage Calculator'!$G${}:$G${}", sched_start + 1, sched_start + 60));
+    cs.set_categories(&cat_range);
     cs.set_name("Principal");
     cs.set_color(green);
 
     let is = chart.add_series();
     is.set_values(&format!("'Mortgage Calculator'!$H${}:$H${}", sched_start + 1, sched_start + 60));
+    is.set_categories(&cat_range);
     is.set_name("Interest");
     is.set_color(red);
 
