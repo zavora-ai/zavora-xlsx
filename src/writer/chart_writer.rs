@@ -96,6 +96,27 @@ pub fn write_chart_xml(chart: &Chart, _chart_id: usize) -> Vec<u8> {
 
 fn write_single_chart_type(w: &mut XmlWriter, chart: &Chart, has_secondary: bool) {
     let ct = chart.chart_type;
+
+    // Pivot charts: emit chart type block with no series — Excel auto-generates from pivot source
+    if chart.pivot_source.is_some() {
+        let tag = chart_type_tag(ct);
+        w.start_tag(tag, &[]);
+        if matches!(ct, ChartType::Bar) { w.empty_tag("c:barDir", &[("val", "bar")]); }
+        else if matches!(ct, ChartType::Column) { w.empty_tag("c:barDir", &[("val", "col")]); }
+        if matches!(ct, ChartType::Bar | ChartType::Column | ChartType::Line | ChartType::Area) {
+            w.empty_tag("c:grouping", &[("val", "clustered")]);
+        }
+        w.empty_tag("c:varyColors", &[("val", "0")]);
+        if matches!(ct, ChartType::Bar | ChartType::Column) {
+            w.empty_tag("c:gapWidth", &[("val", "219")]);
+            w.empty_tag("c:overlap", &[("val", "-27")]);
+        }
+        w.empty_tag("c:axId", &[("val", "111111111")]);
+        w.empty_tag("c:axId", &[("val", "222222222")]);
+        w.end_tag(tag);
+        return;
+    }
+
     // Primary series
     let primary: Vec<(usize, &crate::features::chart::ChartSeries)> =
         chart.series.iter().enumerate().filter(|(_, s)| !s.secondary_axis).collect();

@@ -25,6 +25,18 @@ impl Workbook {
             }
         }
 
+        // Mark pivot tables that have associated pivot charts
+        for ws in &mut self.worksheets {
+            let chart_pivot_names: Vec<String> = ws.charts.iter()
+                .filter_map(|c| c.pivot_source.as_ref().map(|ps| ps.pivot_table_name.clone()))
+                .collect();
+            for pt in &mut ws.pivot_tables {
+                if chart_pivot_names.iter().any(|n| n == &pt.name) {
+                    pt.has_chart = true;
+                }
+            }
+        }
+
         let mut col_format_xfs: Vec<BTreeMap<u16, u32>> = Vec::new();
         let mut row_format_xfs: Vec<BTreeMap<u32, u32>> = Vec::new();
         for ws in &self.worksheets {

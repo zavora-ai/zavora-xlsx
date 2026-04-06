@@ -210,6 +210,8 @@ pub(crate) fn write_pivot_table(pt: &PivotTable, cache: &PivotCacheData, cache_i
     if !pt.show_col_grand_total { pt_attrs.push(("colGrandTotals", "0")); }
     let compact = matches!(pt.layout, PivotLayout::Compact);
     if !compact { pt_attrs.push(("compact", "0")); pt_attrs.push(("compactData", "0")); }
+    let chart_fmt_s;
+    if pt.has_chart { chart_fmt_s = "1".to_string(); pt_attrs.push(("chartFormat", &chart_fmt_s)); }
     w.start_tag("pivotTableDefinition", &pt_attrs);
 
     // Compute location

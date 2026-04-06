@@ -58,6 +58,8 @@ pub struct PivotTable {
     pub(crate) show_col_grand_total: bool,
     pub(crate) layout: PivotLayout,
     pub(crate) field_subtotals: Vec<(String, bool)>,
+    /// Set to true when a pivot chart references this table
+    pub(crate) has_chart: bool,
     // Resolved at write time
     pub(crate) row: RowNum,
     pub(crate) col: ColNum,
@@ -76,6 +78,7 @@ impl PivotTable {
             show_row_grand_total: true, show_col_grand_total: true,
             layout: PivotLayout::default(),
             field_subtotals: Vec::new(),
+            has_chart: false,
             row: 0, col: 0,
         }
     }
