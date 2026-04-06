@@ -125,6 +125,7 @@ pub(crate) fn write_cache_definition(cache: &PivotCacheData, source_ref: &str, s
         ("r:id", "rId1"),
         ("refreshedBy", "zavora-xlsx"),
         ("createdVersion", "8"), ("refreshedVersion", "8"), ("minRefreshableVersion", "3"),
+        ("refreshOnLoad", "1"),
         ("recordCount", &rec_count),
     ]);
 
