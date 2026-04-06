@@ -96,6 +96,11 @@ impl Workbook {
             for (r, h) in meta.row_heights { ws.row_heights.insert(r, h); }
             ws.freeze_row = meta.freeze_row;
             ws.freeze_col = meta.freeze_col;
+            // Read comments
+            let comments_path = format!("xl/comments{}.xml", worksheets.len() + 1);
+            if let Some(Ok(comments_data)) = zip.read_entry(&comments_path) {
+                ws.comments = parse_comments(&comments_data);
+            }
             ws.visibility = match sheet_info.visibility {
                 1 => crate::worksheet::SheetVisibility::Hidden,
                 2 => crate::worksheet::SheetVisibility::VeryHidden,
@@ -215,6 +220,9 @@ impl Workbook {
 
     pub fn sheet_names(&self) -> Vec<&str> { self.worksheets.iter().map(|ws| ws.name.as_str()).collect() }
     pub fn sheet_count(&self) -> usize { self.worksheets.len() }
+    pub fn worksheet_ref(&self, index: usize) -> crate::Result<&Worksheet> {
+        self.worksheets.get(index).ok_or(crate::Error::SheetNotFound(format!("index {index}")))
+    }
 
     // ── Properties & settings ──
 
@@ -254,4 +262,63 @@ impl Workbook {
 
 impl Default for Workbook {
     fn default() -> Self { Self::new() }
+}
+
+/// Parse comments from xl/comments{N}.xml.
+fn parse_comments(data: &[u8]) -> Vec<crate::worksheet::Comment> {
+    use quick_xml::events::Event;
+    use quick_xml::reader::Reader;
+    use crate::xml::xml_reader::get_attr;
+
+    let mut reader = Reader::from_reader(data);
+    reader.config_mut().check_end_names = false;
+    reader.config_mut().expand_empty_elements = true;
+    let mut buf = Vec::new();
+    let mut authors: Vec<String> = Vec::new();
+    let mut comments = Vec::new();
+    let mut in_author = false;
+    let mut in_comment = false;
+    let mut in_text = false;
+    let mut cur_row = 0u32;
+    let mut cur_col = 0u16;
+    let mut cur_author_id = 0usize;
+    let mut cur_text = String::new();
+
+    loop {
+        buf.clear();
+        match reader.read_event_into(&mut buf) {
+            Ok(Event::Start(e)) => match e.local_name().as_ref() {
+                b"author" => { in_author = true; }
+                b"comment" => {
+                    in_comment = true;
+                    if let Some(r) = get_attr(e.attributes(), b"ref").and_then(|v| std::str::from_utf8(v).ok()) {
+                        if let Ok((r, c)) = crate::utility::parse_cell_ref(r) { cur_row = r; cur_col = c; }
+                    }
+                    cur_author_id = get_attr(e.attributes(), b"authorId")
+                        .and_then(|v| atoi_simd::parse::<usize>(v).ok()).unwrap_or(0);
+                    cur_text.clear();
+                }
+                b"t" if in_comment => { in_text = true; }
+                _ => {}
+            },
+            Ok(Event::Text(e)) => {
+                if in_author { if let Ok(t) = e.unescape() { authors.push(t.to_string()); } in_author = false; }
+                if in_text { if let Ok(t) = e.unescape() { cur_text.push_str(&t); } }
+            },
+            Ok(Event::End(e)) => match e.local_name().as_ref() {
+                b"comment" => {
+                    let author = authors.get(cur_author_id).cloned().unwrap_or_default();
+                    comments.push(crate::worksheet::Comment { row: cur_row, col: cur_col, text: cur_text.clone(), author });
+                    in_comment = false;
+                }
+                b"t" => { in_text = false; }
+                b"author" => { in_author = false; }
+                _ => {}
+            },
+            Ok(Event::Eof) => break,
+            Err(_) => break,
+            _ => {}
+        }
+    }
+    comments
 }

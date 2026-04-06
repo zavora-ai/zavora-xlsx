@@ -5,7 +5,7 @@ use crate::cell::CellType;
 use crate::format::{Format, IntoColor};
 use crate::utility::{ColNum, RowNum};
 use super::Worksheet;
-use super::types::{PrintSettings, SheetVisibility};
+use super::types::{Orientation, PrintSettings, SheetVisibility};
 
 impl Worksheet {
     pub fn set_column_width(&mut self, col: ColNum, width: f64) -> crate::Result<&mut Self> { self.col_widths.insert(col, width); self.dirty = true; Ok(self) }
@@ -121,5 +121,84 @@ impl Worksheet {
     pub fn set_column_range_hidden(&mut self, first: ColNum, last: ColNum) -> &mut Self {
         for c in first..=last { self.hidden_cols.insert(c); }
         self.dirty = true; self
+    }
+
+    // ── Page setup convenience methods ──
+
+    pub fn set_landscape(&mut self) -> &mut Self {
+        self.print_settings.get_or_insert_with(PrintSettings::default).orientation = Some(Orientation::Landscape);
+        self.dirty = true; self
+    }
+    pub fn set_portrait(&mut self) -> &mut Self {
+        self.print_settings.get_or_insert_with(PrintSettings::default).orientation = Some(Orientation::Portrait);
+        self.dirty = true; self
+    }
+    pub fn set_paper_size(&mut self, size: u8) -> &mut Self {
+        self.print_settings.get_or_insert_with(PrintSettings::default).paper_size = Some(size);
+        self.dirty = true; self
+    }
+    pub fn set_margins(&mut self, top: f64, bottom: f64, left: f64, right: f64) -> &mut Self {
+        let ps = self.print_settings.get_or_insert_with(PrintSettings::default);
+        ps.margin_top = Some(top); ps.margin_bottom = Some(bottom);
+        ps.margin_left = Some(left); ps.margin_right = Some(right);
+        self.dirty = true; self
+    }
+    pub fn set_fit_to_page(&mut self, width: u16, height: u16) -> &mut Self {
+        let ps = self.print_settings.get_or_insert_with(PrintSettings::default);
+        ps.fit_to_page = true; ps.fit_to_width = Some(width); ps.fit_to_height = Some(height);
+        self.dirty = true; self
+    }
+    pub fn set_header(&mut self, header: &str) -> &mut Self {
+        self.print_settings.get_or_insert_with(PrintSettings::default).header = Some(header.into());
+        self.dirty = true; self
+    }
+    pub fn set_footer(&mut self, footer: &str) -> &mut Self {
+        self.print_settings.get_or_insert_with(PrintSettings::default).footer = Some(footer.into());
+        self.dirty = true; self
+    }
+    pub fn set_header_center(&mut self, text: &str) -> &mut Self { self.set_header(&format!("&C{text}")) }
+    pub fn set_header_left(&mut self, text: &str) -> &mut Self { self.set_header(&format!("&L{text}")) }
+    pub fn set_header_right(&mut self, text: &str) -> &mut Self { self.set_header(&format!("&R{text}")) }
+    pub fn set_footer_center(&mut self, text: &str) -> &mut Self { self.set_footer(&format!("&C{text}")) }
+    pub fn set_footer_left(&mut self, text: &str) -> &mut Self { self.set_footer(&format!("&L{text}")) }
+    pub fn set_footer_right(&mut self, text: &str) -> &mut Self { self.set_footer(&format!("&R{text}")) }
+
+    // ── CSV export ──
+
+    /// Write sheet data as CSV to any writer.
+    pub fn to_csv<W: std::io::Write>(&self, writer: &mut W, delimiter: u8) -> crate::Result<()> {
+        let range = match self.used_range() {
+            Some(r) => r,
+            None => return Ok(()),
+        };
+        for r in range.0..=range.2 {
+            let mut first = true;
+            for c in range.1..=range.3 {
+                if !first { writer.write_all(&[delimiter])?; }
+                first = false;
+                let val = self.read_cell(r, c);
+                let s = match &val {
+                    crate::cell::CellValue::Empty => String::new(),
+                    crate::cell::CellValue::String(s) => {
+                        if s.contains(delimiter as char) || s.contains('"') || s.contains('\n') {
+                            format!("\"{}\"", s.replace('"', "\"\""))
+                        } else { s.clone() }
+                    }
+                    crate::cell::CellValue::Number(n) => format!("{n}"),
+                    crate::cell::CellValue::Bool(b) => if *b { "TRUE".into() } else { "FALSE".into() },
+                    crate::cell::CellValue::DateTime(dt) => dt.to_iso_string(),
+                    crate::cell::CellValue::Error(e) => e.clone(),
+                    crate::cell::CellValue::Formula { cached_value, .. } => match cached_value.as_ref() {
+                        crate::cell::CellValue::Number(n) => format!("{n}"),
+                        crate::cell::CellValue::String(s) => s.clone(),
+                        _ => String::new(),
+                    },
+                    crate::cell::CellValue::RichText(rt) => rt.plain_text(),
+                };
+                writer.write_all(s.as_bytes())?;
+            }
+            writer.write_all(b"\r\n")?;
+        }
+        Ok(())
     }
 }

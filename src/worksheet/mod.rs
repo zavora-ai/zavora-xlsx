@@ -117,6 +117,10 @@ impl Worksheet {
     pub fn merge_ranges(&self) -> &[(RowNum, ColNum, RowNum, ColNum)] { &self.merge_ranges }
     pub fn column_width(&self, col: ColNum) -> Option<f64> { self.col_widths.get(&col).copied() }
     pub fn row_height(&self, row: RowNum) -> Option<f64> { self.row_heights.get(&row).copied() }
+    pub fn comments(&self) -> &[Comment] { &self.comments }
+    pub fn get_comment(&self, row: RowNum, col: ColNum) -> Option<(&str, &str)> {
+        self.comments.iter().find(|c| c.row == row && c.col == col).map(|c| (c.author.as_str(), c.text.as_str()))
+    }
 
     pub fn set_name(&mut self, name: &str) -> crate::Result<&mut Self> {
         validate_sheet_name(name)?;
