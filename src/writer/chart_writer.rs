@@ -97,7 +97,30 @@ pub fn write_chart_xml(chart: &Chart, _chart_id: usize) -> Vec<u8> {
 fn write_single_chart_type(w: &mut XmlWriter, chart: &Chart, has_secondary: bool) {
     let ct = chart.chart_type;
 
-    // Pivot charts: emit chart type block with no series — Excel auto-generates from pivot source
+    // Pivot charts: emit series from pre-computed pivot data with cached values
+    if chart.pivot_source.is_some() && !chart.pivot_series.is_empty() {
+        let tag = chart_type_tag(ct);
+        w.start_tag(tag, &[]);
+        if matches!(ct, ChartType::Bar) { w.empty_tag("c:barDir", &[("val", "bar")]); }
+        else if matches!(ct, ChartType::Column) { w.empty_tag("c:barDir", &[("val", "col")]); }
+        if matches!(ct, ChartType::Bar | ChartType::Column | ChartType::Line | ChartType::Area) {
+            w.empty_tag("c:grouping", &[("val", "clustered")]);
+        }
+        w.empty_tag("c:varyColors", &[("val", "0")]);
+        for (si, ps) in chart.pivot_series.iter().enumerate() {
+            write_pivot_series(w, si, ps);
+        }
+        if matches!(ct, ChartType::Bar | ChartType::Column) {
+            w.empty_tag("c:gapWidth", &[("val", "219")]);
+            w.empty_tag("c:overlap", &[("val", "-27")]);
+        }
+        w.empty_tag("c:axId", &[("val", "111111111")]);
+        w.empty_tag("c:axId", &[("val", "222222222")]);
+        w.end_tag(tag);
+        return;
+    }
+
+    // Pivot charts without pre-computed data: empty chart type block
     if chart.pivot_source.is_some() {
         let tag = chart_type_tag(ct);
         w.start_tag(tag, &[]);
@@ -431,6 +454,56 @@ fn write_axis_title(w: &mut XmlWriter, title: &str) {
 const ACCENT_COLORS: &[&str] = &[
     "accent1", "accent2", "accent3", "accent4", "accent5", "accent6",
 ];
+
+/// Write a pivot chart series with inline cached values (no cell references needed).
+fn write_pivot_series(w: &mut XmlWriter, idx: usize, ps: &crate::features::chart::PivotChartSeriesData) {
+    let idx_s = idx.to_string();
+    let accent = ACCENT_COLORS[idx % ACCENT_COLORS.len()];
+    w.start_tag("c:ser", &[]);
+    w.empty_tag("c:idx", &[("val", &idx_s)]);
+    w.empty_tag("c:order", &[("val", &idx_s)]);
+    // Series name
+    w.start_tag("c:tx", &[]);
+    w.text_element("c:v", &[], &ps.name);
+    w.end_tag("c:tx");
+    // Series fill color
+    w.start_tag("c:spPr", &[]);
+    w.start_tag("a:solidFill", &[]);
+    w.empty_tag("a:schemeClr", &[("val", accent)]);
+    w.end_tag("a:solidFill");
+    w.start_tag("a:ln", &[]); w.empty_tag("a:noFill", &[]); w.end_tag("a:ln");
+    w.empty_tag("a:effectLst", &[]);
+    w.end_tag("c:spPr");
+    w.empty_tag("c:invertIfNegative", &[("val", "0")]);
+    // Categories — inline string cache
+    let pt_count = ps.categories.len().to_string();
+    w.start_tag("c:cat", &[]);
+    w.start_tag("c:strLit", &[]);
+    w.empty_tag("c:ptCount", &[("val", &pt_count)]);
+    for (ci, cat) in ps.categories.iter().enumerate() {
+        let ci_s = ci.to_string();
+        w.start_tag("c:pt", &[("idx", &ci_s)]);
+        w.text_element("c:v", &[], cat);
+        w.end_tag("c:pt");
+    }
+    w.end_tag("c:strLit");
+    w.end_tag("c:cat");
+    // Values — inline number cache
+    w.start_tag("c:val", &[]);
+    w.start_tag("c:numLit", &[]);
+    w.empty_tag("c:formatCode", &[]);
+    w.empty_tag("c:ptCount", &[("val", &pt_count)]);
+    for (vi, val) in ps.values.iter().enumerate() {
+        let vi_s = vi.to_string();
+        let val_s = format!("{val}");
+        w.start_tag("c:pt", &[("idx", &vi_s)]);
+        w.text_element("c:v", &[], &val_s);
+        w.end_tag("c:pt");
+    }
+    w.end_tag("c:numLit");
+    w.end_tag("c:val");
+    w.end_tag("c:ser");
+}
 
 /// Write <c:pivotFmts> — one format entry per series with proper accent colors,
 /// marker suppression, and data label configuration.

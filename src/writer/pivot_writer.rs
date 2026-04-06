@@ -416,6 +416,87 @@ pub(crate) fn write_pivot_table(pt: &PivotTable, cache: &PivotCacheData, cache_i
 
 use crate::features::pivot::PivotStyle;
 
+/// Compute aggregated series data for a pivot chart from the pivot cache.
+/// Returns one PivotChartSeriesData per value field, with categories from the first row field.
+pub(crate) fn compute_pivot_chart_series(
+    pt: &PivotTable,
+    cache: &PivotCacheData,
+) -> Vec<crate::features::chart::PivotChartSeriesData> {
+    // Find the first row field index (categories)
+    let cat_field_idx = match pt.row_fields.first()
+        .and_then(|name| cache.headers.iter().position(|h| h == name)) {
+        Some(idx) => idx,
+        None => return Vec::new(),
+    };
+
+    // Get unique category values
+    let categories: Vec<String> = match &cache.fields[cat_field_idx] {
+        CacheFieldData::String { unique_values } => unique_values.clone(),
+        _ => return Vec::new(),
+    };
+
+    // For each value field, aggregate by category
+    let mut result = Vec::new();
+    for vf in &pt.value_fields {
+        let val_field_idx = match cache.headers.iter().position(|h| h == &vf.source_field) {
+            Some(idx) => idx,
+            None => continue,
+        };
+
+        // Accumulate per category
+        let mut sums: Vec<f64> = vec![0.0; categories.len()];
+        let mut counts: Vec<usize> = vec![0; categories.len()];
+        let mut mins: Vec<f64> = vec![f64::MAX; categories.len()];
+        let mut maxs: Vec<f64> = vec![f64::MIN; categories.len()];
+
+        for record in &cache.records {
+            let cat_idx = match &record[cat_field_idx] {
+                CacheValue::StringIndex(i) => *i as usize,
+                _ => continue,
+            };
+            if cat_idx >= categories.len() { continue; }
+            let val = match &record[val_field_idx] {
+                CacheValue::Number(n) => *n,
+                _ => continue,
+            };
+            sums[cat_idx] += val;
+            counts[cat_idx] += 1;
+            if val < mins[cat_idx] { mins[cat_idx] = val; }
+            if val > maxs[cat_idx] { maxs[cat_idx] = val; }
+        }
+
+        let values: Vec<f64> = match vf.aggregation {
+            PivotAggregation::Sum => sums,
+            PivotAggregation::Count | PivotAggregation::CountNums => counts.iter().map(|c| *c as f64).collect(),
+            PivotAggregation::Average => sums.iter().zip(counts.iter()).map(|(s, c)| if *c > 0 { s / *c as f64 } else { 0.0 }).collect(),
+            PivotAggregation::Min => mins,
+            PivotAggregation::Max => maxs,
+            _ => sums, // default to sum for other types
+        };
+
+        let agg_name = match vf.aggregation {
+            PivotAggregation::Sum => "Sum",
+            PivotAggregation::Count => "Count",
+            PivotAggregation::Average => "Average",
+            PivotAggregation::Max => "Max",
+            PivotAggregation::Min => "Min",
+            PivotAggregation::CountNums => "Count",
+            PivotAggregation::Product => "Product",
+            PivotAggregation::StdDev => "StdDev",
+            PivotAggregation::StdDevP => "StdDevP",
+            PivotAggregation::Var => "Var",
+            PivotAggregation::VarP => "VarP",
+        };
+
+        result.push(crate::features::chart::PivotChartSeriesData {
+            name: format!("{agg_name} of {}", vf.source_field),
+            categories: categories.clone(),
+            values,
+        });
+    }
+    result
+}
+
 fn goto_default_col_items(w: &mut XmlWriter, value_fields: &[crate::features::pivot::PivotValueField]) {
     let n = value_fields.len().max(1);
     let cc = n.to_string();

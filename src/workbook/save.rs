@@ -25,7 +25,24 @@ impl Workbook {
             }
         }
 
-        // Mark pivot tables that have associated pivot charts
+        // Mark pivot tables that have associated pivot charts + pre-compute chart series
+        // First pass: collect pivot cache data per pivot table name
+        let mut pivot_caches: std::collections::HashMap<String, crate::writer::pivot_writer::PivotCacheData> = std::collections::HashMap::new();
+        for ws in &self.worksheets {
+            for pt in &ws.pivot_tables {
+                let (src_sheet, src_ref) = parse_pivot_source(&pt.source_range);
+                let src_ws = self.worksheets.iter().find(|w| w.name == src_sheet);
+                if let Some(src) = src_ws {
+                    if let Some((r1, c1, r2, c2)) = crate::utility::parse_range(&src_ref.replace('$', "")) {
+                        let cache = crate::writer::pivot_writer::scan_source_data(&src.cells, &self.sst, r1, c1, r2, c2);
+                        let series = crate::writer::pivot_writer::compute_pivot_chart_series(pt, &cache);
+                        pivot_caches.insert(pt.name.clone(), cache);
+                        // Store series data — need to find charts referencing this pivot
+                    }
+                }
+            }
+        }
+        // Second pass: mark has_chart and attach pre-computed series to charts
         for ws in &mut self.worksheets {
             let chart_pivot_names: Vec<String> = ws.charts.iter()
                 .filter_map(|c| c.pivot_source.as_ref().map(|ps| ps.pivot_table_name.clone()))
@@ -33,6 +50,16 @@ impl Workbook {
             for pt in &mut ws.pivot_tables {
                 if chart_pivot_names.iter().any(|n| n == &pt.name) {
                     pt.has_chart = true;
+                }
+            }
+            for chart in &mut ws.charts {
+                if let Some(ref ps) = chart.pivot_source {
+                    if let Some(pt) = ws.pivot_tables.iter().find(|p| p.name == ps.pivot_table_name) {
+                        let (src_sheet, src_ref) = parse_pivot_source(&pt.source_range);
+                        if let Some(cache) = pivot_caches.get(&pt.name) {
+                            chart.pivot_series = crate::writer::pivot_writer::compute_pivot_chart_series(pt, cache);
+                        }
+                    }
                 }
             }
         }

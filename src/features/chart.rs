@@ -80,6 +80,16 @@ pub struct Chart {
     pub(crate) y_axis_reverse: bool,
     // Pivot chart source
     pub(crate) pivot_source: Option<PivotChartSource>,
+    /// Pre-computed pivot chart series (populated at save time from pivot cache)
+    pub(crate) pivot_series: Vec<PivotChartSeriesData>,
+}
+
+/// Pre-computed series data for a pivot chart, generated from pivot cache at save time.
+#[derive(Debug, Clone)]
+pub struct PivotChartSeriesData {
+    pub(crate) name: String,
+    pub(crate) categories: Vec<String>,
+    pub(crate) values: Vec<f64>,
 }
 
 /// Links a chart to a pivot table, making it a pivot chart.
@@ -112,6 +122,7 @@ impl Chart {
             y_axis_min: None, y_axis_max: None, y_axis_log_base: None,
             x_axis_reverse: false, y_axis_reverse: false,
             pivot_source: None,
+            pivot_series: Vec::new(),
         }
     }
 
