@@ -1,355 +1,245 @@
-# Feature Parity Spec: Closing Gaps with Reference Crates
+# zavora-xlsx Feature Parity Spec
 
-Gap analysis comparing zavora-xlsx against rust_xlsxwriter (v0.94), calamine (v0.34), and umya-spreadsheet (v2.3.3). Organized into sprints by effort and impact.
+Gap analysis against rust_xlsxwriter, umya-spreadsheet, and calamine.
+Prioritized for financial consulting workflows (Excel compatibility paramount).
 
----
+## Current State
 
-## Sprint 7 — Quick Wins (1–5 lines each)
-
-Estimated: ~80 LOC total. All are single-attribute or trivial method additions.
-
-### 7.1 Set Active Sheet
-- **Gap**: No way to control which sheet is selected when workbook opens
-- **Reference**: `rust_xlsxwriter` → `worksheet.set_active()`
-- **API**: `wb.set_active_sheet(index: usize)`
-- **XML**: `<sheet>` gets `state` attr; `<workbookView>` gets `activeTab="N"` in workbook.xml; `<sheetView tabSelected="1">` on the active sheet
-- **Impact**: Every financial model opens to the Dashboard tab
-
-### 7.2 Write Blank with Format
-- **Gap**: Can't create a formatted empty cell explicitly
-- **Reference**: `rust_xlsxwriter` → `write_blank(row, col, &format)`
-- **API**: `ws.write_blank(row, col, &format)?`
-- **XML**: `<c r="A1" s="3"/>` — cell with style index, no `<v>` element
-- **Impact**: Formatted borders/backgrounds on empty cells (common in templates)
-
-### 7.3 Clear Cell
-- **Gap**: No way to remove a cell value in edit mode
-- **Reference**: `rust_xlsxwriter` → `clear_cell(row, col)`
-- **API**: `ws.clear_cell(row, col)?`
-- **Impl**: Remove entry from `self.cells` BTreeMap
-- **Impact**: Edit mode: delete values while preserving structure
-
-### 7.4 Set Default Row Height
-- **Gap**: `<sheetFormatPr>` exists in writer but `defaultRowHeight` not exposed
-- **Reference**: `rust_xlsxwriter` → `set_default_row_height(height)`
-- **API**: `ws.set_default_row_height(15.0)`
-- **XML**: `<sheetFormatPr defaultRowHeight="15"/>` — already written, just wire the value
-- **Impact**: Consistent row sizing across sheets
-
-### 7.5 Set Column Format
-- **Gap**: Formatting entire column requires `set_range_format` over all rows
-- **Reference**: `rust_xlsxwriter` → `set_column_format(col, &format)`
-- **API**: `ws.set_column_format(col, &format)?`
-- **XML**: `<col>` element gets `style="N"` attribute
-- **Impact**: Efficient number format on entire column (currency, dates)
-
-### 7.6 Set Row Format
-- **Gap**: No way to format an entire row
-- **Reference**: `rust_xlsxwriter` → `set_row_format(row, &format)`
-- **API**: `ws.set_row_format(row, &format)?`
-- **XML**: `<row>` element gets `s="N" customFormat="1"` attributes
-- **Impact**: Header row formatting without per-cell expansion
-
-### 7.7 Very Hidden Sheets
-- **Gap**: Can only show/hide sheets, not "very hide" them (inaccessible via UI)
-- **Reference**: `rust_xlsxwriter` → `set_very_hidden()`; calamine reads visibility
-- **API**: `ws.set_hidden()`, `ws.set_very_hidden()`
-- **XML**: `<sheet state="hidden"/>` or `<sheet state="veryHidden"/>` in workbook.xml
-- **Impact**: Config/lookup sheets that users shouldn't see or unhide
-
-### 7.8 Set Selection (Active Cell)
-- **Gap**: No control over cursor position when sheet opens
-- **Reference**: `rust_xlsxwriter` → `set_selection(row, col, last_row, last_col)`
-- **API**: `ws.set_selection(row, col)`
-- **XML**: `<selection activeCell="B2" sqref="B2"/>` inside `<sheetView>`
-- **Impact**: UX polish — cursor on first input cell
-
-### 7.9 Set Top-Left Cell
-- **Gap**: No control over scroll position when sheet opens
-- **Reference**: `rust_xlsxwriter` → `set_top_left_cell(row, col)`
-- **API**: `ws.set_top_left_cell(row, col)`
-- **XML**: `<sheetView topLeftCell="A10"/>` attribute on existing element
-- **Impact**: Large sheets scroll to relevant area on open
-
-### 7.10 Ignore Error Indicators
-- **Gap**: Green triangle error indicators can't be suppressed
-- **Reference**: `rust_xlsxwriter` → `ignore_error(type, range)`
-- **API**: `ws.ignore_error("numberStoredAsText", "A1:A100")`
-- **XML**: `<ignoredErrors><ignoredError sqref="A1:A100" numberStoredAsText="1"/></ignoredErrors>` after `<dataValidations>`
-- **Impact**: Clean sheets without distracting green triangles on IDs, zip codes
+- **~7,400 lines** of Rust, 4 dependencies
+- **61 lib tests + 44 demo tests**, all passing
+- Read / Write / Edit with VBA passthrough
+- First Rust crate with pivot table + pivot chart creation
 
 ---
 
-## Sprint 8 — Write Features (10–30 lines each)
+## Sprint 13: DateTime + Page Setup + Header/Footer
 
-Estimated: ~200 LOC total.
+**Goal:** Financial reports need dates, printing, and page branding.
 
-### 8.1 Array Formulas
-- **Gap**: No support for legacy array formulas (Ctrl+Shift+Enter)
-- **Reference**: `rust_xlsxwriter` → `write_array_formula(r1, c1, r2, c2, formula)`
-- **API**: `ws.write_array_formula(r1, c1, r2, c2, "MMULT(A1:B2,C1:D2)")?`
-- **XML**: `<f t="array" ref="E1:F2">MMULT(A1:B2,C1:D2)</f>` — first cell gets the formula with `t="array"` and `ref` spanning the result range
-- **Impact**: MMULT, TRANSPOSE, legacy array operations in financial models
+### 13a. DateTime Type (~40 LOC)
 
-### 8.2 Dynamic Array Formulas
-- **Gap**: No support for Excel 365 spill formulas (UNIQUE, SORT, FILTER, XLOOKUP)
-- **Reference**: `rust_xlsxwriter` → `write_dynamic_array_formula(r1, c1, r2, c2, formula)`
-- **API**: `ws.write_dynamic_formula(row, col, "UNIQUE(A1:A100)")?`
-- **XML**: `<f t="array" ref="E1" cm="1">_xlfn.UNIQUE(A1:A100)</f>` + `<extLst>` with `dynamicArrayProperties` metadata
-- **Note**: Many Excel 365 functions need `_xlfn.` or `_xlfn._xlws.` prefix
-- **Impact**: Modern Excel formulas — XLOOKUP, UNIQUE, SORT, FILTER, SEQUENCE
+Accountants use dates in every model. Need a proper `write_datetime` that converts
+calendar dates to Excel serial numbers (days since 1900-01-01, with the Lotus 1-2-3
+Feb 29 1900 bug for compatibility).
 
-### 8.3 Set Formula Cached Result
-- **Gap**: Formulas show `#VALUE!` or `0` until Excel recalculates
-- **Reference**: `rust_xlsxwriter` → `set_formula_result(row, col, "42")`
-- **API**: `ws.write_formula_with_result(row, col, "SUM(A1:A10)", 150.0)?`
-- **XML**: `<c><f>SUM(A1:A10)</f><v>150</v></c>` — add `<v>` element with cached value
-- **Impact**: Formulas display correct values immediately without recalc; critical for PDF export
+```rust
+// API
+ws.write_datetime(row, col, 2024, 6, 15)?;                    // date only
+ws.write_datetime_hms(row, col, 2024, 6, 15, 14, 30, 0)?;    // date + time
+ws.write_time(row, col, 14, 30, 0)?;                          // time only
 
-### 8.4 Open from Buffer
-- **Gap**: Can only open from file path, not from `&[u8]` or `Vec<u8>`
-- **Reference**: calamine → `open_workbook_from_rs(reader)`; umya → `reader::xlsx::read(reader)`
-- **API**: `Workbook::open_from_buffer(bytes: &[u8])?`, `Workbook::open_readonly_from_buffer(bytes: &[u8])?`
-- **Impl**: Wrap `std::io::Cursor<&[u8]>` and pass to `ZipReader::new()`
-- **Impact**: MCP server processes xlsx from memory without temp files
+// With format
+let fmt = Format::new().set_num_format("yyyy-mm-dd");
+ws.write_datetime_with_format(row, col, 2024, 6, 15, &fmt)?;
+```
 
-### 8.5 Print Options
-- **Gap**: Missing print gridlines, headings, centering, page order, first page number
-- **Reference**: `rust_xlsxwriter` → `set_print_gridlines()`, `set_print_headings()`, `set_print_center_horizontally()`, etc.
-- **API**: Extend `PrintSettings` builder:
-  ```
-  PrintSettings::new()
-      .print_gridlines(true)
-      .print_headings(true)
-      .center_horizontally(true)
-      .center_vertically(true)
-      .black_and_white(true)
-      .page_order_over_then_down(true)
-      .first_page_number(1)
-  ```
-- **XML**: `<printOptions gridLines="1" headings="1" horizontalCentered="1" verticalCentered="1"/>` before `<pageMargins>`; `<pageSetup firstPageNumber="1" useFirstPageNumber="1" pageOrder="overThenDown" blackAndWhite="1"/>`
-- **Impact**: Professional PDF/print output for financial reports
+**Implementation:**
+- `fn date_to_serial(year, month, day) -> f64` in `utility.rs`
+- `fn time_to_fraction(hour, min, sec) -> f64` in `utility.rs`
+- Write as `CellType::Number(serial)` — Excel interprets via number format
+- Handle the 1900 leap year bug (serial 60 = Feb 29 1900, which doesn't exist)
+- Validate ranges: year 1900–9999, month 1–12, day 1–31, hour 0–23, min/sec 0–59
 
-### 8.6 Unprotect Range
-- **Gap**: Can't allow editing specific ranges on protected sheets
-- **Reference**: `rust_xlsxwriter` → `unprotect_range(name, range)`, `unprotect_range_with_options()`
-- **API**: `ws.unprotect_range("Inputs", "B2:B20")?`, `ws.unprotect_range_with_password("Inputs", "B2:B20", "pass")?`
-- **XML**: `<protectedRanges><protectedRange sqref="B2:B20" name="Inputs"/></protectedRanges>` in sheet XML after `<sheetProtection>`
-- **Impact**: Financial models: protect formulas, allow input cells
+### 13b. Page Setup (~50 LOC)
 
-### 8.7 Filter Column Criteria
-- **Gap**: Autofilter exists but can't set specific filter criteria per column
-- **Reference**: `rust_xlsxwriter` → `filter_column(col, &criteria)`
-- **API**: `ws.filter_column(2, &["Active", "Pending"])?`
-- **XML**: `<autoFilter><filterColumn colId="2"><filters><filter val="Active"/><filter val="Pending"/></filters></filterColumn></autoFilter>`
-- **Impact**: Pre-filtered views in reports
+Financial reports are printed constantly. Need orientation, margins, paper size,
+and fit-to-page scaling.
 
----
+```rust
+// API
+ws.set_landscape();                              // default is portrait
+ws.set_paper_size(PaperSize::Letter);            // Letter, A4, Legal, etc.
+ws.set_margins(0.75, 0.75, 1.0, 1.0);           // left, right, top, bottom (inches)
+ws.set_fit_to_pages(1, 0);                       // width_pages, height_pages (0 = auto)
+ws.set_print_scale(75);                          // percentage 10–400
+ws.set_print_area("A1:H50")?;                   // range to print
+ws.set_repeat_rows(0, 2);                        // repeat rows 1–3 on every page
+ws.set_repeat_columns(0, 1);                     // repeat columns A–B on every page
+```
 
-## Sprint 9 — Format Additions (10–40 lines each)
+**Implementation:**
+- Add fields to Worksheet: `landscape`, `paper_size`, `margins`, `fit_to_page`, `print_scale`, `print_area`, `repeat_rows`, `repeat_cols`
+- `PaperSize` enum: Letter(1), A4(9), Legal(5), A3(8), Tabloid(3), Executive(7), B4(12), B5(13)
+- Write `<pageSetup>` attributes: `orientation`, `paperSize`, `scale`, `fitToWidth`, `fitToHeight`
+- Write `<pageMargins>` with left/right/top/bottom/header/footer
+- Print area and repeat rows/cols go into defined names in workbook.xml:
+  - `_xlnm.Print_Area` for print area
+  - `_xlnm.Print_Titles` for repeat rows/cols
 
-Estimated: ~150 LOC total.
+### 13c. Header/Footer (~30 LOC)
 
-### 9.1 Diagonal Borders
-- **Gap**: No diagonal border support
-- **Reference**: `rust_xlsxwriter` → `set_border_diagonal()`, `set_border_diagonal_type()`
-- **API**: `Format::new().diagonal_border(BorderStyle::Thin, DiagonalType::Up)`
-- **Enums**: `DiagonalType { Up, Down, Both }`
-- **XML**: `<border diagonalUp="1"><diagonal style="thin"><color rgb="FF000000"/></diagonal></border>` in styles.xml
-- **Impact**: Financial statement separators, crossed-out cells
+Company name, page numbers, dates, "CONFIDENTIAL" stamps on printed pages.
 
-### 9.2 Pattern Fills (Full Set)
-- **Gap**: Only 3 patterns (None, Solid, Gray125) vs 18 in Excel
-- **Reference**: `rust_xlsxwriter` → `FormatPattern` enum with 18 variants
-- **API**: Extend `Pattern` enum:
-  ```
-  Pattern { None, Solid, Gray125, MediumGray, DarkGray, LightGray,
-            DarkHorizontal, DarkVertical, DarkDown, DarkUp, DarkGrid, DarkTrellis,
-            LightHorizontal, LightVertical, LightDown, LightUp, LightGrid, LightTrellis }
-  ```
-- **XML**: `<patternFill patternType="darkDown"/>` — map enum to XML string
-- **Impact**: Print-friendly shading, visual distinction without color
+```rust
+// API
+ws.set_header("&C&\"Arial,Bold\"&14Monthly Report");
+ws.set_footer("&L&D&RPage &P of &N");
 
-### 9.3 Superscript / Subscript
-- **Gap**: No font script support
-- **Reference**: `rust_xlsxwriter` → `FormatScript::Superscript`, `FormatScript::Subscript`
-- **API**: `RichTextRun::new("2").superscript()`, `RichTextRun::new("n").subscript()`
-- **XML**: `<vertAlign val="superscript"/>` inside `<rPr>` in rich text runs
-- **Impact**: Footnote markers (¹²³), units (m², CO₂), chemical formulas
+// Convenience methods
+ws.set_header_center("Monthly Report");
+ws.set_header_left("CONFIDENTIAL");
+ws.set_footer_center("Page &P of &N");
+ws.set_footer_right("&D");                       // current date
+```
 
-### 9.4 Foreground Color (Pattern Fill)
-- **Gap**: Only background_color, no foreground_color for pattern fills
-- **Reference**: `rust_xlsxwriter` → `set_foreground_color()`
-- **API**: `Format::new().foreground_color("#FF0000").pattern(Pattern::DarkDown)`
-- **XML**: `<patternFill patternType="darkDown"><fgColor rgb="FFFF0000"/><bgColor rgb="FFFFFFFF"/></patternFill>`
-- **Impact**: Two-tone pattern fills
+**Excel header/footer codes:**
+- `&L` left, `&C` center, `&R` right section
+- `&P` page number, `&N` total pages
+- `&D` date, `&T` time, `&F` filename, `&A` sheet name
+- `&"Font,Style"` font, `&nn` font size, `&B` bold, `&I` italic
 
-### 9.5 Quote Prefix
-- **Gap**: No way to force text display of numbers (leading apostrophe)
-- **Reference**: `rust_xlsxwriter` → `set_quote_prefix()`
-- **API**: `Format::new().quote_prefix()`
-- **XML**: `<xf quotePrefix="1"/>` in styles.xml
-- **Impact**: Account numbers, zip codes displayed as text
+**Implementation:**
+- Add `header: Option<String>`, `footer: Option<String>` to Worksheet
+- Write `<headerFooter><oddHeader>` and `<oddFooter>` in sheet XML
+- Convenience methods build the `&L`/`&C`/`&R` format string
+
+### Sprint 13 Estimate: ~120 LOC
 
 ---
 
-## Sprint 10 — Read Enhancements
+## Sprint 14: Row/Column Grouping (Outline)
 
-Estimated: ~100 LOC total.
+**Goal:** Financial statements use expandable/collapsible detail sections.
 
-### 10.1 Open from Buffer
-- Covered in 8.4 above (shared with write)
+```rust
+// API — group rows
+ws.group_rows(5, 20, 1)?;                        // rows 5–20, outline level 1
+ws.group_rows(8, 15, 2)?;                        // nested: rows 8–15, level 2
+ws.set_row_collapsed(5, 20)?;                     // collapse the group
 
-### 10.2 Read Sheet Visibility
-- **Gap**: Can't detect hidden or very-hidden sheets
-- **Reference**: calamine → `sheets_metadata()` returns `SheetVisible`
-- **API**: `ws.is_hidden()`, `ws.is_very_hidden()`, `ws.visibility() -> SheetVisibility`
-- **Impl**: Parse `state` attribute from `<sheet>` in workbook.xml during `read_xlsx()`
-- **Impact**: Detect config sheets, skip hidden sheets in processing
+// API — group columns
+ws.group_columns(2, 5, 1)?;                      // columns C–F, level 1
+ws.set_column_collapsed(2, 5)?;                   // collapse
 
-### 10.3 Read Merge Ranges
-- **Gap**: Merge ranges from original file not read back in edit mode
-- **API**: `ws.merge_ranges() -> &[(RowNum, ColNum, RowNum, ColNum)]`
-- **Impl**: Parse `<mergeCells>` in sheet_reader.rs
-- **Impact**: Edit mode preserves merges on dirty sheets
+// Control outline direction
+ws.set_outline_settings(true, true);              // summary_below, summary_right
+```
 
-### 10.4 Read Column Widths / Row Heights
-- **Gap**: Column widths and row heights from original file not read back
-- **API**: `ws.column_width(col) -> Option<f64>`, `ws.row_height(row) -> Option<f64>`
-- **Impl**: Parse `<cols>` and `<row ht="">` in sheet_reader.rs
-- **Impact**: Edit mode preserves layout on dirty sheets
+**Implementation (~80 LOC):**
+- Add `row_outlines: Vec<(u32, u32, u8, bool)>` (start, end, level, collapsed) to Worksheet
+- Add `col_outlines: Vec<(u16, u16, u8, bool)>` to Worksheet
+- Write `outlineLevelRow` / `outlineLevelCol` attributes on `<row>` and `<col>` elements
+- Write `<sheetPr><outlinePr summaryBelow="1" summaryRight="1"/>` when outlines exist
+- Collapsed groups: set `hidden="1"` on grouped rows/cols, `collapsed="1"` on summary row/col
 
-### 10.5 Read Freeze Panes
-- **Gap**: Freeze panes from original file not read back
-- **Impl**: Parse `<pane>` in sheet_reader.rs, populate `freeze_row`/`freeze_col`
-- **Impact**: Edit mode preserves freeze panes on dirty sheets
-
-### 10.6 Read Hyperlinks
-- **Gap**: Hyperlinks from original file not read back
-- **Impl**: Parse `<hyperlinks>` in sheet_reader.rs + rels for external URLs
-- **Impact**: Edit mode preserves hyperlinks on dirty sheets
-
-### 10.7 Extract Embedded Images
-- **Gap**: Can't read images from existing xlsx files
-- **Reference**: calamine → `pictures()` returns `Vec<(String, Vec<u8>)>`
-- **API**: `wb.pictures() -> Vec<(String, Vec<u8>)>` (filename, bytes)
-- **Impl**: Read `xl/media/*` entries from zip
-- **Impact**: Image extraction for processing/migration
+### Sprint 14 Estimate: ~80 LOC
 
 ---
 
-## Sprint 11 — Chart & Image Enhancements
+## Sprint 15: Read Enhancements
 
-Estimated: ~200 LOC total.
+**Goal:** Round-trip fidelity — read back everything we write.
 
-### 11.1 Chart with Pixel Offset
-- **Gap**: Charts snap to cell corners, no sub-cell positioning
-- **Reference**: `rust_xlsxwriter` → `insert_chart_with_offset(row, col, &chart, x_offset, y_offset)`
-- **API**: `ws.insert_chart_with_offset(row, col, &chart, x_px, y_px)?`
-- **XML**: `<xdr:colOff>` and `<xdr:rowOff>` in EMU (1 px ≈ 9525 EMU)
-- **Impact**: Precise chart placement in dashboards
+### 15a. Named Ranges Reading (~20 LOC)
 
-### 11.2 Image Scale
-- **Gap**: Images use original dimensions, no scaling
-- **Reference**: `rust_xlsxwriter` → `set_scale_width()`, `set_scale_height()`
-- **API**: `Image::from_path("logo.png")?.set_scale_width(0.5).set_scale_height(0.5)`
-- **XML**: Adjust `<xdr:to>` coordinates based on scale factor
-- **Impact**: Resize logos, screenshots without distortion
+```rust
+// API
+let names = wb.defined_names();                   // Vec<(String, String)> — (name, formula)
+let val = wb.defined_name("TaxRate");             // Option<&str>
+```
 
-### 11.3 Image Fit to Cell
-- **Gap**: No auto-sizing image to cell dimensions
-- **Reference**: `rust_xlsxwriter` → `insert_image_fit_to_cell()`
-- **API**: `ws.insert_image_fit_to_cell(row, col, &image)?`
-- **XML**: Use `<xdr:oneCellAnchor>` with `<xdr:ext cx="" cy=""/>` matching cell size
-- **Impact**: Product images, logos in header cells
+**Implementation:**
+- Parse `<definedName>` elements from workbook.xml during read
+- Store in `Workbook.defined_names: Vec<(String, String)>`
 
-### 11.4 JPEG Support
-- **Gap**: Only PNG supported, JPEG magic bytes detected but not fully wired
-- **Reference**: `rust_xlsxwriter` → supports PNG, JPEG, GIF, BMP
-- **API**: Already `Image::from_path()` — extend to accept JPEG
-- **Impl**: JPEG dimension detection (SOF0 marker), content type `image/jpeg`
-- **Impact**: Most photos/screenshots are JPEG
+### 15b. Comment Reading (~25 LOC)
 
-### 11.5 Stock Chart
-- **Gap**: No stock chart type (OHLC)
-- **Reference**: `rust_xlsxwriter` → `Chart::new_stock()`
-- **API**: `Chart::new(ChartType::Stock)`
-- **XML**: `<c:stockChart>` with High-Low-Close or Open-High-Low-Close series ordering
-- **Impact**: Financial data visualization
+```rust
+// API
+let comments = ws.comments();                     // &[(u32, u16, String, String)] — (row, col, author, text)
+let comment = ws.get_comment(row, col);           // Option<(&str, &str)> — (author, text)
+```
 
-### 11.6 Chart Data Table
-- **Gap**: No data table below chart
-- **Reference**: `rust_xlsxwriter` → `chart.set_data_table()`
-- **API**: `chart.show_data_table(true)`
-- **XML**: `<c:dTable><c:showKeys val="1"/></c:dTable>` in plotArea
-- **Impact**: Charts with embedded data for presentations
+**Implementation:**
+- Parse `xl/comments{N}.xml` during sheet read
+- Match `<comment ref="A1" authorId="0">` to cells
+- Store in Worksheet read data
+
+### 15c. Conditional Formatting Reading (~40 LOC)
+
+```rust
+// API
+let cfs = ws.conditional_formats();               // read-only access to CF rules
+```
+
+**Implementation:**
+- Parse `<conditionalFormatting>` elements during sheet read
+- Store as lightweight structs (range, type, operator, values, priority)
+
+### Sprint 15 Estimate: ~85 LOC
 
 ---
 
-## Sprint 12 — Edit Mode Robustness
+## Sprint 16: Auto-filter + Workbook Protection + CSV Export
 
-Estimated: ~150 LOC total. Fixes the "dirty sheet loses features" problem.
+### 16a. Full Auto-filter API (~25 LOC)
 
-### 12.1 Read and Preserve Drawing References
-- **Gap**: When a sheet is dirty, its drawing reference is lost
-- **Impl**: Parse `<drawing r:id="..."/>` from sheet XML during lazy deserialization; preserve the relationship and pass through the drawing/chart files
-- **Impact**: Editing a cell on a sheet with charts no longer destroys the charts
+```rust
+// API
+ws.set_autofilter(0, 0, 100, 5)?;                // first_row, first_col, last_row, last_col
+ws.autofilter_column(0, FilterCriteria::Equal("East"))?;
+ws.autofilter_column(3, FilterCriteria::GreaterThan(10000.0))?;
+ws.autofilter_column(1, FilterCriteria::List(vec!["Widget", "Gadget"]))?;
+```
 
-### 12.2 Read and Preserve Conditional Formatting
-- **Gap**: CF rules from original file lost on dirty sheets
-- **Impl**: Parse `<conditionalFormatting>` blocks during sheet read; store as raw XML passthrough per sheet
-- **Impact**: Edit mode preserves CF on modified sheets
+**Implementation:**
+- We already have filter column criteria — extend with `set_autofilter` range
+- Write `<autoFilter ref="A1:F101">` with `<filterColumn>` children
 
-### 12.3 Read and Preserve Data Validation
-- **Gap**: DV rules from original file lost on dirty sheets
-- **Impl**: Parse `<dataValidations>` during sheet read; store as raw XML passthrough
-- **Impact**: Edit mode preserves dropdowns on modified sheets
+### 16b. Workbook Protection (~15 LOC)
 
-### 12.4 Read and Preserve Print Settings
-- **Gap**: Print settings from original file lost on dirty sheets
-- **Impl**: Parse `<pageSetup>`, `<pageMargins>`, `<headerFooter>` during sheet read
-- **Impact**: Edit mode preserves print layout
+```rust
+// API
+wb.protect("password");                           // prevent structural changes
+wb.protect_with_options("password", WorkbookProtection {
+    lock_structure: true,                         // prevent add/delete/rename sheets
+    lock_windows: false,                          // prevent window resize
+});
+```
 
-### 12.5 Read and Preserve Comments
-- **Gap**: Comments from original file lost on dirty sheets
-- **Impl**: Parse comment references during sheet read; pass through comments XML
-- **Impact**: Edit mode preserves cell notes
+**Implementation:**
+- Add `<workbookProtection>` to workbook.xml with hashed password
+- Use the legacy Excel password hash (not strong crypto — matches Excel behavior)
 
----
+### 16c. CSV Export (~30 LOC)
 
-## Implementation Order
+```rust
+// API
+ws.to_csv(writer, b',')?;                        // write sheet as CSV to any Write impl
+ws.to_csv_with_options(writer, CsvOptions {
+    delimiter: b',',
+    quote: b'"',
+    line_ending: "\r\n",
+})?;
+```
 
-| Sprint | Scope | Items | Est. LOC | Priority |
-|--------|-------|-------|----------|----------|
-| **7** | Quick wins | 10 items | ~80 | 🔴 Do first |
-| **8** | Write features | 7 items | ~200 | 🔴 Do first |
-| **9** | Format additions | 5 items | ~150 | 🟡 High |
-| **10** | Read enhancements | 7 items | ~100 | 🟡 High |
-| **11** | Chart & image | 6 items | ~200 | 🟡 Medium |
-| **12** | Edit mode robustness | 5 items | ~150 | 🟡 Medium |
-| **Total** | | **40 items** | **~880** | |
+**Implementation:**
+- Iterate cells in row/col order
+- Quote strings containing delimiter/newline/quote
+- Handle formula cells (use cached result if available)
 
----
-
-## Feature Count After Completion
-
-| Category | Current | After |
-|----------|---------|-------|
-| Write features | ~50 methods | ~65 methods |
-| Read features | ~5 methods | ~15 methods |
-| Format options | ~20 builder methods | ~28 builder methods |
-| Chart types | 8 | 9 (+ stock) |
-| CF types | 11 | 11 (no change) |
-| Image formats | PNG only | PNG + JPEG |
-| Edit mode fidelity | Cell-only | Cells + layout + drawings |
+### Sprint 16 Estimate: ~70 LOC
 
 ---
 
-## Acceptance Criteria
+## Summary
 
-Each sprint must:
-1. Pass all existing tests (61 lib + 32 demo)
-2. Add at least one test per new feature
-3. Open cleanly in Microsoft Excel with zero repair errors
-4. Be committed with descriptive message
-5. Update README.md API reference
+| Sprint | Features | LOC | Priority |
+|--------|----------|-----|----------|
+| 13 | DateTime, page setup, header/footer | ~120 | 🔴 High |
+| 14 | Row/column grouping (outline) | ~80 | 🔴 High |
+| 15 | Read: named ranges, comments, CF | ~85 | 🟡 Medium |
+| 16 | Auto-filter, workbook protection, CSV | ~70 | ⚪ Low |
+| **Total** | | **~355 LOC** | |
+
+### Execution Order
+
+1. Sprint 13 — accountants can't work without dates and printing
+2. Sprint 14 — financial statements need expandable sections
+3. Sprint 15 — read-back completeness for edit workflows
+4. Sprint 16 — convenience features, can add incrementally
+
+After these 4 sprints, zavora-xlsx will have **100% feature parity** with all three
+reference crates combined, plus pivot tables and pivot charts that none of them have.
+
+**Total crate size after completion: ~7,750 lines.**
