@@ -88,6 +88,21 @@ impl Workbook {
             w.empty_tag("calcPr", &[("calcMode", val)]);
         }
 
+        // pivotCaches — links cacheId to workbook rel
+        let mut pivot_count = 0usize;
+        for ws in &self.worksheets { pivot_count += ws.pivot_tables.len(); }
+        if pivot_count > 0 {
+            let sheet_count = self.worksheets.len();
+            let has_vba = self.passthrough_entries.iter().any(|(n, _)| n.eq_ignore_ascii_case("xl/vbaProject.bin"));
+            w.start_tag("pivotCaches", &[]);
+            for i in 0..pivot_count {
+                let cache_id = (sheet_count + 3 + if has_vba { 1 } else { 0 } + i + 1).to_string();
+                let rid = format!("rId{cache_id}");
+                w.empty_tag("pivotCache", &[("cacheId", &cache_id), ("r:id", &rid)]);
+            }
+            w.end_tag("pivotCaches");
+        }
+
         w.end_tag("workbook");
         w.into_bytes()
     }
