@@ -59,13 +59,23 @@ impl Workbook {
             if name.starts_with("xl/charts/chart") && name.ends_with(".xml") { total_charts += 1; }
         }
 
+        // Count pivot tables
+        let mut total_pivots = 0usize;
+        let mut sheets_with_pivots: Vec<(usize, usize)> = Vec::new(); // (sheet_idx, pivot_count)
+        for (i, ws) in self.worksheets.iter().enumerate() {
+            if !ws.pivot_tables.is_empty() {
+                sheets_with_pivots.push((i, ws.pivot_tables.len()));
+                total_pivots += ws.pivot_tables.len();
+            }
+        }
+
         let has_vba = self.passthrough_entries.iter().any(|(n, _)| n.eq_ignore_ascii_case("xl/vbaProject.bin"));
 
         zip.add_file("[Content_Types].xml", &write_content_types_full(
-            sheet_count, has_props, total_charts, total_tables, &sheets_with_drawings, &image_extensions, has_vba, self.is_xlsm, &sheets_with_comments,
+            sheet_count, has_props, total_charts, total_tables, &sheets_with_drawings, &image_extensions, has_vba, self.is_xlsm, &sheets_with_comments, total_pivots,
         ))?;
         zip.add_file("_rels/.rels", &write_root_rels(has_props))?;
-        zip.add_file("xl/_rels/workbook.xml.rels", &rel_writer::write_workbook_rels(sheet_count, has_vba))?;
+        zip.add_file("xl/_rels/workbook.xml.rels", &rel_writer::write_workbook_rels(sheet_count, has_vba, total_pivots))?;
         zip.add_file("xl/workbook.xml", &self.write_workbook_xml())?;
 
         // Pre-compute per-sheet metadata
@@ -125,6 +135,14 @@ impl Workbook {
                 let _ = next_rid;
             } else if ws.original_legacy_drawing_rid.is_some() {
                 legacy_drawing_rid = ws.original_legacy_drawing_rid.clone();
+            }
+
+            // Pivot table rels
+            for (pi, _pt) in ws.pivot_tables.iter().enumerate() {
+                let rid = format!("rId{next_rid}");
+                let pt_idx = pi + 1;
+                sheet_rels.push((rid, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/pivotTable".into(), format!("../pivotTables/pivotTable{pt_idx}.xml")));
+                next_rid += 1;
             }
 
             metas.push(SheetMeta {
@@ -214,6 +232,33 @@ impl Workbook {
                 zip.add_file(&format!("xl/comments{}.xml", i + 1), &comment_writer::write_comments_xml(&ws.comments))?;
                 zip.add_file(&format!("xl/drawings/vmlDrawing{}.vml", i + 1), &comment_writer::write_vml_drawing(&ws.comments))?;
             }
+
+            // Pivot tables
+            for (pi, pt) in ws.pivot_tables.iter().enumerate() {
+                let pt_idx = pi + 1; // per-sheet for now, global handled below
+                // Parse source range to get sheet name and cell range
+                let (src_sheet, src_ref) = parse_pivot_source(&pt.source_range);
+                // Find source worksheet and scan data
+                let src_ws = self.worksheets.iter().find(|w| w.name == src_sheet);
+                if let Some(src) = src_ws {
+                    if let Some((r1, c1, r2, c2)) = crate::utility::parse_range(&src_ref.replace('$', "")) {
+                        let cache = crate::writer::pivot_writer::scan_source_data(&src.cells, r1, c1, r2, c2);
+                        let cache_id = pt_idx;
+                        zip.add_file(&format!("xl/pivotCache/pivotCacheDefinition{pt_idx}.xml"),
+                            &crate::writer::pivot_writer::write_cache_definition(&cache, &src_ref, &src_sheet, cache_id))?;
+                        zip.add_file(&format!("xl/pivotCache/pivotCacheRecords{pt_idx}.xml"),
+                            &crate::writer::pivot_writer::write_cache_records(&cache))?;
+                        zip.add_file(&format!("xl/pivotTables/pivotTable{pt_idx}.xml"),
+                            &crate::writer::pivot_writer::write_pivot_table(pt, &cache, cache_id))?;
+                        // Pivot table rels → cache definition
+                        zip.add_file(&format!("xl/pivotTables/_rels/pivotTable{pt_idx}.xml.rels"),
+                            &rel_writer::write_rels(&[("rId1", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/pivotCacheDefinition", &format!("../pivotCache/pivotCacheDefinition{pt_idx}.xml"))]))?;
+                        // Cache definition rels → cache records
+                        zip.add_file(&format!("xl/pivotCache/_rels/pivotCacheDefinition{pt_idx}.xml.rels"),
+                            &rel_writer::write_rels(&[("rId1", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/pivotCacheRecords", &format!("pivotCacheRecords{pt_idx}.xml"))]))?;
+                    }
+                }
+            }
         }
 
         zip.add_file("xl/styles.xml", &style_writer::write_styles(&self.styles))?;
@@ -228,5 +273,16 @@ impl Workbook {
         for (name, data) in &self.passthrough_entries { zip.add_file(name, data)?; }
 
         zip.finish()
+    }
+}
+
+fn parse_pivot_source(source_range: &str) -> (String, String) {
+    // "Sheet1!$A$1:$E$100" → ("Sheet1", "$A$1:$E$100")
+    if let Some(pos) = source_range.find('!') {
+        let sheet = source_range[..pos].trim_matches('\'').to_string();
+        let range = source_range[pos + 1..].to_string();
+        (sheet, range)
+    } else {
+        ("Sheet1".into(), source_range.into())
     }
 }

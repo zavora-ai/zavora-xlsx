@@ -22,7 +22,7 @@ pub fn write_root_rels() -> Vec<u8> {
     ])
 }
 
-pub fn write_workbook_rels(sheet_count: usize, has_vba: bool) -> Vec<u8> {
+pub fn write_workbook_rels(sheet_count: usize, has_vba: bool, pivot_count: usize) -> Vec<u8> {
     let mut rels: Vec<(String, &str, String)> = Vec::new();
     for i in 0..sheet_count {
         rels.push((
@@ -40,6 +40,10 @@ pub fn write_workbook_rels(sheet_count: usize, has_vba: bool) -> Vec<u8> {
     if has_vba {
         next += 1;
         rels.push((format!("rId{next}"), "http://schemas.microsoft.com/office/2006/relationships/vbaProject", "vbaProject.bin".into()));
+    }
+    for i in 0..pivot_count {
+        next += 1;
+        rels.push((format!("rId{next}"), "http://schemas.openxmlformats.org/officeDocument/2006/relationships/pivotCacheDefinition", format!("pivotCache/pivotCacheDefinition{}.xml", i + 1)));
     }
 
     let refs: Vec<(&str, &str, &str)> = rels.iter().map(|(a, b, c)| (a.as_str(), *b, c.as_str())).collect();

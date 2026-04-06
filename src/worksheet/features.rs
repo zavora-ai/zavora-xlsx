@@ -49,6 +49,12 @@ impl Worksheet {
         self.sparklines.push(s); self.dirty = true; Ok(self)
     }
 
+    /// Add a pivot table at the given position.
+    pub fn add_pivot_table(&mut self, row: RowNum, col: ColNum, pivot: &crate::features::pivot::PivotTable) -> crate::Result<&mut Self> {
+        let mut pt = pivot.clone(); pt.row = row; pt.col = col;
+        self.pivot_tables.push(pt); self.dirty = true; Ok(self)
+    }
+
     pub fn protect(&mut self) -> &mut Self {
         self.protection = Some(SheetProtection::default()); self.dirty = true; self
     }

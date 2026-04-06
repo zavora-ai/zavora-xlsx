@@ -44,6 +44,7 @@ pub use features::conditional::{
     TextOperator, TopBottomType,
 };
 pub use features::image::Image;
+pub use features::pivot::{PivotAggregation, PivotLayout, PivotTable};
 pub use features::sparkline::{Sparkline, SparklineType};
 pub use features::table::{Table, TableColumn, TableStyle};
 pub use features::validation::{DataValidation, ErrorStyle, ValidationRule};

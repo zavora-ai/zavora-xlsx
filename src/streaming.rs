@@ -142,7 +142,7 @@ impl StreamingWorkbook {
 
         zip.add_file("[Content_Types].xml", &write_streaming_content_types(sheet_count, has_props))?;
         zip.add_file("_rels/.rels", &write_streaming_root_rels(has_props))?;
-        zip.add_file("xl/_rels/workbook.xml.rels", &rel_writer::write_workbook_rels(sheet_count, false))?;
+        zip.add_file("xl/_rels/workbook.xml.rels", &rel_writer::write_workbook_rels(sheet_count, false, 0))?;
         zip.add_file("xl/workbook.xml", &write_streaming_workbook(&self.sheets))?;
 
         for (i, sheet) in self.sheets.iter().enumerate() {

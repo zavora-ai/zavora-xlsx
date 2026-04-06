@@ -93,7 +93,7 @@ impl Workbook {
     }
 }
 
-pub(crate) fn write_content_types_full(sheet_count: usize, has_props: bool, chart_count: usize, table_count: usize, sheets_with_drawings: &[usize], image_extensions: &[String], has_vba: bool, is_xlsm: bool, sheets_with_comments: &[usize]) -> Vec<u8> {
+pub(crate) fn write_content_types_full(sheet_count: usize, has_props: bool, chart_count: usize, table_count: usize, sheets_with_drawings: &[usize], image_extensions: &[String], has_vba: bool, is_xlsm: bool, sheets_with_comments: &[usize], pivot_count: usize) -> Vec<u8> {
     let mut w = XmlWriter::new();
     w.declaration();
     w.start_tag("Types", &[("xmlns", "http://schemas.openxmlformats.org/package/2006/content-types")]);
@@ -142,6 +142,14 @@ pub(crate) fn write_content_types_full(sheet_count: usize, has_props: bool, char
     if has_props {
         w.empty_tag("Override", &[("PartName", "/docProps/core.xml"), ("ContentType", "application/vnd.openxmlformats-package.core-properties+xml")]);
         w.empty_tag("Override", &[("PartName", "/docProps/app.xml"), ("ContentType", "application/vnd.openxmlformats-officedocument.extended-properties+xml")]);
+    }
+    for i in 1..=pivot_count {
+        let pt = format!("/xl/pivotTables/pivotTable{i}.xml");
+        w.empty_tag("Override", &[("PartName", &pt), ("ContentType", "application/vnd.openxmlformats-officedocument.spreadsheetml.pivotTable+xml")]);
+        let cd = format!("/xl/pivotCache/pivotCacheDefinition{i}.xml");
+        w.empty_tag("Override", &[("PartName", &cd), ("ContentType", "application/vnd.openxmlformats-officedocument.spreadsheetml.pivotCacheDefinition+xml")]);
+        let cr = format!("/xl/pivotCache/pivotCacheRecords{i}.xml");
+        w.empty_tag("Override", &[("PartName", &cr), ("ContentType", "application/vnd.openxmlformats-officedocument.spreadsheetml.pivotCacheRecords+xml")]);
     }
     w.end_tag("Types");
     w.into_bytes()
