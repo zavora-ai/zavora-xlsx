@@ -167,6 +167,7 @@ pub fn read_sheet_full(
 }
 
 /// Backward-compatible wrapper: read cells only.
+#[allow(dead_code)]
 pub fn read_sheet_cells(
     data: &[u8],
     sst: &SharedStringTable,
