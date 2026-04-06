@@ -167,7 +167,7 @@ pub fn read_sheet_full(
 }
 
 /// Backward-compatible wrapper: read cells only.
-pub fn read_sheet_cells(
+pub fn _read_sheet_cells(
     data: &[u8],
     sst: &SharedStringTable,
     styles: &ParsedStyles,

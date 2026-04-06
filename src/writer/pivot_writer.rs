@@ -13,7 +13,7 @@ pub(crate) struct PivotCacheData {
 pub(crate) enum CacheFieldData {
     String { unique_values: Vec<String> },
     Number { min: f64, max: f64, has_int: bool },
-    Mixed,
+    #[allow(dead_code)] Mixed,
 }
 
 pub(crate) enum CacheValue {
@@ -65,7 +65,7 @@ pub(crate) fn scan_source_data(
     let mut fields = Vec::with_capacity(col_count);
     let mut records: Vec<Vec<CacheValue>> = (0..(r2 - r1) as usize).map(|_| Vec::with_capacity(col_count)).collect();
 
-    for (ci, values) in col_values.iter().enumerate() {
+    for (_ci, values) in col_values.iter().enumerate() {
         let all_numeric = values.iter().all(|v| matches!(v, CellValue::Number(_) | CellValue::Empty));
 
         if all_numeric {
@@ -389,9 +389,9 @@ pub(crate) fn write_pivot_table(pt: &PivotTable, cache: &PivotCacheData, cache_i
             if !matches!(vf.aggregation, PivotAggregation::Sum) { attrs.push(("subtotal", sub)); }
             attrs.push(("baseField", "0"));
             attrs.push(("baseItem", "0"));
-            let nf;
+            let _nf;
             if let Some(ref fmt) = vf.num_format {
-                nf = fmt.clone();
+                _nf = fmt.clone();
                 attrs.push(("numFmtId", "0")); // Excel will apply on refresh
             }
             w.empty_tag("dataField", &attrs);
