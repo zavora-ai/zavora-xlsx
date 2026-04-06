@@ -242,8 +242,11 @@ impl Workbook {
                 let src_ws = self.worksheets.iter().find(|w| w.name == src_sheet);
                 if let Some(src) = src_ws {
                     if let Some((r1, c1, r2, c2)) = crate::utility::parse_range(&src_ref.replace('$', "")) {
-                        let cache = crate::writer::pivot_writer::scan_source_data(&src.cells, r1, c1, r2, c2);
-                        let cache_id = pt_idx;
+                        let cache = crate::writer::pivot_writer::scan_source_data(&src.cells, &self.sst, r1, c1, r2, c2);
+                        // cacheId must match the rId in workbook rels
+                        // workbook rels: sheets(N) + styles + sharedStrings + theme + [vba] + pivotCache
+                        let cache_rid = sheet_count + 3 + if has_vba { 1 } else { 0 } + pt_idx;
+                        let cache_id = cache_rid;
                         zip.add_file(&format!("xl/pivotCache/pivotCacheDefinition{pt_idx}.xml"),
                             &crate::writer::pivot_writer::write_cache_definition(&cache, &src_ref, &src_sheet, cache_id))?;
                         zip.add_file(&format!("xl/pivotCache/pivotCacheRecords{pt_idx}.xml"),

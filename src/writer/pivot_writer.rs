@@ -25,6 +25,7 @@ pub(crate) enum CacheValue {
 /// Scan source data from worksheet cells to build cache.
 pub(crate) fn scan_source_data(
     cells: &std::collections::BTreeMap<u32, std::collections::BTreeMap<u16, (crate::cell::CellType, u32)>>,
+    sst: &crate::model::shared_strings::SharedStringTable,
     r1: u32, c1: u16, r2: u32, c2: u16,
 ) -> PivotCacheData {
     let col_count = (c2 - c1 + 1) as usize;
@@ -34,7 +35,7 @@ pub(crate) fn scan_source_data(
         cells.get(&r1).and_then(|row| row.get(&c)).map(|(cell, _)| {
             match cell {
                 crate::cell::CellType::InlineString(s) | crate::cell::CellType::Error(s) => s.clone(),
-                crate::cell::CellType::SharedString(idx) => format!("Field{idx}"),
+                crate::cell::CellType::SharedString(idx) => sst.get(*idx).unwrap_or("").to_string(),
                 crate::cell::CellType::Number(n) => format!("{n}"),
                 _ => format!("Col{}", c - c1 + 1),
             }
@@ -49,7 +50,9 @@ pub(crate) fn scan_source_data(
                 match cell {
                     crate::cell::CellType::Number(n) => CellValue::Number(*n),
                     crate::cell::CellType::InlineString(s) => CellValue::String(s.clone()),
-                    crate::cell::CellType::SharedString(_) => CellValue::Empty,
+                    crate::cell::CellType::SharedString(idx) => {
+                        CellValue::String(sst.get(*idx).unwrap_or("").to_string())
+                    }
                     crate::cell::CellType::Bool(b) => CellValue::String(if *b { "TRUE" } else { "FALSE" }.into()),
                     _ => CellValue::Empty,
                 }
@@ -111,7 +114,8 @@ pub(crate) fn scan_source_data(
 }
 
 /// Write pivotCacheDefinition XML.
-pub(crate) fn write_cache_definition(cache: &PivotCacheData, source_ref: &str, source_sheet: &str, cache_id: usize) -> Vec<u8> {
+pub(crate) fn write_cache_definition(cache: &PivotCacheData, source_ref: &str, source_sheet: &str, _cache_id: usize) -> Vec<u8> {
+    let clean_ref = source_ref.replace('$', "");
     let mut w = XmlWriter::new();
     w.declaration();
     let rec_count = cache.records.len().to_string();
@@ -125,7 +129,7 @@ pub(crate) fn write_cache_definition(cache: &PivotCacheData, source_ref: &str, s
     ]);
 
     w.start_tag("cacheSource", &[("type", "worksheet")]);
-    w.empty_tag("worksheetSource", &[("ref", source_ref), ("sheet", source_sheet)]);
+    w.empty_tag("worksheetSource", &[("ref", &clean_ref), ("sheet", source_sheet)]);
     w.end_tag("cacheSource");
 
     let fc = cache.fields.len().to_string();
@@ -282,12 +286,35 @@ pub(crate) fn write_pivot_table(pt: &PivotTable, cache: &PivotCacheData, cache_i
         w.end_tag("rowFields");
     }
 
-    // rowItems (simplified — let Excel rebuild on refresh)
-    w.start_tag("rowItems", &[("count", "1")]);
-    w.start_tag("i", &[("t", "grand")]);
-    w.empty_tag("x", &[]);
-    w.end_tag("i");
-    w.end_tag("rowItems");
+    // rowItems — one per unique value in first row field + grand total
+    if !pt.row_fields.is_empty() {
+        if let Some(first_row_field) = pt.row_fields.first() {
+            if let Some(idx) = cache.headers.iter().position(|h| h == first_row_field) {
+                if let CacheFieldData::String { unique_values } = &cache.fields[idx] {
+                    let count = (unique_values.len() + 1).to_string();
+                    w.start_tag("rowItems", &[("count", &count)]);
+                    for vi in 0..unique_values.len() {
+                        w.start_tag("i", &[]);
+                        let vs = vi.to_string();
+                        w.empty_tag("x", &[("v", &vs)]);
+                        w.end_tag("i");
+                    }
+                    w.start_tag("i", &[("t", "grand")]);
+                    w.empty_tag("x", &[]);
+                    w.end_tag("i");
+                    w.end_tag("rowItems");
+                } else {
+                    w.start_tag("rowItems", &[("count", "1")]);
+                    w.start_tag("i", &[("t", "grand")]); w.empty_tag("x", &[]); w.end_tag("i");
+                    w.end_tag("rowItems");
+                }
+            }
+        }
+    } else {
+        w.start_tag("rowItems", &[("count", "1")]);
+        w.start_tag("i", &[("t", "grand")]); w.empty_tag("x", &[]); w.end_tag("i");
+        w.end_tag("rowItems");
+    }
 
     // colFields
     if !pt.column_fields.is_empty() || pt.value_fields.len() > 1 {
@@ -307,18 +334,33 @@ pub(crate) fn write_pivot_table(pt: &PivotTable, cache: &PivotCacheData, cache_i
         w.end_tag("colFields");
     }
 
-    // colItems
-    let n_vals = pt.value_fields.len().max(1);
-    let cc = n_vals.to_string();
-    w.start_tag("colItems", &[("count", &cc)]);
-    for vi in 0..n_vals {
-        if vi == 0 { w.start_tag("i", &[]); }
-        else { let vis = vi.to_string(); w.start_tag("i", &[("i", &vis)]); }
-        let vs = vi.to_string();
-        w.empty_tag("x", &[("v", &vs)]);
-        w.end_tag("i");
+    // colItems — one per unique value in column field + grand total
+    if !pt.column_fields.is_empty() {
+        if let Some(col_field) = pt.column_fields.first() {
+            if let Some(idx) = cache.headers.iter().position(|h| h == col_field) {
+                if let CacheFieldData::String { unique_values } = &cache.fields[idx] {
+                    let count = (unique_values.len() + 1).to_string();
+                    w.start_tag("colItems", &[("count", &count)]);
+                    for vi in 0..unique_values.len() {
+                        w.start_tag("i", &[]);
+                        let vs = vi.to_string();
+                        w.empty_tag("x", &[("v", &vs)]);
+                        w.end_tag("i");
+                    }
+                    w.start_tag("i", &[("t", "grand")]);
+                    w.empty_tag("x", &[]);
+                    w.end_tag("i");
+                    w.end_tag("colItems");
+                } else {
+                    goto_default_col_items(&mut w, &pt.value_fields);
+                }
+            } else {
+                goto_default_col_items(&mut w, &pt.value_fields);
+            }
+        }
+    } else {
+        goto_default_col_items(&mut w, &pt.value_fields);
     }
-    w.end_tag("colItems");
 
     // pageFields (filters)
     if !pt.filter_fields.is_empty() {
@@ -370,3 +412,16 @@ pub(crate) fn write_pivot_table(pt: &PivotTable, cache: &PivotCacheData, cache_i
 }
 
 use crate::features::pivot::PivotStyle;
+
+fn goto_default_col_items(w: &mut XmlWriter, value_fields: &[crate::features::pivot::PivotValueField]) {
+    let n = value_fields.len().max(1);
+    let cc = n.to_string();
+    w.start_tag("colItems", &[("count", &cc)]);
+    for vi in 0..n {
+        let vs = vi.to_string();
+        if vi == 0 { w.start_tag("i", &[]); } else { w.start_tag("i", &[("i", &vs)]); }
+        w.empty_tag("x", &[("v", &vs)]);
+        w.end_tag("i");
+    }
+    w.end_tag("colItems");
+}
