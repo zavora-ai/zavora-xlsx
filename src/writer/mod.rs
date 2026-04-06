@@ -1,4 +1,5 @@
 pub mod chart_writer;
+pub mod chartex_writer;
 pub mod comment_writer;
 pub mod drawing_writer;
 pub mod pivot_writer;

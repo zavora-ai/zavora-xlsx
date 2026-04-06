@@ -45,6 +45,7 @@ pub use features::conditional::{
 };
 pub use features::image::Image;
 pub use features::pivot::{PivotAggregation, PivotLayout, PivotTable};
+pub use features::treemap::TreemapChart;
 pub use features::sparkline::{Sparkline, SparklineType};
 pub use features::table::{Table, TableColumn, TableStyle};
 pub use features::validation::{DataValidation, ErrorStyle, ValidationRule};

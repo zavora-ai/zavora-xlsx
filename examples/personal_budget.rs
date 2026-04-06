@@ -264,9 +264,27 @@ fn main() -> Result<()> {
         ws.write_formula(src + 1 + i as u32, 2, tc)?;
     }
 
+    // Treemap chart: Where your money goes (Excel 2016+)
+    let mut treemap = TreemapChart::new();
+    treemap.set_title("Where your money goes...");
+    treemap.set_series_name("Monthly Spending");
+    treemap.set_width(560);
+    treemap.set_height(360);
+    treemap.set_ranges(
+        &format!("'Home Budget'!$B${}:$B${}", src + 1, src + all_cats.len() as u32),
+        &format!("'Home Budget'!$C${}:$C${}", src + 1, src + all_cats.len() as u32),
+    );
+    for (i, (name, color)) in all_cats.iter().zip(all_colors.iter()).enumerate() {
+        // Read the formula value — use a representative amount for the cached data
+        let amounts = [1800.0, 953.0, 3862.0, 47.0, 597.0, 102.0, 155.0];
+        treemap.add_point_with_color(*name, amounts[i], *color);
+    }
+    ws.insert_treemap(chart_row + 1, 1, &treemap)?;
+
+    // Also add a regular column chart below for Excel versions < 2016
     let mut chart = Chart::new(ChartType::Column);
     chart.set_title("Monthly Spending Breakdown");
-    chart.set_width(560); chart.set_height(320);
+    chart.set_width(560); chart.set_height(280);
     chart.set_y_axis_name("$ per month");
     chart.set_legend_position(LegendPosition::Bottom);
     let s = chart.add_series();
@@ -275,7 +293,7 @@ fn main() -> Result<()> {
     s.set_name("Monthly Amount");
     s.set_data_labels(true);
     for (i, c) in all_colors.iter().enumerate() { s.set_point_color(i, *c); }
-    ws.insert_chart(chart_row + 1, 1, &chart)?;
+    ws.insert_chart(chart_row + 20, 1, &chart)?;
 
     // Print
     ws.set_landscape(); ws.set_fit_to_page(1, 1);

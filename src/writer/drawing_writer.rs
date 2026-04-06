@@ -1,11 +1,12 @@
 use crate::features::chart::Chart;
 use crate::features::image::Image;
+use crate::features::treemap::TreemapChart;
 use crate::xml::xml_writer::XmlWriter;
 
 /// EMU = English Metric Units. 1 inch = 914400 EMU. 1 pixel ≈ 9525 EMU at 96 DPI.
 const PX_TO_EMU: u64 = 9525;
 
-pub fn write_drawing_xml(charts: &[Chart], images: &[Image], _sheet_idx: usize) -> Vec<u8> {
+pub fn write_drawing_xml(charts: &[Chart], treemaps: &[TreemapChart], images: &[Image], _sheet_idx: usize) -> Vec<u8> {
     let mut w = XmlWriter::new();
     w.declaration();
     w.start_tag("xdr:wsDr", &[
@@ -15,14 +16,18 @@ pub fn write_drawing_xml(charts: &[Chart], images: &[Image], _sheet_idx: usize) 
 
     let mut rid = 1;
 
-    // Charts
     for chart in charts {
         let r_id = format!("rId{rid}");
         write_two_cell_anchor_chart(&mut w, chart, &r_id);
         rid += 1;
     }
 
-    // Images
+    for tc in treemaps {
+        let r_id = format!("rId{rid}");
+        write_two_cell_anchor_chartex(&mut w, tc, &r_id);
+        rid += 1;
+    }
+
     for image in images {
         let r_id = format!("rId{rid}");
         write_two_cell_anchor_image(&mut w, image, &r_id);
@@ -33,7 +38,7 @@ pub fn write_drawing_xml(charts: &[Chart], images: &[Image], _sheet_idx: usize) 
     w.into_bytes()
 }
 
-pub fn write_drawing_rels(chart_count: usize, image_count: usize, image_types: &[&str], global_chart_start: usize, global_image_start: usize) -> Vec<u8> {
+pub fn write_drawing_rels(chart_count: usize, chartex_count: usize, image_count: usize, image_types: &[&str], global_chart_start: usize, global_chartex_start: usize, global_image_start: usize) -> Vec<u8> {
     let mut w = XmlWriter::new();
     w.declaration();
     w.start_tag("Relationships", &[("xmlns", "http://schemas.openxmlformats.org/package/2006/relationships")]);
@@ -42,6 +47,12 @@ pub fn write_drawing_rels(chart_count: usize, image_count: usize, image_types: &
         let id = format!("rId{rid}");
         let target = format!("../charts/chart{}.xml", global_chart_start + i + 1);
         w.empty_tag("Relationship", &[("Id", &id), ("Type", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart"), ("Target", &target)]);
+        rid += 1;
+    }
+    for i in 0..chartex_count {
+        let id = format!("rId{rid}");
+        let target = format!("../charts/chartEx{}.xml", global_chartex_start + i + 1);
+        w.empty_tag("Relationship", &[("Id", &id), ("Type", "http://schemas.microsoft.com/office/2014/relationships/chartEx"), ("Target", &target)]);
         rid += 1;
     }
     for i in 0..image_count {
@@ -130,4 +141,52 @@ fn write_marker(w: &mut XmlWriter, tag: &str, col: u16, row: u32, col_off: u64, 
     w.text_element("xdr:row", &[], &row.to_string());
     w.text_element("xdr:rowOff", &[], &row_off.to_string());
     w.end_tag(tag);
+}
+
+fn write_two_cell_anchor_chartex(w: &mut XmlWriter, tc: &TreemapChart, r_id: &str) {
+    w.start_tag("xdr:twoCellAnchor", &[]);
+    w.start_tag("xdr:from", &[]);
+    let col_s = tc.col.to_string(); let row_s = tc.row.to_string();
+    w.text_element("xdr:col", &[], &col_s);
+    w.text_element("xdr:colOff", &[], "0");
+    w.text_element("xdr:row", &[], &row_s);
+    w.text_element("xdr:rowOff", &[], "0");
+    w.end_tag("xdr:from");
+
+    let end_col = (tc.col as u64 + tc.width as u64 / 64).to_string();
+    let end_row = (tc.row as u64 + tc.height as u64 / 20).to_string();
+    w.start_tag("xdr:to", &[]);
+    w.text_element("xdr:col", &[], &end_col);
+    w.text_element("xdr:colOff", &[], "0");
+    w.text_element("xdr:row", &[], &end_row);
+    w.text_element("xdr:rowOff", &[], "0");
+    w.end_tag("xdr:to");
+
+    // graphicFrame for chartEx uses mc:AlternateContent
+    w.start_tag("mc:AlternateContent", &[("xmlns:mc", "http://schemas.openxmlformats.org/markup-compatibility/2006")]);
+    w.start_tag("mc:Choice", &[("xmlns:cx1", "http://schemas.microsoft.com/office/drawing/2015/9/8/chartex"), ("Requires", "cx1")]);
+    w.start_tag("xdr:graphicFrame", &[("macro", "")]);
+    w.start_tag("xdr:nvGraphicFramePr", &[]);
+    w.empty_tag("xdr:cNvPr", &[("id", "2"), ("name", "Treemap Chart")]);
+    w.empty_tag("xdr:cNvGraphicFramePr", &[]);
+    w.end_tag("xdr:nvGraphicFramePr");
+    w.start_tag("xdr:xfrm", &[]);
+    w.empty_tag("a:off", &[("x", "0"), ("y", "0")]);
+    w.empty_tag("a:ext", &[("cx", "0"), ("cy", "0")]);
+    w.end_tag("xdr:xfrm");
+    w.start_tag("a:graphic", &[]);
+    w.start_tag("a:graphicData", &[("uri", "http://schemas.microsoft.com/office/drawing/2014/chartex")]);
+    w.empty_tag("cx:chart", &[
+        ("xmlns:cx", "http://schemas.microsoft.com/office/drawing/2014/chartex"),
+        ("xmlns:r", "http://schemas.openxmlformats.org/officeDocument/2006/relationships"),
+        ("r:id", r_id),
+    ]);
+    w.end_tag("a:graphicData");
+    w.end_tag("a:graphic");
+    w.end_tag("xdr:graphicFrame");
+    w.end_tag("mc:Choice");
+    w.end_tag("mc:AlternateContent");
+
+    w.empty_tag("xdr:clientData", &[]);
+    w.end_tag("xdr:twoCellAnchor");
 }

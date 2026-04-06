@@ -84,7 +84,7 @@ impl Workbook {
         let mut image_extensions: Vec<String> = Vec::new();
 
         for (i, ws) in self.worksheets.iter().enumerate() {
-            let has_drawing = !ws.charts.is_empty() || !ws.images.is_empty() || ws.original_drawing_rid.is_some();
+            let has_drawing = !ws.charts.is_empty() || !ws.images.is_empty() || !ws.treemap_charts.is_empty() || ws.original_drawing_rid.is_some();
             if has_drawing { sheets_with_drawings.push(i); }
             if !ws.comments.is_empty() || ws.original_legacy_drawing_rid.is_some() { sheets_with_comments.push(i); }
             total_charts += ws.charts.len();
@@ -94,6 +94,10 @@ impl Workbook {
         for (name, _) in &self.passthrough_entries {
             if name.starts_with("xl/charts/chart") && name.ends_with(".xml") { total_charts += 1; }
         }
+
+        // Count treemap (chartEx) charts
+        let mut total_chartex = 0usize;
+        for ws in &self.worksheets { total_chartex += ws.treemap_charts.len(); }
 
         // Count pivot tables
         let mut total_pivots = 0usize;
@@ -108,7 +112,7 @@ impl Workbook {
         let has_vba = self.passthrough_entries.iter().any(|(n, _)| n.eq_ignore_ascii_case("xl/vbaProject.bin"));
 
         zip.add_file("[Content_Types].xml", &write_content_types_full(
-            sheet_count, has_props, total_charts, total_tables, &sheets_with_drawings, &image_extensions, has_vba, self.is_xlsm, &sheets_with_comments, total_pivots,
+            sheet_count, has_props, total_charts, total_tables, &sheets_with_drawings, &image_extensions, has_vba, self.is_xlsm, &sheets_with_comments, total_pivots, total_chartex,
         ))?;
         zip.add_file("_rels/.rels", &write_root_rels(has_props))?;
         zip.add_file("xl/_rels/workbook.xml.rels", &rel_writer::write_workbook_rels(sheet_count, has_vba, total_pivots))?;
@@ -121,12 +125,14 @@ impl Workbook {
             sheet_rels: Vec<(String, String, String)>,
             legacy_drawing_rid: Option<String>,
             global_chart_start: usize,
+            global_chartex_start: usize,
             global_image_start: usize,
             global_table_start: usize,
         }
 
         let mut metas = Vec::with_capacity(sheet_count);
         let mut global_chart_idx = 0usize;
+        let mut global_chartex_idx = 0usize;
         let mut global_image_idx = 0usize;
         let mut global_table_idx = 0usize;
 
@@ -183,9 +189,11 @@ impl Workbook {
 
             metas.push(SheetMeta {
                 drawing_rid, table_rids, sheet_rels, legacy_drawing_rid,
-                global_chart_start: global_chart_idx, global_image_start: global_image_idx, global_table_start: global_table_idx,
+                global_chart_start: global_chart_idx, global_chartex_start: global_chartex_idx,
+                global_image_start: global_image_idx, global_table_start: global_table_idx,
             });
             global_chart_idx += ws.charts.len();
+            global_chartex_idx += ws.treemap_charts.len();
             global_image_idx += ws.images.len();
             global_table_idx += ws.tables.len();
         }
@@ -244,17 +252,22 @@ impl Workbook {
                 zip.add_file(&rels_path, ws.original_rels.as_ref().unwrap())?;
             }
 
-            if !ws.charts.is_empty() || !ws.images.is_empty() {
+            if !ws.charts.is_empty() || !ws.images.is_empty() || !ws.treemap_charts.is_empty() {
                 let drawing_path = format!("xl/drawings/drawing{}.xml", i + 1);
-                zip.add_file(&drawing_path, &drawing_writer::write_drawing_xml(&ws.charts, &ws.images, i))?;
+                zip.add_file(&drawing_path, &drawing_writer::write_drawing_xml(&ws.charts, &ws.treemap_charts, &ws.images, i))?;
                 let img_types: Vec<&str> = ws.images.iter().map(|img| img.image_type.extension()).collect();
                 let drawing_rels_path = format!("xl/drawings/_rels/drawing{}.xml.rels", i + 1);
-                zip.add_file(&drawing_rels_path, &drawing_writer::write_drawing_rels(ws.charts.len(), ws.images.len(), &img_types, meta.global_chart_start, meta.global_image_start))?;
+                zip.add_file(&drawing_rels_path, &drawing_writer::write_drawing_rels(ws.charts.len(), ws.treemap_charts.len(), ws.images.len(), &img_types, meta.global_chart_start, meta.global_chartex_start, meta.global_image_start))?;
             }
 
             for (ci, chart) in ws.charts.iter().enumerate() {
                 let idx = meta.global_chart_start + ci + 1;
                 zip.add_file(&format!("xl/charts/chart{idx}.xml"), &chart_writer::write_chart_xml(chart, idx))?;
+            }
+            // ChartEx (treemap) files
+            for (ci, tc) in ws.treemap_charts.iter().enumerate() {
+                let idx = meta.global_chartex_start + ci + 1;
+                zip.add_file(&format!("xl/charts/chartEx{idx}.xml"), &crate::writer::chartex_writer::write_chartex_xml(tc, idx))?;
             }
             for (ii, img) in ws.images.iter().enumerate() {
                 let idx = meta.global_image_start + ii + 1;

@@ -54,6 +54,12 @@ impl Worksheet {
         self.pivot_tables.push(pt); self.dirty = true; Ok(self)
     }
 
+    /// Insert a treemap chart (Excel 2016+ ChartEx format).
+    pub fn insert_treemap(&mut self, row: RowNum, col: ColNum, chart: &crate::features::treemap::TreemapChart) -> crate::Result<&mut Self> {
+        let mut tc = chart.clone(); tc.row = row; tc.col = col;
+        self.treemap_charts.push(tc); self.dirty = true; Ok(self)
+    }
+
     pub fn protect(&mut self) -> &mut Self {
         self.protection = Some(SheetProtection::default()); self.dirty = true; self
     }
