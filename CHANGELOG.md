@@ -2,79 +2,85 @@
 
 All notable changes to zavora-xlsx.
 
-## [Unreleased] — Phase 6 In Progress
+## [Unreleased]
 
-### Phase 6 Sprint 3 — Chart Enhancements
-- **Combo charts**: Per-series `chart_type_override` groups series into separate chart type blocks (e.g., Column + Line in one chart)
-- **Secondary axis**: `series.set_secondary_axis(true)` adds second valAx/catAx pair with `crosses="max"` positioning
-- **Data labels**: Per-series `set_data_labels(true)` with full show* element set
-- **Trendlines**: 6 types — Linear, Exponential, Polynomial, Power, Logarithmic, MovingAverage
-- **Excel chart compatibility fixes**:
-  - Added Office theme (`theme1.xml`) — required for chart rendering in Excel
-  - Added `varyColors`, `gapWidth`, `overlap` to bar/column chart blocks
-  - Added `invertIfNegative` to bar/column series
-  - Added `marker`, `smooth` to line chart series and chart-type blocks
-  - Removed `dLblPos` from per-series data labels (causes Excel to reject entire drawing)
-  - Added `showLegendKey`, `showBubbleSize` to data label elements
-  - Fixed drawing XML namespace declarations
-  - Rewrote chart axes with full OOXML-compliant element set
+### Sprints 7–12: Feature Parity (40 items)
 
-### Phase 6 Sprint 2 — Conditional Formatting Expansion
-- **6 new CF types**: Formula (`type=expression`), Top/Bottom N (`type=top10`), Text Contains/BeginsWith/EndsWith/NotContains (`type=containsText` etc.), Duplicate Values, Unique Values, Above/Below Average (`type=aboveAverage`), Date Occurring (`type=timePeriod`)
-- **DXF support**: `DxfData` struct, `register_dxf()`, `<dxfs>` section in styles.xml for differential formatting
-- **Bug fix**: `<dxfs>` must come after `<cellStyles>` in styles.xml per OOXML spec
+#### Sprint 7 — Quick Wins
+- `wb.set_active_sheet(index)` — controls which sheet opens first
+- `ws.write_blank(row, col, &format)` — formatted empty cells
+- `ws.clear_cell(row, col)` — remove cell values
+- `ws.set_default_row_height(height)` — consistent row sizing
+- `ws.set_column_format(col, &format)` — format entire column
+- `ws.set_row_format(row, &format)` — format entire row
+- `ws.set_hidden()` / `ws.set_very_hidden()` — sheet visibility
+- `ws.set_selection(row, col)` — cursor position on open
+- `ws.set_top_left_cell(row, col)` — scroll position on open
+- `ws.ignore_error(type, range)` — suppress green triangles
+- `ws.filter_column(col, values)` — autofilter criteria
 
-### Phase 6 Sprint 1 — Quick Wins (13 features)
-- `Format::text_wrap()`, `shrink_to_fit()`, `strikethrough()`, `indent()`, `rotation()`
-- `Worksheet::set_zoom()`, `hide_gridlines()`, `hide_headings()`, `set_right_to_left()`, `set_tab_color()`
-- `Workbook::set_calc_mode()` (Auto, Manual, AutoNoTable)
-- `Worksheet::set_repeat_columns()`, `set_print_scale()`
+#### Sprint 8 — Write Features
+- `ws.write_array_formula(r1, c1, r2, c2, formula)` — legacy CSE array formulas
+- `ws.write_dynamic_formula(row, col, formula)` — Excel 365 spill formulas
+- `ws.write_formula_with_result(row, col, formula, result)` — cached value
+- `Workbook::open_readonly_from_buffer(bytes)` / `open_from_buffer(bytes)` — in-memory
+- `PrintSettings`: `print_gridlines`, `print_headings`, `center_horizontally`, `center_vertically`, `black_and_white`, `first_page_number`
+- `ws.unprotect_range(name, range)` — editable ranges on protected sheets
+
+#### Sprint 9 — Format Additions
+- `Format::diagonal_border(style, DiagonalType)` — up/down/both
+- `Pattern` enum expanded to 18 types (Solid, MediumGray, DarkGray, etc.)
+- `Format::foreground_color()` — two-tone pattern fills
+- `RichTextRun::superscript()` / `subscript()` — font script
+- `Format::quote_prefix()` — force text display
+
+#### Sprint 10 — Read Enhancements
+- Read sheet visibility (hidden/veryHidden) from workbook.xml
+- Read merge ranges, column widths, row heights, freeze panes from sheet XML
+- `ws.visibility()`, `ws.is_hidden()`, `ws.is_very_hidden()`
+- `ws.merge_ranges()`, `ws.column_width(col)`, `ws.row_height(row)`
+- `Workbook::pictures()` — extract embedded images
+
+#### Sprint 11 — Chart & Image
+- `ws.insert_chart_with_offset(row, col, chart, x_px, y_px)` — pixel positioning
+- `Image::set_scale_width()` / `set_scale_height()` — resize images
+- `ChartType::Stock` — stock/HLC charts
+- `chart.show_data_table(true)` — data table below chart
+- JPEG support with dimension detection
+
+#### Sprint 12 — Edit Mode Robustness
+- Preserve drawing/chart references when cells modified on sheets with charts
+- Preserve comment references on dirty sheets
+- Read back merges, widths, heights, freeze during lazy deserialization
+- Pass through original sheet rels for dirty sheets
+- Content types include passthrough drawings/charts/comments
+
+### Audit Fixes
+- **Security**: Zip bomb protection (200MB limit), sheet name validation, string-to-formula injection fix
+- **Bugs**: docProps duplicate in edit mode, dead DataLabelPosition removed, blank cells with formatting now written
+- **Performance**: `read_cell()` O(log n) via BTreeMap index
+- **Completeness**: Streaming mode includes theme
+
+### Phase 6 Sprints 1–3
+- Sprint 1: 13 formatting/view/print quick wins
+- Sprint 2: 6 new CF types + DXF support
+- Sprint 3: Chart enhancements (combo, secondary axis, data labels, trendlines)
+- Excel chart compatibility: theme, varyColors, gapWidth, marker, smooth, dLblPos fix
 
 ## [0.1.0] — Phases 1–5
 
 ### Phase 5 — Corruption Fix & Missing Features
 - Fixed ZIP corruption in edit mode
-- Fixed comments: legacyDrawing ref, workbookProtection ordering
-- Added VBA/macro passthrough in edit mode
-- Added rich text (`RichText`, `RichTextRun`) — multiple fonts/colors in one cell
+- VBA/macro passthrough, rich text
 
 ### Phase 4 — Advanced & Polish
-- **Streaming write**: `StreamingWorkbook` for constant-memory 100K+ row files
-- **Autofit**: `ws.autofit()` — auto-size columns from content
-- **Sheet protection**: `ws.protect()`, `ws.protect_with_password()`
-- **Workbook protection**: `wb.protect()`, `wb.protect_with_password()`
-- **Print settings**: `PrintSettings` builder — orientation, paper size, margins, headers/footers, page breaks, repeat rows, print area
-- **Comments**: `ws.add_comment()`, `ws.add_comment_with_author()` with VML rendering
-- **Row/column grouping**: `ws.group_rows()`, `ws.group_columns()` with outline levels
-- **Hidden rows/columns**: `ws.set_row_hidden()`, `ws.set_column_hidden()`
-- **Hyperlinks**: `ws.write_url()`, `ws.write_internal_link()`
-- **Autofilter**: `ws.set_autofilter()`
-- **Cell lock/unlock**: `Format::unlocked()`, `Format::locked()`, `Format::formula_hidden()`
+- Streaming write, autofit, sheet/workbook protection, print settings, comments, row/column grouping, hidden rows/cols, hyperlinks, autofilter, cell lock/unlock
 
 ### Phase 3 — Features
-- **Charts**: 8 types (Column, Bar, Line, Pie, Scatter, Area, Doughnut, Radar) with series, titles, axes, legends
-- **Tables**: Headers, 20+ styles, autofilter, total row
-- **Conditional formatting**: Cell value, 2-color scale, 3-color scale, data bars, icon sets
-- **Data validation**: Dropdown list, whole number, decimal, date, time, text length, custom formula — with input/error messages
-- **Images**: PNG with auto dimension detection
-- **Sparklines**: Line, column, win/loss
+- Charts (8 types), tables, conditional formatting (5 types), data validation (7 types), images (PNG), sparklines
 
 ### Phase 2 — Edit Mode
-- `Workbook::open()` — read existing xlsx, modify cells, save
-- `Workbook::open_readonly()` — read-only access
-- Insert/remove rows and columns with formula reference shifting
-- Sheet management: add, remove, rename, reorder
-- Passthrough of unknown ZIP entries (preserves macros, etc.)
+- Open/modify/save, insert/remove rows & columns, sheet management
 
 ### Phase 1 — Core
-- `Workbook::new()`, `wb.save()`, `wb.save_to_buffer()`
-- Cell writing: strings, numbers, booleans, formulas, dates
-- `Format` builder: font (bold, italic, underline, size, name, color), background color, number format, borders, alignment
-- Row/column batch writes
-- Column widths, row heights, freeze panes
-- Merge cells
-- Multi-sheet workbooks
-- Defined names
-- Document properties
-- Cell reading: `ws.read_cell()`, `ws.used_range()`
-- Shared string table (SST) for string deduplication
+- Create/save workbooks, cell writing (string/number/bool/formula/date), formatting, merge, freeze panes, defined names, document properties, cell reading

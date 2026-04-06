@@ -3,7 +3,7 @@
 High-performance Rust crate for reading, writing, and editing Excel `.xlsx` files.
 
 - **Unified**: Read, write, and edit in one crate — no separate reader/writer dependencies
-- **Fast**: 4 dependencies, ~6K lines of Rust, constant-memory streaming mode for large files
+- **Fast**: 4 dependencies, ~6.6K lines of Rust, constant-memory streaming mode for large files
 - **Excel-compatible**: Validated against Microsoft Excel with zero repair errors
 - **Ergonomic**: Builder patterns, `impl IntoExcelData`, chainable methods
 
@@ -42,22 +42,20 @@ Dependencies: `quick-xml`, `zip`, `atoi_simd`, `fast-float2` — no heavy framew
 
 | Category | Features |
 |----------|----------|
-| **Core** | Read, write, edit xlsx; multi-sheet; formulas; defined names; doc properties |
-| **Formatting** | Bold, italic, underline, strikethrough, font size/name/color, background color, number formats, borders (all sides), alignment (9 types), text wrap, shrink to fit, indent, rotation, cell lock/unlock |
-| **Charts** | 8 types (Column, Bar, Line, Pie, Scatter, Area, Doughnut, Radar), combo charts, secondary axis, data labels, trendlines (6 types), titles, legends, axis names |
-| **Tables** | Headers, 20+ styles, autofilter, total row |
+| **Core** | Read, write, edit xlsx; multi-sheet; formulas (regular, array, dynamic); defined names; doc properties; open from file or buffer |
+| **Formatting** | Bold, italic, underline, strikethrough, font size/name/color, background color, foreground color, number formats, borders (all sides + diagonal), alignment (9 types), text wrap, shrink to fit, indent, rotation, cell lock/unlock, quote prefix, 18 pattern fills |
+| **Charts** | 9 types (Column, Bar, Line, Pie, Scatter, Area, Doughnut, Radar, Stock), combo charts, secondary axis, data labels, trendlines (6 types), data table, titles, legends, axis names, pixel offset positioning |
+| **Tables** | Headers, 20+ styles, autofilter with column criteria, total row |
 | **Conditional Formatting** | Cell value, 2/3-color scales, data bars, icon sets, formula, top/bottom N, text contains/begins/ends, duplicates/uniques, above/below average, date occurring — all with DXF support |
 | **Data Validation** | Dropdown list, whole number, decimal, date, time, text length, custom formula — with input/error messages |
-| **Images** | PNG with auto dimension detection |
-| **Sparklines** | Line, column, win/loss |
-| **Comments** | Cell comments with author, VML rendering |
-| **Print** | Page setup, margins, headers/footers, page breaks, repeat rows/columns, print area, scale/fit-to-page |
-| **View** | Freeze panes, zoom, hide gridlines/headings, right-to-left, tab colors |
-| **Structure** | Insert/remove rows & columns (with formula shift), hidden rows/columns, row/column grouping, autofit column widths, merge cells |
-| **Protection** | Sheet protection, workbook protection, password hashing, cell lock/unlock |
-| **Streaming** | Constant-memory write mode for 100K+ row files |
-| **Edit Mode** | Open → modify → save with VBA/macro passthrough |
-| **Rich Text** | Multiple fonts/colors/styles in a single cell |
+| **Images** | PNG and JPEG with auto dimension detection, scale width/height |
+| **Rich Text** | Multiple fonts/colors/styles in one cell, superscript/subscript |
+| **Print** | Page setup, margins, headers/footers, page breaks, repeat rows/columns, print area, scale/fit-to-page, print gridlines/headings, centering, black & white, first page number |
+| **View** | Freeze panes, zoom, hide gridlines/headings, right-to-left, tab colors, active sheet, selection, top-left cell, default row height |
+| **Structure** | Insert/remove rows & columns (with formula shift), hidden rows/columns, row/column grouping, autofit column widths, merge cells, column/row format, write blank, clear cell, ignore error indicators |
+| **Protection** | Sheet protection, workbook protection, password hashing, cell lock/unlock, unprotect ranges |
+| **Read** | Cell values, formulas, sheet visibility, merge ranges, column widths, row heights, freeze panes, extract images |
+| **Edit Mode** | Open → modify → save with VBA/macro passthrough; preserves drawings, charts, comments, merges, widths, heights on dirty sheets |
 
 ---
 
@@ -71,6 +69,8 @@ use zavora_xlsx::{Workbook, CalcMode, DocProperties};
 let mut wb = Workbook::new();                          // New workbook
 let mut wb = Workbook::open("file.xlsx")?;             // Edit existing
 let mut wb = Workbook::open_readonly("file.xlsx")?;    // Read-only
+let mut wb = Workbook::open_from_buffer(&bytes)?;      // Edit from memory
+let mut wb = Workbook::open_readonly_from_buffer(&bytes)?; // Read from memory
 
 // Sheets
 let ws = wb.add_worksheet();                           // Add sheet
@@ -87,6 +87,7 @@ let n = wb.sheet_count();                              // Count
 wb.define_name("TaxRate", "'Config'!$A$1");
 wb.set_properties(DocProperties::new().title("Report").author("Team"));
 wb.set_calc_mode(CalcMode::Manual);
+wb.set_active_sheet(0);                                // Which sheet opens first
 wb.protect();                                          // Structure protection
 wb.protect_with_password("secret");
 
@@ -107,6 +108,11 @@ ws.write(0, 0, "text")?;                              // String
 ws.write(0, 1, 42.5)?;                                // Number
 ws.write(0, 2, true)?;                                // Boolean
 ws.write_formula(0, 3, "SUM(A1:C1)")?;                // Formula
+ws.write_formula_with_result(0, 4, "A1*2", 42.0)?;    // With cached result
+ws.write_array_formula(0, 5, 1, 6, "MMULT(A1:B2,C1:D2)")?; // CSE array
+ws.write_dynamic_formula(0, 7, "_xlfn.UNIQUE(A:A)")?; // Excel 365 spill
+ws.write_blank(0, 8, &fmt)?;                          // Formatted empty cell
+ws.clear_cell(0, 9);                                  // Remove cell value
 ws.write_with_format(0, 0, "bold", &fmt)?;             // With format
 
 // Batch write
@@ -154,6 +160,14 @@ ws.hide_gridlines();
 ws.hide_headings();
 ws.set_right_to_left();
 ws.set_tab_color("#4472C4");
+ws.set_selection(4, 1);                                // Cursor position
+ws.set_top_left_cell(0, 0);                            // Scroll position
+ws.set_default_row_height(20.0);                       // All rows 20pt
+ws.set_column_format(1, &currency_fmt);                // Format entire column
+ws.set_row_format(0, &header_fmt);                     // Format entire row
+ws.set_hidden();                                       // Hide sheet
+ws.set_very_hidden();                                  // VBA-only access
+ws.ignore_error("numberStoredAsText", "A1:A100");      // No green triangles
 
 ws.set_row_hidden(5, true);
 ws.set_column_hidden(3, true);
@@ -196,7 +210,11 @@ let fmt = Format::new()
     .shrink_to_fit()
     .indent(2)
     .rotation(45)
-    .unlocked();                                       // For protected sheets
+    .unlocked()                                        // For protected sheets
+    .diagonal_border(BorderStyle::Thin, DiagonalType::Up) // Diagonal border
+    .pattern_fill(Pattern::DarkDown)                   // Pattern fill
+    .foreground_color("#FF0000")                       // Pattern foreground
+    .quote_prefix();                                   // Force text display
 
 // Apply to cell or range
 ws.set_cell_format(0, 0, &fmt)?;
@@ -485,7 +503,7 @@ Dev dependencies: `calamine` (read verification), `tempfile` (test isolation).
 ## Tests
 
 - **61 library tests** covering all features
-- **32 integration tests** (demo suite) validating end-to-end file generation
+- **38 integration tests** (demo suite) validating end-to-end file generation
 - All output files validated in Microsoft Excel with zero repair errors
 
 ```bash
