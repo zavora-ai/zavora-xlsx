@@ -9,29 +9,35 @@ const PX_TO_EMU: u64 = 9525;
 pub fn write_drawing_xml(charts: &[Chart], treemaps: &[TreemapChart], images: &[Image], _sheet_idx: usize) -> Vec<u8> {
     let mut w = XmlWriter::new();
     w.declaration();
-    w.start_tag("xdr:wsDr", &[
+    let has_chartex = !treemaps.is_empty();
+    let mut root_attrs: Vec<(&str, &str)> = vec![
         ("xmlns:xdr", "http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing"),
         ("xmlns:a", "http://schemas.openxmlformats.org/drawingml/2006/main"),
-    ]);
+    ];
+    if has_chartex {
+        root_attrs.push(("xmlns:mc", "http://schemas.openxmlformats.org/markup-compatibility/2006"));
+    }
+    w.start_tag("xdr:wsDr", &root_attrs);
 
     let mut rid = 1;
+    let mut obj_id = 2u32;
 
     for chart in charts {
         let r_id = format!("rId{rid}");
         write_two_cell_anchor_chart(&mut w, chart, &r_id);
-        rid += 1;
+        rid += 1; obj_id += 1;
     }
 
     for tc in treemaps {
         let r_id = format!("rId{rid}");
-        write_two_cell_anchor_chartex(&mut w, tc, &r_id);
-        rid += 1;
+        write_two_cell_anchor_chartex(&mut w, tc, &r_id, obj_id);
+        rid += 1; obj_id += 1;
     }
 
     for image in images {
         let r_id = format!("rId{rid}");
         write_two_cell_anchor_image(&mut w, image, &r_id);
-        rid += 1;
+        rid += 1; obj_id += 1;
     }
 
     w.end_tag("xdr:wsDr");
@@ -143,7 +149,7 @@ fn write_marker(w: &mut XmlWriter, tag: &str, col: u16, row: u32, col_off: u64, 
     w.end_tag(tag);
 }
 
-fn write_two_cell_anchor_chartex(w: &mut XmlWriter, tc: &TreemapChart, r_id: &str) {
+fn write_two_cell_anchor_chartex(w: &mut XmlWriter, tc: &TreemapChart, r_id: &str, obj_id: u32) {
     w.start_tag("xdr:twoCellAnchor", &[]);
     w.start_tag("xdr:from", &[]);
     let col_s = tc.col.to_string(); let row_s = tc.row.to_string();
@@ -162,12 +168,13 @@ fn write_two_cell_anchor_chartex(w: &mut XmlWriter, tc: &TreemapChart, r_id: &st
     w.text_element("xdr:rowOff", &[], "0");
     w.end_tag("xdr:to");
 
-    // graphicFrame for chartEx uses mc:AlternateContent
-    w.start_tag("mc:AlternateContent", &[("xmlns:mc", "http://schemas.openxmlformats.org/markup-compatibility/2006")]);
+    let id_s = obj_id.to_string();
+
+    w.start_tag("mc:AlternateContent", &[]);
     w.start_tag("mc:Choice", &[("xmlns:cx1", "http://schemas.microsoft.com/office/drawing/2015/9/8/chartex"), ("Requires", "cx1")]);
     w.start_tag("xdr:graphicFrame", &[("macro", "")]);
     w.start_tag("xdr:nvGraphicFramePr", &[]);
-    w.empty_tag("xdr:cNvPr", &[("id", "2"), ("name", "Treemap Chart")]);
+    w.empty_tag("xdr:cNvPr", &[("id", &id_s), ("name", "Treemap Chart")]);
     w.empty_tag("xdr:cNvGraphicFramePr", &[]);
     w.end_tag("xdr:nvGraphicFramePr");
     w.start_tag("xdr:xfrm", &[]);
@@ -185,6 +192,8 @@ fn write_two_cell_anchor_chartex(w: &mut XmlWriter, tc: &TreemapChart, r_id: &st
     w.end_tag("a:graphic");
     w.end_tag("xdr:graphicFrame");
     w.end_tag("mc:Choice");
+    w.start_tag("mc:Fallback", &[]);
+    w.end_tag("mc:Fallback");
     w.end_tag("mc:AlternateContent");
 
     w.empty_tag("xdr:clientData", &[]);
