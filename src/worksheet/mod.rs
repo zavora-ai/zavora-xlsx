@@ -8,7 +8,7 @@ pub mod types;
 
 use std::collections::{BTreeMap, HashMap};
 
-use crate::cell::{CellType, CellValue};
+use crate::cell::{CellType, CellValue, RichText};
 use crate::datetime::ExcelDateTime;
 use crate::features::chart::Chart;
 use crate::features::conditional::StoredCf;

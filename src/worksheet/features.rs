@@ -6,6 +6,7 @@ use crate::features::image::Image;
 use crate::features::sparkline::Sparkline;
 use crate::features::table::Table;
 use crate::features::validation::DataValidation;
+use crate::format::Format;
 use crate::utility::{ColNum, RowNum};
 use super::Worksheet;
 use super::types::{Comment, Hyperlink, SheetProtection, PrintSettings, hash_password};

@@ -130,7 +130,7 @@ pub fn read_xlsx_from_zip<R: std::io::Read + std::io::Seek>(zip: &mut ZipReader<
     Ok(xlsx_data)
 }
 
-pub fn _read_sheet_data<R: Read + Seek>(
+pub fn read_sheet_data<R: Read + Seek>(
     zip: &mut ZipReader<R>,
     sheet_path: &str,
     sst: &SharedStringTable,

@@ -30,12 +30,12 @@ impl Workbook {
         let mut pivot_caches: std::collections::HashMap<String, crate::writer::pivot_writer::PivotCacheData> = std::collections::HashMap::new();
         for ws in &self.worksheets {
             for pt in &ws.pivot_tables {
-                let (_src_sheet, _src_ref) = parse_pivot_source(&pt.source_range);
+                let (src_sheet, src_ref) = parse_pivot_source(&pt.source_range);
                 let src_ws = self.worksheets.iter().find(|w| w.name == src_sheet);
                 if let Some(src) = src_ws {
                     if let Some((r1, c1, r2, c2)) = crate::utility::parse_range(&src_ref.replace('$', "")) {
                         let cache = crate::writer::pivot_writer::scan_source_data(&src.cells, &self.sst, r1, c1, r2, c2);
-                        let _series = crate::writer::pivot_writer::compute_pivot_chart_series(pt, &cache);
+                        let series = crate::writer::pivot_writer::compute_pivot_chart_series(pt, &cache);
                         pivot_caches.insert(pt.name.clone(), cache);
                         // Store series data — need to find charts referencing this pivot
                     }
@@ -55,7 +55,7 @@ impl Workbook {
             for chart in &mut ws.charts {
                 if let Some(ref ps) = chart.pivot_source {
                     if let Some(pt) = ws.pivot_tables.iter().find(|p| p.name == ps.pivot_table_name) {
-                        let (_src_sheet, _src_ref) = parse_pivot_source(&pt.source_range);
+                        let (src_sheet, src_ref) = parse_pivot_source(&pt.source_range);
                         if let Some(cache) = pivot_caches.get(&pt.name) {
                             chart.pivot_series = crate::writer::pivot_writer::compute_pivot_chart_series(pt, cache);
                         }
@@ -276,7 +276,7 @@ impl Workbook {
             for (pi, pt) in ws.pivot_tables.iter().enumerate() {
                 let pt_idx = pi + 1; // per-sheet for now, global handled below
                 // Parse source range to get sheet name and cell range
-                let (_src_sheet, _src_ref) = parse_pivot_source(&pt.source_range);
+                let (src_sheet, src_ref) = parse_pivot_source(&pt.source_range);
                 // Find source worksheet and scan data
                 let src_ws = self.worksheets.iter().find(|w| w.name == src_sheet);
                 if let Some(src) = src_ws {
