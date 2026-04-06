@@ -10,6 +10,16 @@ pub fn write_chart_xml(chart: &Chart, _chart_id: usize) -> Vec<u8> {
         ("xmlns:r", "http://schemas.openxmlformats.org/officeDocument/2006/relationships"),
     ]);
     w.empty_tag("c:lang", &[("val", "en-US")]);
+
+    // Pivot chart source — must come before <c:chart>
+    if let Some(ref ps) = chart.pivot_source {
+        let name = format!("{}!{}", ps.sheet_name, ps.pivot_table_name);
+        w.start_tag("c:pivotSource", &[]);
+        w.start_tag("c:name", &[]); w.text(&name); w.end_tag("c:name");
+        w.empty_tag("c:fmtId", &[("val", "0")]);
+        w.end_tag("c:pivotSource");
+    }
+
     w.start_tag("c:chart", &[]);
 
     // Title
@@ -17,6 +27,11 @@ pub fn write_chart_xml(chart: &Chart, _chart_id: usize) -> Vec<u8> {
         write_title(&mut w, title);
     }
     w.empty_tag("c:autoTitleDeleted", &[("val", if chart.title.is_some() { "0" } else { "1" })]);
+
+    // Pivot format entries — one per series with Office theme accent colors
+    if chart.pivot_source.is_some() {
+        write_pivot_fmts(&mut w, chart.series.len().max(1));
+    }
 
     // Plot area
     w.start_tag("c:plotArea", &[]);
@@ -69,6 +84,12 @@ pub fn write_chart_xml(chart: &Chart, _chart_id: usize) -> Vec<u8> {
     w.empty_tag("c:pageMargins", &[("b", "0.75"), ("l", "0.7"), ("r", "0.7"), ("t", "0.75"), ("header", "0.3"), ("footer", "0.3")]);
     w.empty_tag("c:pageSetup", &[]);
     w.end_tag("c:printSettings");
+
+    // Pivot chart extensions — drop zones and expand/collapse buttons
+    if let Some(ref ps) = chart.pivot_source {
+        write_pivot_extensions(&mut w, ps);
+    }
+
     w.end_tag("c:chartSpace");
     w.into_bytes()
 }
@@ -383,4 +404,74 @@ fn write_axis_title(w: &mut XmlWriter, title: &str) {
     w.end_tag("c:rich");
     w.end_tag("c:tx");
     w.end_tag("c:title");
+}
+
+/// Office theme accent colors used for pivot chart series formatting.
+const ACCENT_COLORS: &[&str] = &[
+    "accent1", "accent2", "accent3", "accent4", "accent5", "accent6",
+];
+
+/// Write <c:pivotFmts> — one format entry per series with proper accent colors,
+/// marker suppression, and data label configuration.
+fn write_pivot_fmts(w: &mut XmlWriter, count: usize) {
+    w.start_tag("c:pivotFmts", &[]);
+    for i in 0..count {
+        let idx = i.to_string();
+        let accent = ACCENT_COLORS[i % ACCENT_COLORS.len()];
+        w.start_tag("c:pivotFmt", &[]);
+        w.empty_tag("c:idx", &[("val", &idx)]);
+        // Series fill — theme accent color
+        w.start_tag("c:spPr", &[]);
+        w.start_tag("a:solidFill", &[]);
+        w.empty_tag("a:schemeClr", &[("val", accent)]);
+        w.end_tag("a:solidFill");
+        w.start_tag("a:ln", &[]); w.empty_tag("a:noFill", &[]); w.end_tag("a:ln");
+        w.empty_tag("a:effectLst", &[]);
+        w.end_tag("c:spPr");
+        // Marker — suppress for bar/column charts
+        w.start_tag("c:marker", &[]);
+        w.empty_tag("c:symbol", &[("val", "none")]);
+        w.end_tag("c:marker");
+        // Data label defaults — all hidden
+        w.start_tag("c:dLbl", &[]);
+        w.empty_tag("c:idx", &[("val", "0")]);
+        w.empty_tag("c:showLegendKey", &[("val", "0")]);
+        w.empty_tag("c:showVal", &[("val", "0")]);
+        w.empty_tag("c:showCatName", &[("val", "0")]);
+        w.empty_tag("c:showSerName", &[("val", "0")]);
+        w.empty_tag("c:showPercent", &[("val", "0")]);
+        w.empty_tag("c:showBubbleSize", &[("val", "0")]);
+        w.end_tag("c:dLbl");
+        w.end_tag("c:pivotFmt");
+    }
+    w.end_tag("c:pivotFmts");
+}
+
+/// Write pivot chart extensions — drop zone controls and expand/collapse buttons.
+fn write_pivot_extensions(w: &mut XmlWriter, ps: &crate::features::chart::PivotChartSource) {
+    w.start_tag("c:extLst", &[]);
+    // c14:pivotOptions — drop zone visibility
+    w.start_tag("c:ext", &[
+        ("xmlns:c14", "http://schemas.microsoft.com/office/drawing/2007/8/2/chart"),
+        ("uri", "{781A3756-C4B2-4CAC-9D66-4F8BD8637D16}"),
+    ]);
+    w.start_tag("c14:pivotOptions", &[]);
+    let b = |v: bool| if v { "1" } else { "0" };
+    w.empty_tag("c14:dropZoneFilter", &[("val", b(ps.show_drop_zone_filter))]);
+    w.empty_tag("c14:dropZoneCategories", &[("val", b(ps.show_drop_zone_categories))]);
+    w.empty_tag("c14:dropZoneData", &[("val", b(ps.show_drop_zone_data))]);
+    w.empty_tag("c14:dropZoneSeries", &[("val", b(ps.show_drop_zone_series))]);
+    w.empty_tag("c14:dropZonesVisible", &[("val", "1")]);
+    w.end_tag("c14:pivotOptions");
+    w.end_tag("c:ext");
+    // c16:pivotOptions16 — expand/collapse field buttons
+    w.start_tag("c:ext", &[
+        ("xmlns:c16", "http://schemas.microsoft.com/office/drawing/2014/chart"),
+        ("uri", "{E28EC0CA-F0BB-4C9C-879D-F8772B89E7AC}"),
+    ]);
+    w.start_tag("c16:pivotOptions16", &[]);
+    w.empty_tag("c16:showExpandCollapseFieldButtons", &[("val", b(ps.show_expand_collapse))]);
+    w.end_tag("c16:pivotOptions16");
+    w.end_tag("c:ext");
+    w.end_tag("c:extLst");
 }

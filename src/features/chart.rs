@@ -78,6 +78,27 @@ pub struct Chart {
     pub(crate) y_axis_log_base: Option<f64>,
     pub(crate) x_axis_reverse: bool,
     pub(crate) y_axis_reverse: bool,
+    // Pivot chart source
+    pub(crate) pivot_source: Option<PivotChartSource>,
+}
+
+/// Links a chart to a pivot table, making it a pivot chart.
+#[derive(Debug, Clone)]
+pub struct PivotChartSource {
+    /// Name of the pivot table (must match PivotTable::name)
+    pub(crate) pivot_table_name: String,
+    /// Sheet where the pivot table lives
+    pub(crate) sheet_name: String,
+    /// Show filter drop zone on chart
+    pub(crate) show_drop_zone_filter: bool,
+    /// Show category (axis) drop zone on chart
+    pub(crate) show_drop_zone_categories: bool,
+    /// Show data (values) drop zone on chart
+    pub(crate) show_drop_zone_data: bool,
+    /// Show series (legend) drop zone on chart
+    pub(crate) show_drop_zone_series: bool,
+    /// Show expand/collapse buttons on chart
+    pub(crate) show_expand_collapse: bool,
 }
 
 impl Chart {
@@ -90,6 +111,7 @@ impl Chart {
             x_offset: 0, y_offset: 0, show_data_table: false,
             y_axis_min: None, y_axis_max: None, y_axis_log_base: None,
             x_axis_reverse: false, y_axis_reverse: false,
+            pivot_source: None,
         }
     }
 
@@ -111,4 +133,37 @@ impl Chart {
     pub fn set_y_axis_log_base(&mut self, base: f64) -> &mut Self { self.y_axis_log_base = Some(base); self }
     pub fn set_x_axis_reverse(&mut self) -> &mut Self { self.x_axis_reverse = true; self }
     pub fn set_y_axis_reverse(&mut self) -> &mut Self { self.y_axis_reverse = true; self }
+
+    /// Link this chart to a pivot table, making it a pivot chart.
+    /// The pivot table must exist on the specified sheet.
+    /// Drop zones and expand/collapse buttons are enabled by default.
+    pub fn set_pivot_source(&mut self, pivot_table_name: &str, sheet_name: &str) -> &mut Self {
+        self.pivot_source = Some(PivotChartSource {
+            pivot_table_name: pivot_table_name.into(),
+            sheet_name: sheet_name.into(),
+            show_drop_zone_filter: true,
+            show_drop_zone_categories: true,
+            show_drop_zone_data: true,
+            show_drop_zone_series: true,
+            show_expand_collapse: true,
+        });
+        self
+    }
+
+    /// Returns true if this chart is linked to a pivot table.
+    pub fn is_pivot_chart(&self) -> bool { self.pivot_source.is_some() }
+}
+
+impl PivotChartSource {
+    pub fn set_show_drop_zones(&mut self, filter: bool, categories: bool, data: bool, series: bool) -> &mut Self {
+        self.show_drop_zone_filter = filter;
+        self.show_drop_zone_categories = categories;
+        self.show_drop_zone_data = data;
+        self.show_drop_zone_series = series;
+        self
+    }
+    pub fn set_show_expand_collapse(&mut self, v: bool) -> &mut Self {
+        self.show_expand_collapse = v;
+        self
+    }
 }
