@@ -120,7 +120,7 @@ fn main() -> Result<()> {
         .align(Align::Center).border(BorderStyle::Thin).border_color(border);
     let goal_date = Format::new().font_size(10.0).font_color(navy).num_format("mmm yyyy")
         .align(Align::Center).border(BorderStyle::Thin).border_color(border);
-    let goal_need = Format::new().bold().font_size(10.0).font_color(blue).num_format("$#,##0/mo")
+    let goal_need = Format::new().bold().font_size(10.0).font_color(blue).num_format("$#,##0")
         .align(Align::Right).border(BorderStyle::Thin).border_color(border);
 
     let tbl_hdr = Format::new().bold().font_size(9.0).font_color("#FFFFFF")
