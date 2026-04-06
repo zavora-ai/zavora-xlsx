@@ -1,14 +1,19 @@
-use std::collections::BTreeMap;
-use std::fmt::Write;
+//! Sheet writer — split into submodules.
 
-use crate::cell::{CellType, RichText};
+mod cells;
+mod validation;
+
+use std::collections::BTreeMap;
+use crate::cell::CellType;
 use crate::utility::{col_to_letter, ColNum, RowNum};
 use crate::xml::xml_writer::XmlWriter;
-
 use crate::features::conditional::StoredCf;
 use crate::features::sparkline::Sparkline;
-use crate::features::validation::{DataValidation, ValidationRule};
+use crate::features::validation::DataValidation;
 use crate::worksheet::{Hyperlink, Orientation, PrintSettings, SheetProtection};
+
+use cells::write_cell;
+use validation::{write_data_validation, compute_dimension};
 
 pub struct SheetCells<'a> {
     pub cells: &'a BTreeMap<RowNum, BTreeMap<ColNum, (CellType, u32)>>,
@@ -29,7 +34,7 @@ pub struct SheetCells<'a> {
     pub autofilter: Option<(RowNum, ColNum, RowNum, ColNum)>,
     pub hyperlinks: &'a [Hyperlink],
     #[allow(dead_code)]
-    pub hyperlink_rels: &'a [(String, String)], // (rId, target URL)
+    pub hyperlink_rels: &'a [(String, String)],
     pub row_outline_levels: &'a BTreeMap<RowNum, u8>,
     pub col_outline_levels: &'a BTreeMap<ColNum, u8>,
     pub legacy_drawing_rid: Option<String>,
@@ -38,7 +43,6 @@ pub struct SheetCells<'a> {
     pub show_headings: bool,
     pub right_to_left: bool,
     pub tab_color: Option<[u8; 3]>,
-    // Sprint 7
     pub is_active: bool,
     pub selection: Option<(RowNum, ColNum)>,
     pub top_left_cell: Option<(RowNum, ColNum)>,
@@ -48,6 +52,9 @@ pub struct SheetCells<'a> {
     pub ignored_errors: &'a [(String, String)],
     pub autofilter_columns: &'a [(ColNum, Vec<String>)],
 }
+
+// write_sheet is the main orchestrator — kept in mod.rs as it coordinates all submodules.
+// At 350 lines it's the largest single function but each section is clearly commented.
 
 pub fn write_sheet(data: &SheetCells<'_>) -> Vec<u8> {
     let mut w = XmlWriter::new();
@@ -405,202 +412,3 @@ pub fn write_sheet(data: &SheetCells<'_>) -> Vec<u8> {
     w.into_bytes()
 }
 
-fn write_cell(w: &mut XmlWriter, row: RowNum, col: ColNum, cell: &CellType, xf: u32) {
-    let ref_str = format!("{}{}", col_to_letter(col), row + 1);
-    let xf_s = xf.to_string();
-
-    match cell {
-        CellType::Number(n) => {
-            let mut v = String::new();
-            let _ = write!(v, "{n}");
-            if xf > 0 {
-                w.start_tag("c", &[("r", &ref_str), ("s", &xf_s)]);
-            } else {
-                w.start_tag("c", &[("r", &ref_str)]);
-            }
-            w.text_element("v", &[], &v);
-            w.end_tag("c");
-        }
-        CellType::SharedString(idx) => {
-            let v = idx.to_string();
-            let mut attrs: Vec<(&str, &str)> = vec![("r", &ref_str), ("t", "s")];
-            if xf > 0 { attrs.push(("s", &xf_s)); }
-            w.start_tag("c", &attrs);
-            w.text_element("v", &[], &v);
-            w.end_tag("c");
-        }
-        CellType::InlineString(s) => {
-            let mut attrs: Vec<(&str, &str)> = vec![("r", &ref_str), ("t", "inlineStr")];
-            if xf > 0 { attrs.push(("s", &xf_s)); }
-            w.start_tag("c", &attrs);
-            w.start_tag("is", &[]);
-            w.text_element("t", &[], s);
-            w.end_tag("is");
-            w.end_tag("c");
-        }
-        CellType::Bool(b) => {
-            let v = if *b { "1" } else { "0" };
-            let mut attrs: Vec<(&str, &str)> = vec![("r", &ref_str), ("t", "b")];
-            if xf > 0 { attrs.push(("s", &xf_s)); }
-            w.start_tag("c", &attrs);
-            w.text_element("v", &[], v);
-            w.end_tag("c");
-        }
-        CellType::Formula { text, cached_number } => {
-            if xf > 0 {
-                w.start_tag("c", &[("r", &ref_str), ("s", &xf_s)]);
-            } else {
-                w.start_tag("c", &[("r", &ref_str)]);
-            }
-            w.text_element("f", &[], text);
-            if let Some(n) = cached_number {
-                let mut v = String::new();
-                let _ = write!(v, "{n}");
-                w.text_element("v", &[], &v);
-            }
-            w.end_tag("c");
-        }
-        CellType::ArrayFormula { text, range } => {
-            if xf > 0 { w.start_tag("c", &[("r", &ref_str), ("s", &xf_s)]); }
-            else { w.start_tag("c", &[("r", &ref_str)]); }
-            w.text_element("f", &[("t", "array"), ("ref", range)], text);
-            w.end_tag("c");
-        }
-        CellType::DynamicFormula { text, range } => {
-            if xf > 0 { w.start_tag("c", &[("r", &ref_str), ("s", &xf_s)]); }
-            else { w.start_tag("c", &[("r", &ref_str)]); }
-            w.text_element("f", &[("t", "array"), ("ref", range)], text);
-            w.end_tag("c");
-        }
-        CellType::DateTime(serial) => {
-            let mut v = String::new();
-            let _ = write!(v, "{serial}");
-            if xf > 0 {
-                w.start_tag("c", &[("r", &ref_str), ("s", &xf_s)]);
-            } else {
-                w.start_tag("c", &[("r", &ref_str)]);
-            }
-            w.text_element("v", &[], &v);
-            w.end_tag("c");
-        }
-        CellType::Error(e) => {
-            let mut attrs: Vec<(&str, &str)> = vec![("r", &ref_str), ("t", "e")];
-            if xf > 0 { attrs.push(("s", &xf_s)); }
-            w.start_tag("c", &attrs);
-            w.text_element("v", &[], e);
-            w.end_tag("c");
-        }
-        CellType::RichText(rt) => {
-            let mut attrs: Vec<(&str, &str)> = vec![("r", &ref_str), ("t", "inlineStr")];
-            if xf > 0 { attrs.push(("s", &xf_s)); }
-            w.start_tag("c", &attrs);
-            w.start_tag("is", &[]);
-            write_rich_text_runs(w, rt);
-            w.end_tag("is");
-            w.end_tag("c");
-        }
-        CellType::Empty => {
-            if xf > 0 {
-                w.empty_tag("c", &[("r", &ref_str), ("s", &xf_s)]);
-            }
-        }
-    }
-}
-
-fn write_rich_text_runs(w: &mut XmlWriter, rt: &RichText) {
-    for run in &rt.runs {
-        w.start_tag("r", &[]);
-        let has_props = run.bold || run.italic || run.font_size.is_some() || run.font_name.is_some() || run.color.is_some() || run.superscript || run.subscript;
-        if has_props {
-            w.start_tag("rPr", &[]);
-            if run.bold { w.empty_tag("b", &[]); }
-            if run.italic { w.empty_tag("i", &[]); }
-            if run.superscript { w.empty_tag("vertAlign", &[("val", "superscript")]); }
-            if run.subscript { w.empty_tag("vertAlign", &[("val", "subscript")]); }
-            if let Some(sz) = run.font_size {
-                let s = format!("{sz}");
-                w.empty_tag("sz", &[("val", &s)]);
-            }
-            if let Some(ref c) = run.color {
-                let argb = if c.len() == 6 { format!("FF{c}") } else { c.clone() };
-                w.empty_tag("color", &[("rgb", &argb)]);
-            }
-            if let Some(ref name) = run.font_name {
-                w.empty_tag("rFont", &[("val", name)]);
-            }
-            w.end_tag("rPr");
-        }
-        w.text_element("t", &[("xml:space", "preserve")], &run.text);
-        w.end_tag("r");
-    }
-}
-
-fn write_data_validation(w: &mut XmlWriter, dv: &DataValidation) {
-    let sqref = format!("{}{}:{}{}",
-        col_to_letter(dv.first_col), dv.first_row + 1,
-        col_to_letter(dv.last_col), dv.last_row + 1);
-
-    let (dv_type, formula1, formula2) = match &dv.rule {
-        ValidationRule::List(values) => {
-            let joined = format!("\"{}\"", values.join(","));
-            ("list".to_string(), Some(joined), None)
-        }
-        ValidationRule::ListRange(range) => ("list".to_string(), Some(range.clone()), None),
-        ValidationRule::WholeNumber { min, max } => {
-            ("whole".to_string(), min.map(|v| v.to_string()).or_else(|| max.map(|v| v.to_string())), max.map(|v| v.to_string()))
-        }
-        ValidationRule::Decimal { min, max } => {
-            ("decimal".to_string(), min.map(|v| v.to_string()).or_else(|| max.map(|v| v.to_string())), max.map(|v| v.to_string()))
-        }
-        ValidationRule::DateRange { min, max } => {
-            ("date".to_string(), min.clone().or_else(|| max.clone()), max.clone())
-        }
-        ValidationRule::TextLength { min, max } => {
-            ("textLength".to_string(), min.map(|v| v.to_string()).or_else(|| max.map(|v| v.to_string())), max.map(|v| v.to_string()))
-        }
-        ValidationRule::Custom(formula) => ("custom".to_string(), Some(formula.clone()), None),
-    };
-
-    let mut attrs: Vec<(&str, &str)> = vec![("type", &dv_type), ("sqref", &sqref), ("allowBlank", "1")];
-    let op_str;
-    if matches!(&dv.rule, ValidationRule::WholeNumber { min: Some(_), max: Some(_) } | ValidationRule::Decimal { min: Some(_), max: Some(_) } | ValidationRule::TextLength { min: Some(_), max: Some(_) }) {
-        op_str = "between".to_string();
-        attrs.push(("operator", &op_str));
-    }
-    let err_style = dv.error_style.xml_str().to_string();
-    attrs.push(("errorStyle", &err_style));
-    if dv.input_title.is_some() { attrs.push(("showInputMessage", "1")); }
-    if dv.error_title.is_some() { attrs.push(("showErrorMessage", "1")); }
-
-    let input_title_ref = dv.input_title.as_deref().unwrap_or("");
-    let input_msg_ref = dv.input_message.as_deref().unwrap_or("");
-    let error_title_ref = dv.error_title.as_deref().unwrap_or("");
-    let error_msg_ref = dv.error_message.as_deref().unwrap_or("");
-    if !input_title_ref.is_empty() { attrs.push(("promptTitle", input_title_ref)); }
-    if !input_msg_ref.is_empty() { attrs.push(("prompt", input_msg_ref)); }
-    if !error_title_ref.is_empty() { attrs.push(("errorTitle", error_title_ref)); }
-    if !error_msg_ref.is_empty() { attrs.push(("error", error_msg_ref)); }
-
-    w.start_tag("dataValidation", &attrs);
-    if let Some(ref f1) = formula1 {
-        w.text_element("formula1", &[], f1);
-    }
-    if let Some(ref f2) = formula2 {
-        w.text_element("formula2", &[], f2);
-    }
-    w.end_tag("dataValidation");
-}
-
-fn compute_dimension(data: &SheetCells<'_>) -> String {
-    if data.cells.is_empty() { return "A1".to_string(); }
-    let min_r = *data.cells.keys().next().unwrap();
-    let max_r = *data.cells.keys().next_back().unwrap();
-    let mut min_c = u16::MAX;
-    let mut max_c = 0u16;
-    for cols in data.cells.values() {
-        if let Some(&c) = cols.keys().next() { min_c = min_c.min(c); }
-        if let Some(&c) = cols.keys().next_back() { max_c = max_c.max(c); }
-    }
-    if min_c == u16::MAX { min_c = 0; }
-    format!("{}{}:{}{}", col_to_letter(min_c), min_r + 1, col_to_letter(max_c), max_r + 1)
-}
