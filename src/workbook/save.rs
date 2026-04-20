@@ -354,16 +354,7 @@ fn parse_pivot_source(source_range: &str) -> (String, String) {
 
 /// Generate a minimal ChartEx style XML part.
 fn chartex_style_xml() -> Vec<u8> {
-    use crate::xml::xml_writer::XmlWriter;
-    let mut w = XmlWriter::new();
-    w.declaration();
-    w.start_tag("cs:chartStyle", &[
-        ("xmlns:cs", "http://schemas.microsoft.com/office/drawing/2012/chartStyle"),
-        ("xmlns:a", "http://schemas.openxmlformats.org/drawingml/2006/main"),
-        ("id", "102"),
-    ]);
-    w.end_tag("cs:chartStyle");
-    w.into_bytes()
+    include_bytes!("../writer/chartex_style.xml").to_vec()
 }
 
 /// Generate a minimal ChartEx colors XML part.
