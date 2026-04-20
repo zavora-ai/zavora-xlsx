@@ -430,18 +430,19 @@ fn write_histogram_xml(chart: &HistogramChart) -> Vec<u8> {
 
     // Binning configuration
     w.start_tag("cx:layoutPr", &[]);
-    let mut bin_attrs: Vec<(&str, String)> = Vec::new();
-    if let Some(count) = chart.bin_count {
-        bin_attrs.push(("binCount", count.to_string()));
-    }
-    if let Some(width) = chart.bin_width {
-        bin_attrs.push(("binWidth", format!("{width}")));
-    }
-    if bin_attrs.is_empty() {
-        w.empty_tag("cx:binning", &[]);
+    if chart.bin_count.is_some() || chart.bin_width.is_some() {
+        w.start_tag("cx:binning", &[]);
+        if let Some(count) = chart.bin_count {
+            let cs = count.to_string();
+            w.empty_tag("cx:binCount", &[("val", &cs)]);
+        }
+        if let Some(width) = chart.bin_width {
+            let ws = format!("{width}");
+            w.empty_tag("cx:binWidth", &[("val", &ws)]);
+        }
+        w.end_tag("cx:binning");
     } else {
-        let attrs: Vec<(&str, &str)> = bin_attrs.iter().map(|(k, v)| (*k, v.as_str())).collect();
-        w.empty_tag("cx:binning", &attrs);
+        w.empty_tag("cx:binning", &[]);
     }
     w.end_tag("cx:layoutPr");
 
