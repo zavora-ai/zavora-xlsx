@@ -415,7 +415,7 @@ fn write_histogram_xml(chart: &HistogramChart) -> Vec<u8> {
     w.start_tag("cx:plotArea", &[]);
     w.start_tag("cx:plotAreaRegion", &[]);
 
-    let layout_id = if chart.is_pareto { "paretoLine" } else { "clusteredColumn" };
+    let layout_id = if chart.is_pareto { "paretoLine" } else { "histogram" };
     w.start_tag("cx:series", &[("layoutId", layout_id), ("uniqueId", "{00000000-0000-0000-0000-000000000005}")]);
 
     if let Some(ref name) = chart.series_name {
@@ -451,9 +451,12 @@ fn write_histogram_xml(chart: &HistogramChart) -> Vec<u8> {
     // Axes
     w.start_tag("cx:axis", &[("id", "0")]);
     w.empty_tag("cx:catScaling", &[]);
+    w.empty_tag("cx:tickLabels", &[]);
     w.end_tag("cx:axis");
     w.start_tag("cx:axis", &[("id", "1")]);
     w.empty_tag("cx:valScaling", &[]);
+    w.empty_tag("cx:majorGridlines", &[]);
+    w.empty_tag("cx:tickLabels", &[]);
     w.end_tag("cx:axis");
 
     w.end_tag("cx:plotArea");
