@@ -234,6 +234,7 @@ fn write_two_cell_anchor_chartex_generic(w: &mut XmlWriter, cex: &ChartExChart, 
         ChartExChart::Sunburst(_) => "Sunburst Chart",
         ChartExChart::Histogram(_) => "Histogram Chart",
         ChartExChart::BoxWhisker(_) => "Box & Whisker Chart",
+        ChartExChart::Map(_) => "Map Chart",
     };
 
     w.start_tag("mc:AlternateContent", &[]);

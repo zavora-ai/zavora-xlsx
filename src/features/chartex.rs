@@ -233,6 +233,43 @@ impl BoxWhiskerChart {
 }
 
 /// Unified enum for all ChartEx chart types (used for storage in Worksheet).
+/// Map chart (Excel 2016+ ChartEx format, uses Bing Maps).
+///
+/// Map charts display geographic data as a filled map. Excel fetches
+/// geography data from Bing Maps when the file is opened.
+#[derive(Debug, Clone)]
+pub struct MapChart {
+    pub(crate) title: Option<String>,
+    pub(crate) categories: Vec<String>,
+    pub(crate) values: Vec<f64>,
+    pub(crate) width: u32,
+    pub(crate) height: u32,
+    pub(crate) row: RowNum,
+    pub(crate) col: ColNum,
+    pub(crate) series_name: Option<String>,
+}
+
+impl MapChart {
+    pub fn new() -> Self {
+        Self {
+            title: None, categories: Vec::new(), values: Vec::new(),
+            width: 480, height: 320, row: 0, col: 0, series_name: None,
+        }
+    }
+
+    /// Add a data point with a geographic name (country/region) and value.
+    pub fn add_point(&mut self, location: &str, value: f64) -> &mut Self {
+        self.categories.push(location.to_string());
+        self.values.push(value);
+        self
+    }
+
+    pub fn set_title(&mut self, title: &str) -> &mut Self { self.title = Some(title.to_string()); self }
+    pub fn set_series_name(&mut self, name: &str) -> &mut Self { self.series_name = Some(name.to_string()); self }
+    pub fn set_width(&mut self, w: u32) -> &mut Self { self.width = w; self }
+    pub fn set_height(&mut self, h: u32) -> &mut Self { self.height = h; self }
+}
+
 #[derive(Debug, Clone)]
 pub enum ChartExChart {
     Waterfall(WaterfallChart),
@@ -240,6 +277,7 @@ pub enum ChartExChart {
     Sunburst(SunburstChart),
     Histogram(HistogramChart),
     BoxWhisker(BoxWhiskerChart),
+    Map(MapChart),
 }
 
 impl ChartExChart {
@@ -250,6 +288,7 @@ impl ChartExChart {
             Self::Sunburst(c) => c.row,
             Self::Histogram(c) => c.row,
             Self::BoxWhisker(c) => c.row,
+            Self::Map(c) => c.row,
         }
     }
     pub fn col(&self) -> ColNum {
@@ -259,6 +298,7 @@ impl ChartExChart {
             Self::Sunburst(c) => c.col,
             Self::Histogram(c) => c.col,
             Self::BoxWhisker(c) => c.col,
+            Self::Map(c) => c.col,
         }
     }
     pub fn width(&self) -> u32 {
@@ -268,6 +308,7 @@ impl ChartExChart {
             Self::Sunburst(c) => c.width,
             Self::Histogram(c) => c.width,
             Self::BoxWhisker(c) => c.width,
+            Self::Map(c) => c.width,
         }
     }
     pub fn height(&self) -> u32 {
@@ -277,6 +318,7 @@ impl ChartExChart {
             Self::Sunburst(c) => c.height,
             Self::Histogram(c) => c.height,
             Self::BoxWhisker(c) => c.height,
+            Self::Map(c) => c.height,
         }
     }
 }

@@ -49,7 +49,7 @@ pub use features::pivot::{PivotAggregation, PivotLayout, PivotTable};
 pub use features::treemap::TreemapChart;
 pub use features::chartex::{
     WaterfallChart, WaterfallPointType, FunnelChart, SunburstChart,
-    HistogramChart, BoxWhiskerChart,
+    HistogramChart, BoxWhiskerChart, MapChart,
 };
 pub use features::sparkline::{Sparkline, SparklineType};
 pub use features::table::{Table, TableColumn, TableStyle};

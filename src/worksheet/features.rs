@@ -95,6 +95,13 @@ impl Worksheet {
         self.dirty = true; Ok(self)
     }
 
+    /// Insert a map chart (Excel 2016+ ChartEx format, uses Bing Maps).
+    pub fn insert_map(&mut self, row: RowNum, col: ColNum, chart: &crate::features::chartex::MapChart) -> crate::Result<&mut Self> {
+        let mut c = chart.clone(); c.row = row; c.col = col;
+        self.chartex_charts.push(crate::features::chartex::ChartExChart::Map(c));
+        self.dirty = true; Ok(self)
+    }
+
     pub fn protect(&mut self) -> &mut Self {
         self.protection = Some(SheetProtection::default()); self.dirty = true; self
     }

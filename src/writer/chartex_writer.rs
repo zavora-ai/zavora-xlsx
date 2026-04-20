@@ -1,7 +1,7 @@
 //! Writer for ChartEx (treemap, sunburst, etc.) — Excel 2016+ cx: namespace.
 
 use crate::features::chartex::{
-    BoxWhiskerChart, ChartExChart, FunnelChart, HistogramChart, SunburstChart,
+    BoxWhiskerChart, ChartExChart, FunnelChart, HistogramChart, MapChart, SunburstChart,
     WaterfallChart, WaterfallPointType,
 };
 use crate::features::treemap::TreemapChart;
@@ -132,6 +132,7 @@ pub fn write_chartex_generic_xml(chart: &ChartExChart, _chart_id: usize) -> Vec<
         ChartExChart::Sunburst(c) => write_sunburst_xml(c),
         ChartExChart::Histogram(c) => write_histogram_xml(c),
         ChartExChart::BoxWhisker(c) => write_box_whisker_xml(c),
+        ChartExChart::Map(c) => write_map_xml(c),
     }
 }
 
@@ -543,6 +544,89 @@ fn write_box_whisker_xml(chart: &BoxWhiskerChart) -> Vec<u8> {
     w.end_tag("cx:axis");
 
     w.end_tag("cx:plotArea");
+    w.end_tag("cx:chart");
+    w.end_tag("cx:chartSpace");
+    w.into_bytes()
+}
+
+fn write_map_xml(chart: &MapChart) -> Vec<u8> {
+    let mut w = XmlWriter::new();
+    chartex_header(&mut w);
+
+    // Chart Data
+    w.start_tag("cx:chartData", &[]);
+    w.start_tag("cx:data", &[("id", "0")]);
+
+    // String dimension (geographic categories)
+    w.start_tag("cx:strDim", &[("type", "cat")]);
+    let pt_count = chart.categories.len().to_string();
+    w.start_tag("cx:lvl", &[("ptCount", &pt_count)]);
+    for (i, cat) in chart.categories.iter().enumerate() {
+        let idx = i.to_string();
+        w.start_tag("cx:pt", &[("idx", &idx)]);
+        w.text(cat);
+        w.end_tag("cx:pt");
+    }
+    w.end_tag("cx:lvl");
+    w.end_tag("cx:strDim");
+
+    // Numeric dimension (colorVal — map charts use color values)
+    w.start_tag("cx:numDim", &[("type", "colorVal")]);
+    w.start_tag("cx:lvl", &[("ptCount", &pt_count), ("formatCode", "General")]);
+    for (i, val) in chart.values.iter().enumerate() {
+        let idx = i.to_string();
+        let vs = format!("{val}");
+        w.start_tag("cx:pt", &[("idx", &idx)]);
+        w.text(&vs);
+        w.end_tag("cx:pt");
+    }
+    w.end_tag("cx:lvl");
+    w.end_tag("cx:numDim");
+
+    w.end_tag("cx:data");
+    w.end_tag("cx:chartData");
+
+    // Chart
+    w.start_tag("cx:chart", &[]);
+    write_chartex_title(&mut w, &chart.title);
+
+    w.start_tag("cx:plotArea", &[]);
+    w.start_tag("cx:plotAreaRegion", &[]);
+
+    w.start_tag("cx:series", &[
+        ("layoutId", "regionMap"),
+        ("uniqueId", "{00000000-0000-0000-0000-000000000007}"),
+    ]);
+
+    if let Some(ref name) = chart.series_name {
+        w.start_tag("cx:tx", &[]);
+        w.start_tag("cx:txData", &[]);
+        w.text_element("cx:v", &[], name);
+        w.end_tag("cx:txData");
+        w.end_tag("cx:tx");
+    }
+
+    w.empty_tag("cx:dataId", &[("val", "0")]);
+
+    // Geography layout — tells Excel to use Bing Maps
+    w.start_tag("cx:layoutPr", &[]);
+    w.start_tag("cx:geography", &[
+        ("cultureLanguage", "en-US"),
+        ("cultureRegion", "US"),
+        ("attribution", "Powered by Bing"),
+    ]);
+    // No geoCache — Excel will fetch from Bing on open
+    w.end_tag("cx:geography");
+    w.end_tag("cx:layoutPr");
+
+    w.end_tag("cx:series");
+    w.end_tag("cx:plotAreaRegion");
+    w.end_tag("cx:plotArea");
+
+    // Legend
+    w.start_tag("cx:legend", &[("pos", "b"), ("align", "ctr"), ("overlay", "0")]);
+    w.end_tag("cx:legend");
+
     w.end_tag("cx:chart");
     w.end_tag("cx:chartSpace");
     w.into_bytes()
