@@ -296,9 +296,13 @@ fn test_box_whisker_chart_xml_structure() {
 
     assert!(xml_str.contains("cx:chartSpace"));
     assert!(xml_str.contains("layoutId=\"boxWhisker\""));
-    assert!(xml_str.contains("cx:visibility"));
-    assert!(xml_str.contains("outliers=\"1\""));
-    assert!(xml_str.contains("meanMarker=\"0\""));
-    assert!(xml_str.contains("nonoutliers=\"1\""));
-    assert!(xml_str.contains("Test BoxWhisker"));
+    assert!(xml_str.contains("cx:statistics"));
+    assert!(xml_str.contains("quartileMethod=\"exclusive\""));
+    assert!(xml_str.contains("Group 1"));
+    assert!(xml_str.contains("Group 2"));
+    // Two separate data blocks
+    assert!(xml_str.contains("<cx:data id=\"0\">"));
+    assert!(xml_str.contains("<cx:data id=\"1\">"));
+    // Two separate series
+    assert_eq!(xml_str.matches("layoutId=\"boxWhisker\"").count(), 2);
 }

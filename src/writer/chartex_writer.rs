@@ -466,81 +466,86 @@ fn write_box_whisker_xml(chart: &BoxWhiskerChart) -> Vec<u8> {
     let mut w = XmlWriter::new();
     chartex_header(&mut w);
 
-    // Chart Data — flatten all data sets into a single data block
+    // Chart Data — one cx:data block per data set (series)
     w.start_tag("cx:chartData", &[]);
-    w.start_tag("cx:data", &[("id", "0")]);
+    for (i, (cat, values)) in chart.categories.iter().zip(chart.data_sets.iter()).enumerate() {
+        let id = i.to_string();
+        w.start_tag("cx:data", &[("id", &id)]);
 
-    // String dimension (categories)
-    w.start_tag("cx:strDim", &[("type", "cat")]);
-    let pt_count = chart.categories.len().to_string();
-    w.start_tag("cx:lvl", &[("ptCount", &pt_count)]);
-    for (i, cat) in chart.categories.iter().enumerate() {
-        let idx = i.to_string();
-        w.start_tag("cx:pt", &[("idx", &idx)]);
-        w.text(cat);
-        w.end_tag("cx:pt");
+        // String dimension (category labels — shared across all)
+        w.start_tag("cx:strDim", &[("type", "cat")]);
+        let pt_count = chart.categories.len().to_string();
+        w.start_tag("cx:lvl", &[("ptCount", &pt_count)]);
+        for (j, c) in chart.categories.iter().enumerate() {
+            let idx = j.to_string();
+            w.start_tag("cx:pt", &[("idx", &idx)]);
+            w.text(c);
+            w.end_tag("cx:pt");
+        }
+        w.end_tag("cx:lvl");
+        w.end_tag("cx:strDim");
+
+        // Numeric dimension (values for this series)
+        let val_count = values.len().to_string();
+        w.start_tag("cx:numDim", &[("type", "val")]);
+        w.start_tag("cx:lvl", &[("ptCount", &val_count), ("formatCode", "General")]);
+        for (j, val) in values.iter().enumerate() {
+            let idx = j.to_string();
+            let vs = if *val == val.trunc() { format!("{}", *val as i64) } else { format!("{val}") };
+            w.start_tag("cx:pt", &[("idx", &idx)]);
+            w.text(&vs);
+            w.end_tag("cx:pt");
+        }
+        w.end_tag("cx:lvl");
+        w.end_tag("cx:numDim");
+
+        w.end_tag("cx:data");
     }
-    w.end_tag("cx:lvl");
-    w.end_tag("cx:strDim");
-
-    // Numeric dimension (values) — all data points flattened
-    let all_values: Vec<&f64> = chart.data_sets.iter().flat_map(|ds| ds.iter()).collect();
-    let val_count = all_values.len().to_string();
-    w.start_tag("cx:numDim", &[("type", "val")]);
-    w.start_tag("cx:lvl", &[("ptCount", &val_count), ("formatCode", "General")]);
-    for (i, val) in all_values.iter().enumerate() {
-        let idx = i.to_string();
-        let vs = format!("{val}");
-        w.start_tag("cx:pt", &[("idx", &idx)]);
-        w.text(&vs);
-        w.end_tag("cx:pt");
-    }
-    w.end_tag("cx:lvl");
-    w.end_tag("cx:numDim");
-
-    w.end_tag("cx:data");
     w.end_tag("cx:chartData");
 
     // Chart
     w.start_tag("cx:chart", &[]);
-    write_chartex_title(&mut w, &chart.title);
+    if let Some(ref title) = chart.title {
+        w.start_tag("cx:title", &[("pos", "t"), ("align", "ctr"), ("overlay", "0")]);
+        w.end_tag("cx:title");
+    }
 
     w.start_tag("cx:plotArea", &[]);
     w.start_tag("cx:plotAreaRegion", &[]);
 
-    w.start_tag("cx:series", &[("layoutId", "boxWhisker"), ("uniqueId", "{00000000-0000-0000-0000-000000000006}")]);
+    // One series per data set
+    for (i, cat) in chart.categories.iter().enumerate() {
+        let id = i.to_string();
+        let uid = format!("{{00000000-0000-0000-0000-{:012X}}}", i + 1);
+        w.start_tag("cx:series", &[("layoutId", "boxWhisker"), ("uniqueId", &uid)]);
 
-    if let Some(ref name) = chart.series_name {
+        // Series name
         w.start_tag("cx:tx", &[]);
         w.start_tag("cx:txData", &[]);
-        w.text_element("cx:v", &[], name);
+        w.text_element("cx:v", &[], cat);
         w.end_tag("cx:txData");
         w.end_tag("cx:tx");
+
+        w.empty_tag("cx:dataId", &[("val", &id)]);
+
+        w.start_tag("cx:layoutPr", &[]);
+        w.empty_tag("cx:statistics", &[("quartileMethod", "exclusive")]);
+        w.end_tag("cx:layoutPr");
+
+        w.end_tag("cx:series");
     }
 
-    w.empty_tag("cx:dataId", &[("val", "0")]);
-
-    // Layout properties for box & whisker options
-    w.start_tag("cx:layoutPr", &[]);
-    let outliers = if chart.show_outliers { "1" } else { "0" };
-    let mean = if chart.show_mean_markers { "1" } else { "0" };
-    let inner = if chart.show_inner_points { "1" } else { "0" };
-    w.empty_tag("cx:visibility", &[
-        ("outliers", outliers),
-        ("meanMarker", mean),
-        ("nonoutliers", inner),
-    ]);
-    w.end_tag("cx:layoutPr");
-
-    w.end_tag("cx:series");
     w.end_tag("cx:plotAreaRegion");
 
     // Axes
     w.start_tag("cx:axis", &[("id", "0")]);
-    w.empty_tag("cx:catScaling", &[]);
+    w.empty_tag("cx:catScaling", &[("gapWidth", "1")]);
+    w.empty_tag("cx:tickLabels", &[]);
     w.end_tag("cx:axis");
     w.start_tag("cx:axis", &[("id", "1")]);
     w.empty_tag("cx:valScaling", &[]);
+    w.empty_tag("cx:majorGridlines", &[]);
+    w.empty_tag("cx:tickLabels", &[]);
     w.end_tag("cx:axis");
 
     w.end_tag("cx:plotArea");

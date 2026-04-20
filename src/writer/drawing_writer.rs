@@ -177,7 +177,17 @@ fn write_two_cell_anchor_chartex(w: &mut XmlWriter, tc: &TreemapChart, r_id: &st
     w.start_tag("mc:Choice", &[("xmlns:cx1", "http://schemas.microsoft.com/office/drawing/2015/9/8/chartex"), ("Requires", "cx1")]);
     w.start_tag("xdr:graphicFrame", &[("macro", "")]);
     w.start_tag("xdr:nvGraphicFramePr", &[]);
-    w.empty_tag("xdr:cNvPr", &[("id", &id_s), ("name", "Treemap Chart")]);
+    w.start_tag("xdr:cNvPr", &[("id", &id_s), ("name", "Treemap Chart")]);
+    w.start_tag("a:extLst", &[]);
+    w.start_tag("a:ext", &[("uri", "{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}")]);
+    let tc_uuid = format!("{{00000000-0000-0000-0000-{:012X}}}", obj_id as u64);
+    w.empty_tag("a16:creationId", &[
+        ("xmlns:a16", "http://schemas.microsoft.com/office/drawing/2014/main"),
+        ("id", &tc_uuid),
+    ]);
+    w.end_tag("a:ext");
+    w.end_tag("a:extLst");
+    w.end_tag("xdr:cNvPr");
     w.empty_tag("xdr:cNvGraphicFramePr", &[]);
     w.end_tag("xdr:nvGraphicFramePr");
     w.start_tag("xdr:xfrm", &[]);
@@ -249,7 +259,18 @@ fn write_two_cell_anchor_chartex_generic(w: &mut XmlWriter, cex: &ChartExChart, 
     }
     w.start_tag("xdr:graphicFrame", &[("macro", "")]);
     w.start_tag("xdr:nvGraphicFramePr", &[]);
-    w.empty_tag("xdr:cNvPr", &[("id", &id_s), ("name", chart_name)]);
+    w.start_tag("xdr:cNvPr", &[("id", &id_s), ("name", chart_name)]);
+    w.start_tag("a:extLst", &[]);
+    w.start_tag("a:ext", &[("uri", "{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}")]);
+    // Generate a deterministic UUID from the object id
+    let uuid = format!("{{00000000-0000-0000-0000-{:012X}}}", obj_id as u64);
+    w.empty_tag("a16:creationId", &[
+        ("xmlns:a16", "http://schemas.microsoft.com/office/drawing/2014/main"),
+        ("id", &uuid),
+    ]);
+    w.end_tag("a:ext");
+    w.end_tag("a:extLst");
+    w.end_tag("xdr:cNvPr");
     w.empty_tag("xdr:cNvGraphicFramePr", &[]);
     w.end_tag("xdr:nvGraphicFramePr");
     w.start_tag("xdr:xfrm", &[]);
@@ -287,6 +308,11 @@ fn write_two_cell_anchor_chartex_generic(w: &mut XmlWriter, cex: &ChartExChart, 
     w.start_tag("a:solidFill", &[]);
     w.empty_tag("a:prstClr", &[("val", "white")]);
     w.end_tag("a:solidFill");
+    w.start_tag("a:ln", &[("w", "1")]);
+    w.start_tag("a:solidFill", &[]);
+    w.empty_tag("a:prstClr", &[("val", "green")]);
+    w.end_tag("a:solidFill");
+    w.end_tag("a:ln");
     w.end_tag("xdr:spPr");
     w.start_tag("xdr:txBody", &[]);
     w.empty_tag("a:bodyPr", &[("vertOverflow", "clip"), ("horzOverflow", "clip")]);
