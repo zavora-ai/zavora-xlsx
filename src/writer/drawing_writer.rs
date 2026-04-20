@@ -10,14 +10,10 @@ const PX_TO_EMU: u64 = 9525;
 pub fn write_drawing_xml(charts: &[Chart], treemaps: &[TreemapChart], chartex_charts: &[ChartExChart], images: &[Image], _sheet_idx: usize) -> Vec<u8> {
     let mut w = XmlWriter::new();
     w.declaration();
-    let has_chartex = !treemaps.is_empty() || !chartex_charts.is_empty();
-    let mut root_attrs: Vec<(&str, &str)> = vec![
+    let root_attrs: Vec<(&str, &str)> = vec![
         ("xmlns:xdr", "http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing"),
         ("xmlns:a", "http://schemas.openxmlformats.org/drawingml/2006/main"),
     ];
-    if has_chartex {
-        root_attrs.push(("xmlns:mc", "http://schemas.openxmlformats.org/markup-compatibility/2006"));
-    }
     w.start_tag("xdr:wsDr", &root_attrs);
 
     let mut rid = 1;
@@ -177,7 +173,7 @@ fn write_two_cell_anchor_chartex(w: &mut XmlWriter, tc: &TreemapChart, r_id: &st
 
     let id_s = obj_id.to_string();
 
-    w.start_tag("mc:AlternateContent", &[]);
+    w.start_tag("mc:AlternateContent", &[("xmlns:mc", "http://schemas.openxmlformats.org/markup-compatibility/2006")]);
     w.start_tag("mc:Choice", &[("xmlns:cx1", "http://schemas.microsoft.com/office/drawing/2015/9/8/chartex"), ("Requires", "cx1")]);
     w.start_tag("xdr:graphicFrame", &[("macro", "")]);
     w.start_tag("xdr:nvGraphicFramePr", &[]);
@@ -239,7 +235,7 @@ fn write_two_cell_anchor_chartex_generic(w: &mut XmlWriter, cex: &ChartExChart, 
 
     // Map charts require cx4 namespace; other ChartEx types use cx1
     let is_map = matches!(cex, ChartExChart::Map(_));
-    w.start_tag("mc:AlternateContent", &[]);
+    w.start_tag("mc:AlternateContent", &[("xmlns:mc", "http://schemas.openxmlformats.org/markup-compatibility/2006")]);
     if is_map {
         w.start_tag("mc:Choice", &[
             ("xmlns:cx4", "http://schemas.microsoft.com/office/drawing/2016/5/10/chartex"),
