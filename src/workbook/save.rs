@@ -377,13 +377,34 @@ fn chartex_colors_xml() -> Vec<u8> {
         ("meth", "cycle"),
         ("id", "10"),
     ]);
+    // Accent colors
+    for i in 1..=6 {
+        let val = format!("accent{i}");
+        w.empty_tag("a:schemeClr", &[("val", &val)]);
+    }
     // Variation entries for the color cycle
     w.empty_tag("cs:variation", &[]);
-    w.empty_tag("cs:variation", &[]);
-    w.empty_tag("cs:variation", &[]);
-    w.empty_tag("cs:variation", &[]);
-    w.empty_tag("cs:variation", &[]);
-    w.empty_tag("cs:variation", &[]);
+    w.start_tag("cs:variation", &[]);
+    w.empty_tag("a:lumMod", &[("val", "60000")]);
+    w.end_tag("cs:variation");
+    w.start_tag("cs:variation", &[]);
+    w.empty_tag("a:lumMod", &[("val", "80000")]);
+    w.empty_tag("a:lumOff", &[("val", "20000")]);
+    w.end_tag("cs:variation");
+    w.start_tag("cs:variation", &[]);
+    w.empty_tag("a:lumMod", &[("val", "80000")]);
+    w.end_tag("cs:variation");
+    w.start_tag("cs:variation", &[]);
+    w.empty_tag("a:lumMod", &[("val", "60000")]);
+    w.empty_tag("a:lumOff", &[("val", "40000")]);
+    w.end_tag("cs:variation");
+    w.start_tag("cs:variation", &[]);
+    w.empty_tag("a:lumMod", &[("val", "50000")]);
+    w.end_tag("cs:variation");
+    w.start_tag("cs:variation", &[]);
+    w.empty_tag("a:lumMod", &[("val", "70000")]);
+    w.empty_tag("a:lumOff", &[("val", "30000")]);
+    w.end_tag("cs:variation");
     w.end_tag("cs:colorStyle");
     w.into_bytes()
 }
@@ -392,7 +413,7 @@ fn chartex_colors_xml() -> Vec<u8> {
 fn chartex_rels_xml(idx: usize) -> Vec<u8> {
     use crate::writer::rel_writer;
     rel_writer::write_rels(&[
-        ("rId1", "http://schemas.microsoft.com/office/2014/relationships/chartStyle", &format!("style{idx}.xml")),
-        ("rId2", "http://schemas.microsoft.com/office/2014/relationships/chartColorStyle", &format!("colors{idx}.xml")),
+        ("rId1", "http://schemas.microsoft.com/office/2011/relationships/chartStyle", &format!("style{idx}.xml")),
+        ("rId2", "http://schemas.microsoft.com/office/2011/relationships/chartColorStyle", &format!("colors{idx}.xml")),
     ])
 }

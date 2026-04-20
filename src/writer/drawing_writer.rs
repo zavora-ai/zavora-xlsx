@@ -237,8 +237,20 @@ fn write_two_cell_anchor_chartex_generic(w: &mut XmlWriter, cex: &ChartExChart, 
         ChartExChart::Map(_) => "Map Chart",
     };
 
+    // Map charts require cx4 namespace; other ChartEx types use cx1
+    let is_map = matches!(cex, ChartExChart::Map(_));
     w.start_tag("mc:AlternateContent", &[]);
-    w.start_tag("mc:Choice", &[("xmlns:cx1", "http://schemas.microsoft.com/office/drawing/2015/9/8/chartex"), ("Requires", "cx1")]);
+    if is_map {
+        w.start_tag("mc:Choice", &[
+            ("xmlns:cx4", "http://schemas.microsoft.com/office/drawing/2016/5/10/chartex"),
+            ("Requires", "cx4"),
+        ]);
+    } else {
+        w.start_tag("mc:Choice", &[
+            ("xmlns:cx1", "http://schemas.microsoft.com/office/drawing/2015/9/8/chartex"),
+            ("Requires", "cx1"),
+        ]);
+    }
     w.start_tag("xdr:graphicFrame", &[("macro", "")]);
     w.start_tag("xdr:nvGraphicFramePr", &[]);
     w.empty_tag("xdr:cNvPr", &[("id", &id_s), ("name", chart_name)]);
@@ -260,6 +272,37 @@ fn write_two_cell_anchor_chartex_generic(w: &mut XmlWriter, cex: &ChartExChart, 
     w.end_tag("xdr:graphicFrame");
     w.end_tag("mc:Choice");
     w.start_tag("mc:Fallback", &[]);
+    // Fallback placeholder for older Excel versions
+    w.start_tag("xdr:sp", &[("macro", ""), ("textlink", "")]);
+    w.start_tag("xdr:nvSpPr", &[]);
+    w.empty_tag("xdr:cNvPr", &[("id", "0"), ("name", "")]);
+    w.start_tag("xdr:cNvSpPr", &[]);
+    w.empty_tag("a:spLocks", &[("noTextEdit", "1")]);
+    w.end_tag("xdr:cNvSpPr");
+    w.end_tag("xdr:nvSpPr");
+    w.start_tag("xdr:spPr", &[]);
+    w.start_tag("a:xfrm", &[]);
+    w.empty_tag("a:off", &[("x", "0"), ("y", "0")]);
+    w.empty_tag("a:ext", &[("cx", "0"), ("cy", "0")]);
+    w.end_tag("a:xfrm");
+    w.start_tag("a:prstGeom", &[("prst", "rect")]);
+    w.empty_tag("a:avLst", &[]);
+    w.end_tag("a:prstGeom");
+    w.start_tag("a:solidFill", &[]);
+    w.empty_tag("a:prstClr", &[("val", "white")]);
+    w.end_tag("a:solidFill");
+    w.end_tag("xdr:spPr");
+    w.start_tag("xdr:txBody", &[]);
+    w.empty_tag("a:bodyPr", &[("vertOverflow", "clip"), ("horzOverflow", "clip")]);
+    w.empty_tag("a:lstStyle", &[]);
+    w.start_tag("a:p", &[]);
+    w.start_tag("a:r", &[]);
+    w.empty_tag("a:rPr", &[("lang", "en-US"), ("sz", "1100")]);
+    w.text_element("a:t", &[], "This chart isn't available in your version of Excel.");
+    w.end_tag("a:r");
+    w.end_tag("a:p");
+    w.end_tag("xdr:txBody");
+    w.end_tag("xdr:sp");
     w.end_tag("mc:Fallback");
     w.end_tag("mc:AlternateContent");
 
