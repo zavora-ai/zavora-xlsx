@@ -114,6 +114,51 @@ impl Format {
     pub(crate) fn has_alignment(&self) -> bool {
         self.h_align != 0 || self.v_align != 0 || self.wrap_text || self.shrink || self.indent != 0 || self.rotation != 0
     }
+
+    // ── Read accessors ──
+
+    /// Returns `true` if the format has bold font.
+    pub fn is_bold(&self) -> bool { self.bold }
+    /// Returns `true` if the format has italic font.
+    pub fn is_italic(&self) -> bool { self.italic }
+    /// Returns the underline style.
+    pub fn get_underline(&self) -> Underline { self.underline }
+    /// Returns `true` if the format has strikethrough.
+    pub fn is_strikethrough(&self) -> bool { self.strikethrough }
+    /// Returns the font size.
+    pub fn get_font_size(&self) -> f64 { self.font_size }
+    /// Returns the font name.
+    pub fn get_font_name(&self) -> &str { &self.font_name }
+    /// Returns the font color as RGB, if set.
+    pub fn get_font_color(&self) -> Option<[u8; 3]> { self.font_color }
+    /// Returns the background color as RGB, if set.
+    pub fn get_bg_color(&self) -> Option<[u8; 3]> { self.bg_color }
+    /// Returns the foreground color as RGB, if set.
+    pub fn get_fg_color(&self) -> Option<[u8; 3]> { self.fg_color }
+    /// Returns the fill pattern.
+    pub fn get_pattern(&self) -> Pattern { self.pattern }
+    /// Returns the left border style.
+    pub fn get_border_left(&self) -> BorderStyle { self.border_left }
+    /// Returns the right border style.
+    pub fn get_border_right(&self) -> BorderStyle { self.border_right }
+    /// Returns the top border style.
+    pub fn get_border_top(&self) -> BorderStyle { self.border_top }
+    /// Returns the bottom border style.
+    pub fn get_border_bottom(&self) -> BorderStyle { self.border_bottom }
+    /// Returns the horizontal alignment value.
+    pub fn get_h_align(&self) -> u8 { self.h_align }
+    /// Returns the vertical alignment value.
+    pub fn get_v_align(&self) -> u8 { self.v_align }
+    /// Returns `true` if text wrapping is enabled.
+    pub fn is_wrap_text(&self) -> bool { self.wrap_text }
+    /// Returns `true` if shrink-to-fit is enabled.
+    pub fn is_shrink(&self) -> bool { self.shrink }
+    /// Returns the indent level.
+    pub fn get_indent(&self) -> u8 { self.indent }
+    /// Returns the text rotation angle.
+    pub fn get_rotation(&self) -> i16 { self.rotation }
+    /// Returns the number format string.
+    pub fn get_num_format(&self) -> &str { &self.num_format }
 }
 
 impl Default for Format {
@@ -127,6 +172,10 @@ pub enum Underline { None = 0, Single = 1, Double = 2 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum BorderStyle { None = 0, Thin = 1, Medium = 2, Thick = 3, Dashed = 4, Dotted = 5, Double = 6 }
+
+impl Default for BorderStyle {
+    fn default() -> Self { BorderStyle::None }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub enum Align { Left, Center, Right, Fill, Justify, Top, VerticalCenter, Bottom }

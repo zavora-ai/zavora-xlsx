@@ -3,7 +3,7 @@ use zavora_xlsx::*;
 fn main() -> Result<()> {
     let mut wb = Workbook::new();
 
-    let navy = "#1B3A5C"; let blue = "#2B7BB9"; let light_blue = "#D6EAF8";
+    let navy = "#1B3A5C"; let blue = "#2B7BB9"; let _light_blue = "#D6EAF8";
     let green = "#27AE60"; let red = "#C0392B"; let amber = "#F39C12";
     let dark = "#2C3E50"; let border = "#BDC3C7"; let white = "#FFFFFF";
     let light = "#ECF0F1";
@@ -78,11 +78,11 @@ fn main() -> Result<()> {
         .background_color(blue).align(Align::Left).align(Align::VerticalCenter);
     let title_bar = Format::new().background_color(blue);
 
-    let kpi_num = Format::new().bold().font_size(22.0).font_color(dark).align(Align::Center).align(Align::VerticalCenter);
-    let kpi_money = Format::new().bold().font_size(18.0).font_color(dark).align(Align::Center).align(Align::VerticalCenter).num_format("$#,##0k");
-    let kpi_sub = Format::new().font_size(8.0).font_color("#7F8C8D").align(Align::Center);
+    let _kpi_num = Format::new().bold().font_size(22.0).font_color(dark).align(Align::Center).align(Align::VerticalCenter);
+    let _kpi_money = Format::new().bold().font_size(18.0).font_color(dark).align(Align::Center).align(Align::VerticalCenter).num_format("$#,##0k");
+    let _kpi_sub = Format::new().font_size(8.0).font_color("#7F8C8D").align(Align::Center);
     let kpi_label = Format::new().bold().font_size(9.0).font_color(white).background_color(navy).align(Align::Center);
-    let kpi_box_border = Format::new().border(BorderStyle::Thin).border_color(border);
+    let _kpi_box_border = Format::new().border(BorderStyle::Thin).border_color(border);
 
     let proj_name = Format::new().bold().font_size(11.0).font_color(dark).align(Align::Left).align(Align::VerticalCenter)
         .background_color(light).border(BorderStyle::Thin).border_color(border);
@@ -99,12 +99,12 @@ fn main() -> Result<()> {
     let proj_months = Format::new().font_size(10.0).font_color(dark).align(Align::Center)
         .background_color(light).border(BorderStyle::Thin).border_color(border);
 
-    let stat_label = Format::new().font_size(8.0).font_color("#7F8C8D").align(Align::Center);
+    let _stat_label = Format::new().font_size(8.0).font_color("#7F8C8D").align(Align::Center);
     let stat_icon_green = Format::new().font_size(10.0).font_color(green).align(Align::Center);
     let stat_icon_red = Format::new().font_size(10.0).font_color(red).align(Align::Center);
     let stat_icon_amber = Format::new().font_size(10.0).font_color(amber).align(Align::Center);
 
-    let section = Format::new().bold().font_size(12.0).font_color(white)
+    let _section = Format::new().bold().font_size(12.0).font_color(white)
         .background_color(navy).align(Align::Left).align(Align::VerticalCenter);
 
     let mut r = 0u32;

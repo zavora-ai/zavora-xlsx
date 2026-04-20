@@ -2,7 +2,7 @@ use zavora_xlsx::*;
 
 fn main() -> Result<()> {
     let mut wb = Workbook::new();
-    let navy = "#1B2A4A"; let green = "#0D7C3D"; let blue = "#2B579A"; let border = "#D6DCE4"; let light = "#F5F7FA";
+    let navy = "#1B2A4A"; let green = "#0D7C3D"; let _blue = "#2B579A"; let border = "#D6DCE4"; let light = "#F5F7FA";
 
     let ws = wb.worksheet(0)?;
     ws.set_name("Payroll")?; ws.hide_gridlines();
@@ -15,7 +15,7 @@ fn main() -> Result<()> {
     let hdr_l = Format::new().bold().font_size(9.0).font_color("#FFFFFF").background_color(navy).align(Align::Left).border(BorderStyle::Thin);
     let tf = Format::new().font_size(10.0).font_color(navy).align(Align::Left).border(BorderStyle::Thin).border_color(border);
     let mf = Format::new().font_size(10.0).font_color(navy).align(Align::Right).num_format("$#,##0").border(BorderStyle::Thin).border_color(border);
-    let pf = Format::new().font_size(10.0).font_color(navy).align(Align::Center).num_format("0%").border(BorderStyle::Thin).border_color(border);
+    let _pf = Format::new().font_size(10.0).font_color(navy).align(Align::Center).num_format("0%").border(BorderStyle::Thin).border_color(border);
     let stl = Format::new().bold().font_size(10.0).font_color(navy).align(Align::Left).background_color("#E8E8E8").border(BorderStyle::Thin);
     let stv = Format::new().bold().font_size(10.0).font_color(navy).align(Align::Right).num_format("$#,##0").background_color("#E8E8E8").border(BorderStyle::Thin);
     let net_f = Format::new().bold().font_size(10.0).font_color(green).align(Align::Right).num_format("$#,##0").background_color("#E8F5E9").border(BorderStyle::Medium).border_color(green);

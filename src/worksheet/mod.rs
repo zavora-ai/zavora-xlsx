@@ -7,6 +7,7 @@ mod ops;
 pub mod types;
 
 use std::collections::{BTreeMap, HashMap};
+use std::sync::Arc;
 
 use crate::cell::{CellType, CellValue};
 use crate::datetime::ExcelDateTime;
@@ -20,6 +21,7 @@ use crate::format::Format;
 use crate::model::shared_strings::SharedStringTable;
 use crate::model::style_registry::StyleRegistry;
 use crate::reader::sheet_reader::RawCell;
+use crate::reader::style_parser::ParsedStyles;
 use crate::utility::{ColNum, RowNum};
 
 pub use types::{Comment, Hyperlink, Orientation, PrintSettings, SheetProtection, SheetVisibility};
@@ -53,6 +55,7 @@ pub struct Worksheet {
     pub(crate) sparklines: Vec<Sparkline>,
     pub(crate) pivot_tables: Vec<crate::features::pivot::PivotTable>,
     pub(crate) treemap_charts: Vec<crate::features::treemap::TreemapChart>,
+    pub(crate) chartex_charts: Vec<crate::features::chartex::ChartExChart>,
     pub(crate) protection: Option<SheetProtection>,
     pub(crate) print_settings: Option<PrintSettings>,
     pub(crate) hidden_rows: std::collections::BTreeSet<RowNum>,
@@ -75,6 +78,7 @@ pub struct Worksheet {
     pub(crate) row_formats: BTreeMap<RowNum, Format>,
     pub(crate) ignored_errors: Vec<(String, String)>,
     pub(crate) autofilter_columns: Vec<(ColNum, Vec<String>)>,
+    pub(crate) parsed_styles: Option<Arc<ParsedStyles>>,
 }
 
 impl Worksheet {
@@ -94,6 +98,7 @@ impl Worksheet {
             conditional_formats: Vec::new(), validations: Vec::new(), sparklines: Vec::new(),
             pivot_tables: Vec::new(),
             treemap_charts: Vec::new(),
+            chartex_charts: Vec::new(),
             protection: None, print_settings: None,
             hidden_rows: std::collections::BTreeSet::new(),
             hidden_cols: std::collections::BTreeSet::new(),
@@ -107,6 +112,7 @@ impl Worksheet {
             col_formats: BTreeMap::new(), row_formats: BTreeMap::new(),
             ignored_errors: Vec::new(),
             autofilter_columns: Vec::new(),
+            parsed_styles: None,
         }
     }
 
@@ -119,7 +125,18 @@ impl Worksheet {
     pub fn merge_ranges(&self) -> &[(RowNum, ColNum, RowNum, ColNum)] { &self.merge_ranges }
     pub fn column_width(&self, col: ColNum) -> Option<f64> { self.col_widths.get(&col).copied() }
     pub fn row_height(&self, row: RowNum) -> Option<f64> { self.row_heights.get(&row).copied() }
+    pub fn charts(&self) -> &[Chart] { &self.charts }
+    pub fn tables(&self) -> &[Table] { &self.tables }
+    pub fn treemap_charts(&self) -> &[crate::features::treemap::TreemapChart] { &self.treemap_charts }
     pub fn comments(&self) -> &[Comment] { &self.comments }
+    pub fn conditional_formats(&self) -> &[StoredCf] { &self.conditional_formats }
+    pub fn validations(&self) -> &[DataValidation] { &self.validations }
+    pub fn sparklines(&self) -> &[Sparkline] { &self.sparklines }
+    pub fn hyperlinks(&self) -> &[Hyperlink] { &self.hyperlinks }
+    pub fn print_settings(&self) -> Option<&PrintSettings> { self.print_settings.as_ref() }
+    pub fn protection(&self) -> Option<&SheetProtection> { self.protection.as_ref() }
+    pub fn row_outline_levels(&self) -> &BTreeMap<RowNum, u8> { &self.row_outline_levels }
+    pub fn col_outline_levels(&self) -> &BTreeMap<ColNum, u8> { &self.col_outline_levels }
     pub fn get_comment(&self, row: RowNum, col: ColNum) -> Option<(&str, &str)> {
         self.comments.iter().find(|c| c.row == row && c.col == col).map(|c| (c.author.as_str(), c.text.as_str()))
     }
@@ -151,6 +168,44 @@ impl Worksheet {
             }
         }
         CellValue::Empty
+    }
+
+    /// Return the resolved `Format` for the cell at `(row, col)`, if one exists.
+    ///
+    /// This looks up the cell's xf index (style index from the `s` attribute in
+    /// the sheet XML) and resolves it through the parsed styles to produce a
+    /// fully-populated `Format`.  Returns `None` when:
+    /// - the cell does not exist,
+    /// - the cell has the default style (xf index 0), or
+    /// - the workbook was not opened from a file (no parsed styles available).
+    pub fn cell_format(&self, row: RowNum, col: ColNum) -> Option<Format> {
+        let styles = self.parsed_styles.as_ref()?;
+
+        // First check deserialized cells (BTreeMap)
+        if let Some(cols) = self.cells.get(&row) {
+            if let Some((_, xf_index)) = cols.get(&col) {
+                let idx = *xf_index as usize;
+                if idx == 0 {
+                    return None;
+                }
+                return styles.resolve_format(idx);
+            }
+        }
+
+        // Fall back to raw cells that haven't been deserialized yet
+        if let Some(ref raw_cells) = self.read_cells {
+            for rc in raw_cells {
+                if rc.row == row && rc.col == col {
+                    let idx = rc.xf_index as usize;
+                    if idx == 0 {
+                        return None;
+                    }
+                    return styles.resolve_format(idx);
+                }
+            }
+        }
+
+        None
     }
 
     pub fn used_range(&self) -> Option<(RowNum, ColNum, RowNum, ColNum)> {

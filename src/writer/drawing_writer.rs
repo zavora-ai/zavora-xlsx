@@ -1,4 +1,5 @@
 use crate::features::chart::Chart;
+use crate::features::chartex::ChartExChart;
 use crate::features::image::Image;
 use crate::features::treemap::TreemapChart;
 use crate::xml::xml_writer::XmlWriter;
@@ -6,10 +7,10 @@ use crate::xml::xml_writer::XmlWriter;
 /// EMU = English Metric Units. 1 inch = 914400 EMU. 1 pixel ≈ 9525 EMU at 96 DPI.
 const PX_TO_EMU: u64 = 9525;
 
-pub fn write_drawing_xml(charts: &[Chart], treemaps: &[TreemapChart], images: &[Image], _sheet_idx: usize) -> Vec<u8> {
+pub fn write_drawing_xml(charts: &[Chart], treemaps: &[TreemapChart], chartex_charts: &[ChartExChart], images: &[Image], _sheet_idx: usize) -> Vec<u8> {
     let mut w = XmlWriter::new();
     w.declaration();
-    let has_chartex = !treemaps.is_empty();
+    let has_chartex = !treemaps.is_empty() || !chartex_charts.is_empty();
     let mut root_attrs: Vec<(&str, &str)> = vec![
         ("xmlns:xdr", "http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing"),
         ("xmlns:a", "http://schemas.openxmlformats.org/drawingml/2006/main"),
@@ -34,10 +35,16 @@ pub fn write_drawing_xml(charts: &[Chart], treemaps: &[TreemapChart], images: &[
         rid += 1; obj_id += 1;
     }
 
+    for cex in chartex_charts {
+        let r_id = format!("rId{rid}");
+        write_two_cell_anchor_chartex_generic(&mut w, cex, &r_id, obj_id);
+        rid += 1; obj_id += 1;
+    }
+
     for image in images {
         let r_id = format!("rId{rid}");
         write_two_cell_anchor_image(&mut w, image, &r_id);
-        rid += 1; obj_id += 1;
+        rid += 1;
     }
 
     w.end_tag("xdr:wsDr");
@@ -175,6 +182,65 @@ fn write_two_cell_anchor_chartex(w: &mut XmlWriter, tc: &TreemapChart, r_id: &st
     w.start_tag("xdr:graphicFrame", &[("macro", "")]);
     w.start_tag("xdr:nvGraphicFramePr", &[]);
     w.empty_tag("xdr:cNvPr", &[("id", &id_s), ("name", "Treemap Chart")]);
+    w.empty_tag("xdr:cNvGraphicFramePr", &[]);
+    w.end_tag("xdr:nvGraphicFramePr");
+    w.start_tag("xdr:xfrm", &[]);
+    w.empty_tag("a:off", &[("x", "0"), ("y", "0")]);
+    w.empty_tag("a:ext", &[("cx", "0"), ("cy", "0")]);
+    w.end_tag("xdr:xfrm");
+    w.start_tag("a:graphic", &[]);
+    w.start_tag("a:graphicData", &[("uri", "http://schemas.microsoft.com/office/drawing/2014/chartex")]);
+    w.empty_tag("cx:chart", &[
+        ("xmlns:cx", "http://schemas.microsoft.com/office/drawing/2014/chartex"),
+        ("xmlns:r", "http://schemas.openxmlformats.org/officeDocument/2006/relationships"),
+        ("r:id", r_id),
+    ]);
+    w.end_tag("a:graphicData");
+    w.end_tag("a:graphic");
+    w.end_tag("xdr:graphicFrame");
+    w.end_tag("mc:Choice");
+    w.start_tag("mc:Fallback", &[]);
+    w.end_tag("mc:Fallback");
+    w.end_tag("mc:AlternateContent");
+
+    w.empty_tag("xdr:clientData", &[]);
+    w.end_tag("xdr:twoCellAnchor");
+}
+
+fn write_two_cell_anchor_chartex_generic(w: &mut XmlWriter, cex: &ChartExChart, r_id: &str, obj_id: u32) {
+    let (row, col, width, height) = (cex.row(), cex.col(), cex.width(), cex.height());
+    w.start_tag("xdr:twoCellAnchor", &[]);
+    w.start_tag("xdr:from", &[]);
+    let col_s = col.to_string(); let row_s = row.to_string();
+    w.text_element("xdr:col", &[], &col_s);
+    w.text_element("xdr:colOff", &[], "0");
+    w.text_element("xdr:row", &[], &row_s);
+    w.text_element("xdr:rowOff", &[], "0");
+    w.end_tag("xdr:from");
+
+    let end_col = (col as u64 + width as u64 / 64).to_string();
+    let end_row = (row as u64 + height as u64 / 20).to_string();
+    w.start_tag("xdr:to", &[]);
+    w.text_element("xdr:col", &[], &end_col);
+    w.text_element("xdr:colOff", &[], "0");
+    w.text_element("xdr:row", &[], &end_row);
+    w.text_element("xdr:rowOff", &[], "0");
+    w.end_tag("xdr:to");
+
+    let id_s = obj_id.to_string();
+    let chart_name = match cex {
+        ChartExChart::Waterfall(_) => "Waterfall Chart",
+        ChartExChart::Funnel(_) => "Funnel Chart",
+        ChartExChart::Sunburst(_) => "Sunburst Chart",
+        ChartExChart::Histogram(_) => "Histogram Chart",
+        ChartExChart::BoxWhisker(_) => "Box & Whisker Chart",
+    };
+
+    w.start_tag("mc:AlternateContent", &[]);
+    w.start_tag("mc:Choice", &[("xmlns:cx1", "http://schemas.microsoft.com/office/drawing/2015/9/8/chartex"), ("Requires", "cx1")]);
+    w.start_tag("xdr:graphicFrame", &[("macro", "")]);
+    w.start_tag("xdr:nvGraphicFramePr", &[]);
+    w.empty_tag("xdr:cNvPr", &[("id", &id_s), ("name", chart_name)]);
     w.empty_tag("xdr:cNvGraphicFramePr", &[]);
     w.end_tag("xdr:nvGraphicFramePr");
     w.start_tag("xdr:xfrm", &[]);

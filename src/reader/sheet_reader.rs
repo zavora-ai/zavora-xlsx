@@ -7,13 +7,24 @@ use crate::model::shared_strings::SharedStringTable;
 use crate::model::style_registry::StyleRegistry;
 use crate::reader::style_parser::ParsedStyles;
 use crate::utility::{parse_cell_attr, ColNum, RowNum};
-use crate::xml::xml_reader::get_attr;
+use crate::xml::xml_reader::{get_attr, get_attr_str};
 
 pub struct RawCell {
     pub row: RowNum,
     pub col: ColNum,
     pub value: CellValue,
     pub xf_index: u32,
+}
+
+/// A hyperlink parsed from the sheet XML (before relationship resolution).
+#[derive(Debug, Clone)]
+pub struct ParsedHyperlink {
+    pub cell_ref: String,
+    pub rid: Option<String>,
+    pub location: Option<String>,
+    #[allow(dead_code)]
+    pub display: Option<String>,
+    pub tooltip: Option<String>,
 }
 
 /// Metadata parsed from sheet XML (merges, widths, heights, freeze panes).
@@ -26,6 +37,11 @@ pub struct SheetMeta {
     pub freeze_col: ColNum,
     pub drawing_rid: Option<String>,
     pub legacy_drawing_rid: Option<String>,
+    pub hyperlinks: Vec<ParsedHyperlink>,
+    pub print_settings: Option<crate::worksheet::PrintSettings>,
+    pub protection: Option<crate::worksheet::SheetProtection>,
+    pub row_outline_levels: std::collections::BTreeMap<RowNum, u8>,
+    pub col_outline_levels: std::collections::BTreeMap<ColNum, u8>,
 }
 
 /// Read cells AND metadata from sheet XML in one pass.
@@ -40,8 +56,9 @@ pub fn read_sheet_full(
     let mut buf = Vec::with_capacity(1024);
     let mut cells = Vec::new();
     let mut meta = SheetMeta::default();
+    let mut fit_to_page = false;
 
-    // Pre-sheetData scan: cols, pane, merges
+    // Pre-sheetData scan: cols, pane, merges, pageSetUpPr
     loop {
         buf.clear();
         match reader.read_event_into(&mut buf)? {
@@ -49,8 +66,17 @@ pub fn read_sheet_full(
                 match e.local_name().as_ref() {
                     b"col" => {
                         let min = get_attr(e.attributes(), b"min").and_then(|v| atoi_simd::parse::<u16>(v).ok()).unwrap_or(1);
+                        let max = get_attr(e.attributes(), b"max").and_then(|v| atoi_simd::parse::<u16>(v).ok()).unwrap_or(min);
                         let width = get_attr(e.attributes(), b"width").and_then(|v| std::str::from_utf8(v).ok()).and_then(|s| s.parse::<f64>().ok());
-                        if let Some(w) = width { meta.col_widths.push((min - 1, w)); }
+                        let outline_level = get_attr(e.attributes(), b"outlineLevel").and_then(|v| atoi_simd::parse::<u8>(v).ok());
+                        for col_1based in min..=max {
+                            if let Some(w) = width { meta.col_widths.push((col_1based - 1, w)); }
+                            if let Some(level) = outline_level {
+                                if level > 0 {
+                                    meta.col_outline_levels.insert(col_1based - 1, level);
+                                }
+                            }
+                        }
                     }
                     b"pane" => {
                         meta.freeze_row = get_attr(e.attributes(), b"ySplit").and_then(|v| atoi_simd::parse::<u32>(v).ok()).unwrap_or(0);
@@ -60,6 +86,50 @@ pub fn read_sheet_full(
                         if let Some(r) = get_attr(e.attributes(), b"ref").and_then(|v| std::str::from_utf8(v).ok()) {
                             if let Some(m) = crate::utility::parse_range(r) { meta.merge_ranges.push(m); }
                         }
+                    }
+                    b"pageSetUpPr" => {
+                        fit_to_page = get_attr_str(e.attributes(), b"fitToPage")
+                            .map_or(false, |v| v == "1" || v == "true");
+                    }
+                    b"sheetProtection" => {
+                        let mut prot = crate::worksheet::SheetProtection::default();
+                        // The "sheet" attribute indicates protection is enabled
+                        prot.sheet = get_attr_str(e.attributes(), b"sheet")
+                            .map_or(false, |v| v == "1" || v == "true");
+                        prot.objects = get_attr_str(e.attributes(), b"objects")
+                            .map_or(false, |v| v == "1" || v == "true");
+                        prot.scenarios = get_attr_str(e.attributes(), b"scenarios")
+                            .map_or(false, |v| v == "1" || v == "true");
+                        prot.format_cells = get_attr_str(e.attributes(), b"formatCells")
+                            .map_or(true, |v| v == "1" || v == "true");
+                        prot.format_columns = get_attr_str(e.attributes(), b"formatColumns")
+                            .map_or(true, |v| v == "1" || v == "true");
+                        prot.format_rows = get_attr_str(e.attributes(), b"formatRows")
+                            .map_or(true, |v| v == "1" || v == "true");
+                        prot.insert_columns = get_attr_str(e.attributes(), b"insertColumns")
+                            .map_or(true, |v| v == "1" || v == "true");
+                        prot.insert_rows = get_attr_str(e.attributes(), b"insertRows")
+                            .map_or(true, |v| v == "1" || v == "true");
+                        prot.insert_hyperlinks = get_attr_str(e.attributes(), b"insertHyperlinks")
+                            .map_or(true, |v| v == "1" || v == "true");
+                        prot.delete_columns = get_attr_str(e.attributes(), b"deleteColumns")
+                            .map_or(true, |v| v == "1" || v == "true");
+                        prot.delete_rows = get_attr_str(e.attributes(), b"deleteRows")
+                            .map_or(true, |v| v == "1" || v == "true");
+                        prot.select_locked_cells = get_attr_str(e.attributes(), b"selectLockedCells")
+                            .map_or(false, |v| v == "1" || v == "true");
+                        prot.sort = get_attr_str(e.attributes(), b"sort")
+                            .map_or(true, |v| v == "1" || v == "true");
+                        prot.auto_filter = get_attr_str(e.attributes(), b"autoFilter")
+                            .map_or(true, |v| v == "1" || v == "true");
+                        prot.pivot_tables = get_attr_str(e.attributes(), b"pivotTables")
+                            .map_or(true, |v| v == "1" || v == "true");
+                        prot.select_unlocked_cells = get_attr_str(e.attributes(), b"selectUnlockedCells")
+                            .map_or(false, |v| v == "1" || v == "true");
+                        // Legacy password hash
+                        prot.password_hash = get_attr_str(e.attributes(), b"password")
+                            .map(|s| s.to_string());
+                        meta.protection = Some(prot);
                     }
                     b"sheetData" => break,
                     _ => {}
@@ -85,9 +155,17 @@ pub fn read_sheet_full(
             Event::Start(e) => {
                 match e.local_name().as_ref() {
                     b"row" => {
+                        let row_num = get_attr(e.attributes(), b"r").and_then(|v| atoi_simd::parse::<u32>(v).ok());
                         if let Some(ht) = get_attr(e.attributes(), b"ht").and_then(|v| std::str::from_utf8(v).ok()).and_then(|s| s.parse::<f64>().ok()) {
-                            if let Some(r) = get_attr(e.attributes(), b"r").and_then(|v| atoi_simd::parse::<u32>(v).ok()) {
+                            if let Some(r) = row_num {
                                 meta.row_heights.push((r - 1, ht));
+                            }
+                        }
+                        if let Some(level) = get_attr(e.attributes(), b"outlineLevel").and_then(|v| atoi_simd::parse::<u8>(v).ok()) {
+                            if level > 0 {
+                                if let Some(r) = row_num {
+                                    meta.row_outline_levels.insert(r - 1, level);
+                                }
                             }
                         }
                     }
@@ -138,7 +216,17 @@ pub fn read_sheet_full(
         }
     }
 
-    // Post-sheetData: scan for mergeCells, drawing, legacyDrawing
+    // Post-sheetData: scan for mergeCells, drawing, legacyDrawing, hyperlinks, print settings
+    let mut ps = crate::worksheet::PrintSettings::default();
+    let mut has_print_settings = false;
+    let mut in_header_footer = false;
+    let mut in_odd_header = false;
+    let mut in_odd_footer = false;
+    let mut odd_header_text = String::new();
+    let mut odd_footer_text = String::new();
+    let mut in_row_breaks = false;
+    let mut in_col_breaks = false;
+
     loop {
         cell_buf.clear();
         match reader.read_event_into(&mut cell_buf)? {
@@ -155,12 +243,161 @@ pub fn read_sheet_full(
                     b"legacyDrawing" => {
                         meta.legacy_drawing_rid = get_attr(e.attributes(), b"r:id").and_then(|v| std::str::from_utf8(v).ok()).map(|s| s.to_string());
                     }
+                    b"sheetProtection" => {
+                        let mut prot = crate::worksheet::SheetProtection::default();
+                        prot.sheet = get_attr_str(e.attributes(), b"sheet")
+                            .map_or(false, |v| v == "1" || v == "true");
+                        prot.objects = get_attr_str(e.attributes(), b"objects")
+                            .map_or(false, |v| v == "1" || v == "true");
+                        prot.scenarios = get_attr_str(e.attributes(), b"scenarios")
+                            .map_or(false, |v| v == "1" || v == "true");
+                        prot.format_cells = get_attr_str(e.attributes(), b"formatCells")
+                            .map_or(true, |v| v == "1" || v == "true");
+                        prot.format_columns = get_attr_str(e.attributes(), b"formatColumns")
+                            .map_or(true, |v| v == "1" || v == "true");
+                        prot.format_rows = get_attr_str(e.attributes(), b"formatRows")
+                            .map_or(true, |v| v == "1" || v == "true");
+                        prot.insert_columns = get_attr_str(e.attributes(), b"insertColumns")
+                            .map_or(true, |v| v == "1" || v == "true");
+                        prot.insert_rows = get_attr_str(e.attributes(), b"insertRows")
+                            .map_or(true, |v| v == "1" || v == "true");
+                        prot.insert_hyperlinks = get_attr_str(e.attributes(), b"insertHyperlinks")
+                            .map_or(true, |v| v == "1" || v == "true");
+                        prot.delete_columns = get_attr_str(e.attributes(), b"deleteColumns")
+                            .map_or(true, |v| v == "1" || v == "true");
+                        prot.delete_rows = get_attr_str(e.attributes(), b"deleteRows")
+                            .map_or(true, |v| v == "1" || v == "true");
+                        prot.select_locked_cells = get_attr_str(e.attributes(), b"selectLockedCells")
+                            .map_or(false, |v| v == "1" || v == "true");
+                        prot.sort = get_attr_str(e.attributes(), b"sort")
+                            .map_or(true, |v| v == "1" || v == "true");
+                        prot.auto_filter = get_attr_str(e.attributes(), b"autoFilter")
+                            .map_or(true, |v| v == "1" || v == "true");
+                        prot.pivot_tables = get_attr_str(e.attributes(), b"pivotTables")
+                            .map_or(true, |v| v == "1" || v == "true");
+                        prot.select_unlocked_cells = get_attr_str(e.attributes(), b"selectUnlockedCells")
+                            .map_or(false, |v| v == "1" || v == "true");
+                        prot.password_hash = get_attr_str(e.attributes(), b"password")
+                            .map(|s| s.to_string());
+                        meta.protection = Some(prot);
+                    }
+                    b"hyperlink" => {
+                        let cell_ref = get_attr_str(e.attributes(), b"ref").unwrap_or("").to_string();
+                        let rid = get_attr_str(e.attributes(), b"r:id").map(|s| s.to_string());
+                        let location = get_attr_str(e.attributes(), b"location").map(|s| s.to_string());
+                        let display = get_attr_str(e.attributes(), b"display").map(|s| s.to_string());
+                        let tooltip = get_attr_str(e.attributes(), b"tooltip").map(|s| s.to_string());
+                        if !cell_ref.is_empty() {
+                            meta.hyperlinks.push(ParsedHyperlink { cell_ref, rid, location, display, tooltip });
+                        }
+                    }
+                    b"pageMargins" => {
+                        has_print_settings = true;
+                        ps.margin_top = get_attr_str(e.attributes(), b"top").and_then(|s| s.parse().ok());
+                        ps.margin_bottom = get_attr_str(e.attributes(), b"bottom").and_then(|s| s.parse().ok());
+                        ps.margin_left = get_attr_str(e.attributes(), b"left").and_then(|s| s.parse().ok());
+                        ps.margin_right = get_attr_str(e.attributes(), b"right").and_then(|s| s.parse().ok());
+                        ps.margin_header = get_attr_str(e.attributes(), b"header").and_then(|s| s.parse().ok());
+                        ps.margin_footer = get_attr_str(e.attributes(), b"footer").and_then(|s| s.parse().ok());
+                    }
+                    b"pageSetup" => {
+                        has_print_settings = true;
+                        ps.paper_size = get_attr(e.attributes(), b"paperSize")
+                            .and_then(|v| atoi_simd::parse::<u8>(v).ok());
+                        ps.scale = get_attr(e.attributes(), b"scale")
+                            .and_then(|v| atoi_simd::parse::<u16>(v).ok());
+                        if let Some(orient) = get_attr_str(e.attributes(), b"orientation") {
+                            ps.orientation = match orient {
+                                "landscape" => Some(crate::worksheet::Orientation::Landscape),
+                                "portrait" => Some(crate::worksheet::Orientation::Portrait),
+                                _ => None,
+                            };
+                        }
+                        ps.fit_to_width = get_attr(e.attributes(), b"fitToWidth")
+                            .and_then(|v| atoi_simd::parse::<u16>(v).ok());
+                        ps.fit_to_height = get_attr(e.attributes(), b"fitToHeight")
+                            .and_then(|v| atoi_simd::parse::<u16>(v).ok());
+                        ps.black_and_white = get_attr_str(e.attributes(), b"blackAndWhite")
+                            .map_or(false, |v| v == "1" || v == "true");
+                        ps.first_page_number = get_attr(e.attributes(), b"firstPageNumber")
+                            .and_then(|v| atoi_simd::parse::<u16>(v).ok());
+                    }
+                    b"headerFooter" => {
+                        in_header_footer = true;
+                        has_print_settings = true;
+                    }
+                    b"oddHeader" if in_header_footer => {
+                        in_odd_header = true;
+                        odd_header_text.clear();
+                    }
+                    b"oddFooter" if in_header_footer => {
+                        in_odd_footer = true;
+                        odd_footer_text.clear();
+                    }
+                    b"rowBreaks" => {
+                        in_row_breaks = true;
+                        has_print_settings = true;
+                    }
+                    b"colBreaks" => {
+                        in_col_breaks = true;
+                        has_print_settings = true;
+                    }
+                    b"brk" => {
+                        let id = get_attr(e.attributes(), b"id")
+                            .and_then(|v| std::str::from_utf8(v).ok())
+                            .and_then(|s| s.parse::<u32>().ok());
+                        if let Some(id_val) = id {
+                            if in_row_breaks {
+                                ps.row_breaks.push(id_val - 1);
+                            } else if in_col_breaks {
+                                ps.col_breaks.push(id_val.saturating_sub(1) as ColNum);
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            Event::Text(e) => {
+                if in_odd_header {
+                    if let Ok(t) = e.unescape() { odd_header_text.push_str(&t); }
+                } else if in_odd_footer {
+                    if let Ok(t) = e.unescape() { odd_footer_text.push_str(&t); }
+                }
+            }
+            Event::End(e) => {
+                match e.local_name().as_ref() {
+                    b"oddHeader" => {
+                        in_odd_header = false;
+                        if !odd_header_text.is_empty() {
+                            ps.header = Some(odd_header_text.clone());
+                        }
+                    }
+                    b"oddFooter" => {
+                        in_odd_footer = false;
+                        if !odd_footer_text.is_empty() {
+                            ps.footer = Some(odd_footer_text.clone());
+                        }
+                    }
+                    b"headerFooter" => {
+                        in_header_footer = false;
+                    }
+                    b"rowBreaks" => {
+                        in_row_breaks = false;
+                    }
+                    b"colBreaks" => {
+                        in_col_breaks = false;
+                    }
                     _ => {}
                 }
             }
             Event::Eof => break,
             _ => {}
         }
+    }
+
+    if has_print_settings || fit_to_page {
+        ps.fit_to_page = fit_to_page;
+        meta.print_settings = Some(ps);
     }
 
     Ok((cells, meta))

@@ -1,7 +1,137 @@
 use crate::utility::{ColNum, RowNum};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ChartType { Bar, Column, Line, Pie, Scatter, Area, Doughnut, Radar, Stock }
+pub enum ChartType {
+    Bar, Column, Line, Pie, Scatter, Area, Doughnut, Radar, Stock, Bubble,
+    // 3D variants
+    Column3D, Bar3D, Line3D, Pie3D, Area3D,
+    // Surface
+    Surface, WireframeSurface,
+    // Map
+    Map,
+}
+
+/// Granularity level for map charts.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MapLevel {
+    /// Region-level (e.g., states/provinces)
+    Region,
+    /// Country-level
+    Country,
+}
+
+/// 3D view settings for 3D chart types and surface charts.
+#[derive(Debug, Clone, Copy)]
+pub struct View3D {
+    pub rot_x: i16,
+    pub rot_y: i16,
+    pub perspective: u8,
+    pub right_angle_axes: bool,
+}
+
+impl Default for View3D {
+    fn default() -> Self {
+        Self { rot_x: 15, rot_y: 20, perspective: 30, right_angle_axes: true }
+    }
+}
+
+/// Tick mark style for axes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TickMark {
+    None,
+    Inside,
+    Outside,
+    Cross,
+}
+
+/// Gridline style for axes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GridlineStyle {
+    None,
+    Solid,
+    Dash,
+    Dot,
+}
+
+/// Axis formatting options.
+#[derive(Debug, Clone)]
+pub struct AxisFormat {
+    pub num_format: Option<String>,
+    pub font: Option<String>,
+    pub font_size: Option<f64>,
+    pub tick_marks: Option<TickMark>,
+    pub gridline_style: Option<GridlineStyle>,
+}
+
+impl AxisFormat {
+    pub fn new() -> Self {
+        Self { num_format: None, font: None, font_size: None, tick_marks: None, gridline_style: None }
+    }
+    pub fn set_num_format(&mut self, fmt: &str) -> &mut Self { self.num_format = Some(fmt.into()); self }
+    pub fn set_font(&mut self, font: &str) -> &mut Self { self.font = Some(font.into()); self }
+    pub fn set_font_size(&mut self, size: f64) -> &mut Self { self.font_size = Some(size); self }
+    pub fn set_tick_marks(&mut self, tm: TickMark) -> &mut Self { self.tick_marks = Some(tm); self }
+    pub fn set_gridline_style(&mut self, gs: GridlineStyle) -> &mut Self { self.gridline_style = Some(gs); self }
+}
+
+/// Plot area formatting options.
+#[derive(Debug, Clone)]
+pub struct PlotAreaFormat {
+    pub fill: Option<[u8; 3]>,
+    pub border: Option<[u8; 3]>,
+    pub gradient: Option<Vec<([u8; 3], f64)>>, // (color, position) pairs
+}
+
+impl PlotAreaFormat {
+    pub fn new() -> Self {
+        Self { fill: None, border: None, gradient: None }
+    }
+    pub fn set_fill(&mut self, rgb: [u8; 3]) -> &mut Self { self.fill = Some(rgb); self }
+    pub fn set_border(&mut self, rgb: [u8; 3]) -> &mut Self { self.border = Some(rgb); self }
+    pub fn set_gradient(&mut self, stops: Vec<([u8; 3], f64)>) -> &mut Self { self.gradient = Some(stops); self }
+}
+
+/// Dash style for series lines.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DashStyle {
+    Solid,
+    Dash,
+    Dot,
+    DashDot,
+    LongDash,
+    LongDashDot,
+}
+
+/// Error bar type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ErrorBarType {
+    Both,
+    Plus,
+    Minus,
+}
+
+/// Error bar value type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ErrorBarValueType {
+    FixedValue,
+    Percentage,
+    StandardDeviation,
+    StandardError,
+}
+
+/// Error bar configuration for a chart series.
+#[derive(Debug, Clone)]
+pub struct ErrorBar {
+    pub bar_type: ErrorBarType,
+    pub value_type: ErrorBarValueType,
+    pub value: f64,
+}
+
+impl ErrorBar {
+    pub fn new(bar_type: ErrorBarType, value_type: ErrorBarValueType, value: f64) -> Self {
+        Self { bar_type, value_type, value }
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub enum LegendPosition { Top, Bottom, Left, Right, None }
@@ -27,6 +157,12 @@ pub struct ChartSeries {
     pub(crate) marker_size: Option<u8>,
     pub(crate) color: Option<[u8; 3]>,
     pub(crate) point_colors: Vec<(usize, [u8; 3])>,
+    pub(crate) bubble_sizes: Option<String>,
+    // Series formatting (Task 37)
+    pub(crate) line_width: Option<f64>,
+    pub(crate) dash_style: Option<DashStyle>,
+    pub(crate) gradient: Option<Vec<([u8; 3], f64)>>,
+    pub(crate) error_bars: Option<ErrorBar>,
 }
 
 impl ChartSeries {
@@ -35,7 +171,8 @@ impl ChartSeries {
             secondary_axis: false, data_labels: false,
             trendline: None, trendline_display_rsquared: false, trendline_display_equation: false,
             chart_type_override: None, marker: None, marker_size: None,
-            color: None, point_colors: Vec::new() }
+            color: None, point_colors: Vec::new(), bubble_sizes: None,
+            line_width: None, dash_style: None, gradient: None, error_bars: None }
     }
     pub fn set_values(&mut self, range: &str) -> &mut Self { self.values = range.into(); self }
     pub fn set_categories(&mut self, range: &str) -> &mut Self { self.categories = Some(range.into()); self }
@@ -54,6 +191,25 @@ impl ChartSeries {
     pub fn set_point_color(&mut self, index: usize, c: impl crate::format::IntoColor) -> &mut Self {
         self.point_colors.push((index, c.into_color().to_rgb())); self
     }
+    /// Set the bubble sizes range reference for bubble charts.
+    pub fn set_bubble_sizes(&mut self, range: &str) -> &mut Self { self.bubble_sizes = Some(range.into()); self }
+    /// Set the line width in points.
+    pub fn set_line_width(&mut self, width: f64) -> &mut Self { self.line_width = Some(width); self }
+    /// Set the dash style for the series line.
+    pub fn set_dash_style(&mut self, style: DashStyle) -> &mut Self { self.dash_style = Some(style); self }
+    /// Set a gradient fill for the series (list of (color, position) pairs).
+    pub fn set_gradient(&mut self, stops: Vec<([u8; 3], f64)>) -> &mut Self { self.gradient = Some(stops); self }
+    /// Set error bars on this series.
+    pub fn set_error_bars(&mut self, error_bar: ErrorBar) -> &mut Self { self.error_bars = Some(error_bar); self }
+
+    // ── Read accessors ──
+
+    /// Returns the values range reference.
+    pub fn values(&self) -> &str { &self.values }
+    /// Returns the categories range reference, if set.
+    pub fn categories(&self) -> Option<&str> { self.categories.as_deref() }
+    /// Returns the series name, if set.
+    pub fn name(&self) -> Option<&str> { self.name.as_deref() }
 }
 
 #[derive(Debug, Clone)]
@@ -82,6 +238,20 @@ pub struct Chart {
     pub(crate) pivot_source: Option<PivotChartSource>,
     /// Pre-computed pivot chart series (populated at save time from pivot cache)
     pub(crate) pivot_series: Vec<PivotChartSeriesData>,
+    // 3D view settings (Task 33)
+    pub(crate) view3d: Option<View3D>,
+    // Chart style (Task 35)
+    pub(crate) style: Option<u8>,
+    // Axis formatting (Task 36)
+    pub(crate) x_axis_format: Option<AxisFormat>,
+    pub(crate) y_axis_format: Option<AxisFormat>,
+    // Plot area formatting (Task 37)
+    pub(crate) plot_area_format: Option<PlotAreaFormat>,
+    // Map chart settings (Task 32)
+    pub(crate) map_level: MapLevel,
+    // Chart accessories (Task 38)
+    pub(crate) drop_lines: bool,
+    pub(crate) high_low_lines: bool,
 }
 
 /// Pre-computed series data for a pivot chart, generated from pivot cache at save time.
@@ -123,6 +293,14 @@ impl Chart {
             x_axis_reverse: false, y_axis_reverse: false,
             pivot_source: None,
             pivot_series: Vec::new(),
+            view3d: None,
+            style: None,
+            x_axis_format: None,
+            y_axis_format: None,
+            plot_area_format: None,
+            map_level: MapLevel::Country,
+            drop_lines: false,
+            high_low_lines: false,
         }
     }
 
@@ -145,6 +323,30 @@ impl Chart {
     pub fn set_x_axis_reverse(&mut self) -> &mut Self { self.x_axis_reverse = true; self }
     pub fn set_y_axis_reverse(&mut self) -> &mut Self { self.y_axis_reverse = true; self }
 
+    /// Set 3D view settings for 3D chart types.
+    pub fn set_view3d(&mut self, view: View3D) -> &mut Self { self.view3d = Some(view); self }
+
+    /// Set the chart style (1-48).
+    pub fn set_style(&mut self, n: u8) -> &mut Self { self.style = Some(n); self }
+
+    /// Set X axis formatting.
+    pub fn set_x_axis_format(&mut self, fmt: AxisFormat) -> &mut Self { self.x_axis_format = Some(fmt); self }
+
+    /// Set Y axis formatting.
+    pub fn set_y_axis_format(&mut self, fmt: AxisFormat) -> &mut Self { self.y_axis_format = Some(fmt); self }
+
+    /// Set plot area formatting.
+    pub fn set_plot_area_format(&mut self, fmt: PlotAreaFormat) -> &mut Self { self.plot_area_format = Some(fmt); self }
+
+    /// Set map chart granularity level.
+    pub fn set_map_level(&mut self, level: MapLevel) -> &mut Self { self.map_level = level; self }
+
+    /// Enable drop lines (for line/area charts).
+    pub fn set_drop_lines(&mut self, v: bool) -> &mut Self { self.drop_lines = v; self }
+
+    /// Enable high-low lines (for line/stock charts).
+    pub fn set_high_low_lines(&mut self, v: bool) -> &mut Self { self.high_low_lines = v; self }
+
     /// Link this chart to a pivot table, making it a pivot chart.
     /// The pivot table must exist on the specified sheet.
     /// Drop zones and expand/collapse buttons are enabled by default.
@@ -163,6 +365,21 @@ impl Chart {
 
     /// Returns true if this chart is linked to a pivot table.
     pub fn is_pivot_chart(&self) -> bool { self.pivot_source.is_some() }
+
+    // ── Read accessors ──
+
+    /// Returns the chart type.
+    pub fn chart_type(&self) -> ChartType { self.chart_type }
+    /// Returns the chart series.
+    pub fn series(&self) -> &[ChartSeries] { &self.series }
+    /// Returns the chart title, if set.
+    pub fn title(&self) -> Option<&str> { self.title.as_deref() }
+    /// Returns the X axis name, if set.
+    pub fn x_axis_name(&self) -> Option<&str> { self.x_axis_name.as_deref() }
+    /// Returns the Y axis name, if set.
+    pub fn y_axis_name(&self) -> Option<&str> { self.y_axis_name.as_deref() }
+    /// Returns the legend position.
+    pub fn legend_position(&self) -> LegendPosition { self.legend_pos }
 }
 
 impl PivotChartSource {

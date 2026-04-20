@@ -109,7 +109,7 @@ fn main() -> Result<()> {
     }
     // Week headers
     for w in 0..num_weeks {
-        let week_start = proj_start + (w as f64 * 7.0) as i64;
+        let _week_start = proj_start + (w as f64 * 7.0) as i64;
         let label = format!("W{}", w + 1);
         ws.write_with_format(r, (7 + w) as u16, label.as_str(), &week_hdr)?;
     }
@@ -143,7 +143,7 @@ fn main() -> Result<()> {
         for task in &phase.tasks {
             let ts = serial(task.start.0, task.start.1, task.start.2);
             let te = serial(task.end.0, task.end.1, task.end.2);
-            let duration = (te - ts + 1).max(1);
+            let _duration = (te - ts + 1).max(1);
 
             ws.write_with_format(r, 1, task.name, &task_fmt)?;
             ws.write_with_format(r, 2, task.owner, &center_fmt)?;

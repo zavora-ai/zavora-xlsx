@@ -513,4 +513,4 @@ cargo test --lib              # Library tests only
 
 ## License
 
-MIT OR Apache-2.0
+Apache-2.0

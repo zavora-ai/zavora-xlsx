@@ -60,6 +60,41 @@ impl Worksheet {
         self.treemap_charts.push(tc); self.dirty = true; Ok(self)
     }
 
+    /// Insert a waterfall chart (Excel 2016+ ChartEx format).
+    pub fn insert_waterfall(&mut self, row: RowNum, col: ColNum, chart: &crate::features::chartex::WaterfallChart) -> crate::Result<&mut Self> {
+        let mut c = chart.clone(); c.row = row; c.col = col;
+        self.chartex_charts.push(crate::features::chartex::ChartExChart::Waterfall(c));
+        self.dirty = true; Ok(self)
+    }
+
+    /// Insert a funnel chart (Excel 2016+ ChartEx format).
+    pub fn insert_funnel(&mut self, row: RowNum, col: ColNum, chart: &crate::features::chartex::FunnelChart) -> crate::Result<&mut Self> {
+        let mut c = chart.clone(); c.row = row; c.col = col;
+        self.chartex_charts.push(crate::features::chartex::ChartExChart::Funnel(c));
+        self.dirty = true; Ok(self)
+    }
+
+    /// Insert a sunburst chart (Excel 2016+ ChartEx format).
+    pub fn insert_sunburst(&mut self, row: RowNum, col: ColNum, chart: &crate::features::chartex::SunburstChart) -> crate::Result<&mut Self> {
+        let mut c = chart.clone(); c.row = row; c.col = col;
+        self.chartex_charts.push(crate::features::chartex::ChartExChart::Sunburst(c));
+        self.dirty = true; Ok(self)
+    }
+
+    /// Insert a histogram chart (Excel 2016+ ChartEx format).
+    pub fn insert_histogram(&mut self, row: RowNum, col: ColNum, chart: &crate::features::chartex::HistogramChart) -> crate::Result<&mut Self> {
+        let mut c = chart.clone(); c.row = row; c.col = col;
+        self.chartex_charts.push(crate::features::chartex::ChartExChart::Histogram(c));
+        self.dirty = true; Ok(self)
+    }
+
+    /// Insert a box & whisker chart (Excel 2016+ ChartEx format).
+    pub fn insert_box_whisker(&mut self, row: RowNum, col: ColNum, chart: &crate::features::chartex::BoxWhiskerChart) -> crate::Result<&mut Self> {
+        let mut c = chart.clone(); c.row = row; c.col = col;
+        self.chartex_charts.push(crate::features::chartex::ChartExChart::BoxWhisker(c));
+        self.dirty = true; Ok(self)
+    }
+
     pub fn protect(&mut self) -> &mut Self {
         self.protection = Some(SheetProtection::default()); self.dirty = true; self
     }

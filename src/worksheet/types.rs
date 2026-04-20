@@ -38,6 +38,13 @@ impl Default for SheetProtection {
     }
 }
 
+impl SheetProtection {
+    /// Returns the legacy password hash, if set.
+    pub fn password_hash(&self) -> Option<&str> {
+        self.password_hash.as_deref()
+    }
+}
+
 /// Print settings for a worksheet.
 #[derive(Debug, Clone, Default)]
 pub struct PrintSettings {

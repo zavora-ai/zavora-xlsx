@@ -1,5 +1,9 @@
 //! Writer for ChartEx (treemap, sunburst, etc.) — Excel 2016+ cx: namespace.
 
+use crate::features::chartex::{
+    BoxWhiskerChart, ChartExChart, FunnelChart, HistogramChart, SunburstChart,
+    WaterfallChart, WaterfallPointType,
+};
 use crate::features::treemap::TreemapChart;
 use crate::xml::xml_writer::XmlWriter;
 
@@ -115,6 +119,430 @@ pub fn write_chartex_xml(chart: &TreemapChart, _chart_id: usize) -> Vec<u8> {
     w.start_tag("cx:legend", &[("pos", "b"), ("align", "ctr"), ("overlay", "0")]);
     w.end_tag("cx:legend");
 
+    w.end_tag("cx:chart");
+    w.end_tag("cx:chartSpace");
+    w.into_bytes()
+}
+
+/// Write a chartEx XML file for any ChartEx chart type.
+pub fn write_chartex_generic_xml(chart: &ChartExChart, _chart_id: usize) -> Vec<u8> {
+    match chart {
+        ChartExChart::Waterfall(c) => write_waterfall_xml(c),
+        ChartExChart::Funnel(c) => write_funnel_xml(c),
+        ChartExChart::Sunburst(c) => write_sunburst_xml(c),
+        ChartExChart::Histogram(c) => write_histogram_xml(c),
+        ChartExChart::BoxWhisker(c) => write_box_whisker_xml(c),
+    }
+}
+
+fn chartex_header(w: &mut XmlWriter) {
+    w.declaration();
+    w.start_tag("cx:chartSpace", &[
+        ("xmlns:cx", "http://schemas.microsoft.com/office/drawing/2014/chartex"),
+        ("xmlns:a", "http://schemas.openxmlformats.org/drawingml/2006/main"),
+        ("xmlns:r", "http://schemas.openxmlformats.org/officeDocument/2006/relationships"),
+    ]);
+}
+
+fn write_chartex_title(w: &mut XmlWriter, title: &Option<String>) {
+    if let Some(title) = title {
+        w.start_tag("cx:title", &[("pos", "t"), ("align", "ctr"), ("overlay", "0")]);
+        w.start_tag("cx:tx", &[]);
+        w.start_tag("cx:rich", &[]);
+        w.empty_tag("a:bodyPr", &[]);
+        w.empty_tag("a:lstStyle", &[]);
+        w.start_tag("a:p", &[]);
+        w.start_tag("a:r", &[]);
+        w.text_element("a:t", &[], title);
+        w.end_tag("a:r");
+        w.end_tag("a:p");
+        w.end_tag("cx:rich");
+        w.end_tag("cx:tx");
+        w.end_tag("cx:title");
+    }
+}
+
+fn write_waterfall_xml(chart: &WaterfallChart) -> Vec<u8> {
+    let mut w = XmlWriter::new();
+    chartex_header(&mut w);
+
+    // Chart Data
+    w.start_tag("cx:chartData", &[]);
+    w.start_tag("cx:data", &[("id", "0")]);
+
+    // String dimension (categories)
+    w.start_tag("cx:strDim", &[("type", "cat")]);
+    let pt_count = chart.categories.len().to_string();
+    w.start_tag("cx:lvl", &[("ptCount", &pt_count)]);
+    for (i, cat) in chart.categories.iter().enumerate() {
+        let idx = i.to_string();
+        w.start_tag("cx:pt", &[("idx", &idx)]);
+        w.text(cat);
+        w.end_tag("cx:pt");
+    }
+    w.end_tag("cx:lvl");
+    w.end_tag("cx:strDim");
+
+    // Numeric dimension (values)
+    w.start_tag("cx:numDim", &[("type", "val")]);
+    w.start_tag("cx:lvl", &[("ptCount", &pt_count), ("formatCode", "General")]);
+    for (i, val) in chart.values.iter().enumerate() {
+        let idx = i.to_string();
+        let vs = format!("{val}");
+        w.start_tag("cx:pt", &[("idx", &idx)]);
+        w.text(&vs);
+        w.end_tag("cx:pt");
+    }
+    w.end_tag("cx:lvl");
+    w.end_tag("cx:numDim");
+
+    w.end_tag("cx:data");
+    w.end_tag("cx:chartData");
+
+    // Chart
+    w.start_tag("cx:chart", &[]);
+    write_chartex_title(&mut w, &chart.title);
+
+    w.start_tag("cx:plotArea", &[]);
+    w.start_tag("cx:plotAreaRegion", &[]);
+
+    w.start_tag("cx:series", &[("layoutId", "waterfall"), ("uniqueId", "{00000000-0000-0000-0000-000000000002}")]);
+
+    if let Some(ref name) = chart.series_name {
+        w.start_tag("cx:tx", &[]);
+        w.start_tag("cx:txData", &[]);
+        w.text_element("cx:v", &[], name);
+        w.end_tag("cx:txData");
+        w.end_tag("cx:tx");
+    }
+
+    // Data point categorization (total, increase, decrease)
+    for (i, pt_type) in chart.point_types.iter().enumerate() {
+        if *pt_type == WaterfallPointType::Total {
+            let idx = i.to_string();
+            w.start_tag("cx:dataPt", &[("idx", &idx)]);
+            w.start_tag("cx:layoutPr", &[]);
+            w.empty_tag("cx:subtotal", &[]);
+            w.end_tag("cx:layoutPr");
+            w.end_tag("cx:dataPt");
+        }
+    }
+
+    w.empty_tag("cx:dataId", &[("val", "0")]);
+    w.end_tag("cx:series");
+    w.end_tag("cx:plotAreaRegion");
+
+    // Axes
+    w.start_tag("cx:axis", &[("id", "0")]);
+    w.empty_tag("cx:catScaling", &[]);
+    w.end_tag("cx:axis");
+    w.start_tag("cx:axis", &[("id", "1")]);
+    w.empty_tag("cx:valScaling", &[]);
+    w.end_tag("cx:axis");
+
+    w.end_tag("cx:plotArea");
+    w.end_tag("cx:chart");
+    w.end_tag("cx:chartSpace");
+    w.into_bytes()
+}
+
+fn write_funnel_xml(chart: &FunnelChart) -> Vec<u8> {
+    let mut w = XmlWriter::new();
+    chartex_header(&mut w);
+
+    // Chart Data
+    w.start_tag("cx:chartData", &[]);
+    w.start_tag("cx:data", &[("id", "0")]);
+
+    // String dimension (categories)
+    w.start_tag("cx:strDim", &[("type", "cat")]);
+    let pt_count = chart.categories.len().to_string();
+    w.start_tag("cx:lvl", &[("ptCount", &pt_count)]);
+    for (i, cat) in chart.categories.iter().enumerate() {
+        let idx = i.to_string();
+        w.start_tag("cx:pt", &[("idx", &idx)]);
+        w.text(cat);
+        w.end_tag("cx:pt");
+    }
+    w.end_tag("cx:lvl");
+    w.end_tag("cx:strDim");
+
+    // Numeric dimension (values)
+    w.start_tag("cx:numDim", &[("type", "val")]);
+    w.start_tag("cx:lvl", &[("ptCount", &pt_count), ("formatCode", "General")]);
+    for (i, val) in chart.values.iter().enumerate() {
+        let idx = i.to_string();
+        let vs = format!("{val}");
+        w.start_tag("cx:pt", &[("idx", &idx)]);
+        w.text(&vs);
+        w.end_tag("cx:pt");
+    }
+    w.end_tag("cx:lvl");
+    w.end_tag("cx:numDim");
+
+    w.end_tag("cx:data");
+    w.end_tag("cx:chartData");
+
+    // Chart
+    w.start_tag("cx:chart", &[]);
+    write_chartex_title(&mut w, &chart.title);
+
+    w.start_tag("cx:plotArea", &[]);
+    w.start_tag("cx:plotAreaRegion", &[]);
+
+    w.start_tag("cx:series", &[("layoutId", "funnel"), ("uniqueId", "{00000000-0000-0000-0000-000000000003}")]);
+
+    if let Some(ref name) = chart.series_name {
+        w.start_tag("cx:tx", &[]);
+        w.start_tag("cx:txData", &[]);
+        w.text_element("cx:v", &[], name);
+        w.end_tag("cx:txData");
+        w.end_tag("cx:tx");
+    }
+
+    w.empty_tag("cx:dataId", &[("val", "0")]);
+    w.end_tag("cx:series");
+    w.end_tag("cx:plotAreaRegion");
+    w.end_tag("cx:plotArea");
+
+    w.end_tag("cx:chart");
+    w.end_tag("cx:chartSpace");
+    w.into_bytes()
+}
+
+fn write_sunburst_xml(chart: &SunburstChart) -> Vec<u8> {
+    let mut w = XmlWriter::new();
+    chartex_header(&mut w);
+
+    // Chart Data
+    w.start_tag("cx:chartData", &[]);
+    w.start_tag("cx:data", &[("id", "0")]);
+
+    // String dimension (categories) — multi-level hierarchy
+    w.start_tag("cx:strDim", &[("type", "cat")]);
+    // Each level is a <cx:lvl> element; outermost level first in the XML
+    for level in chart.levels.iter().rev() {
+        let pt_count = level.labels.len().to_string();
+        w.start_tag("cx:lvl", &[("ptCount", &pt_count)]);
+        for (i, label) in level.labels.iter().enumerate() {
+            let idx = i.to_string();
+            w.start_tag("cx:pt", &[("idx", &idx)]);
+            w.text(label);
+            w.end_tag("cx:pt");
+        }
+        w.end_tag("cx:lvl");
+    }
+    w.end_tag("cx:strDim");
+
+    // Numeric dimension (values/sizes)
+    let val_count = chart.values.len().to_string();
+    w.start_tag("cx:numDim", &[("type", "size")]);
+    w.start_tag("cx:lvl", &[("ptCount", &val_count), ("formatCode", "General")]);
+    for (i, val) in chart.values.iter().enumerate() {
+        let idx = i.to_string();
+        let vs = format!("{val}");
+        w.start_tag("cx:pt", &[("idx", &idx)]);
+        w.text(&vs);
+        w.end_tag("cx:pt");
+    }
+    w.end_tag("cx:lvl");
+    w.end_tag("cx:numDim");
+
+    w.end_tag("cx:data");
+    w.end_tag("cx:chartData");
+
+    // Chart
+    w.start_tag("cx:chart", &[]);
+    write_chartex_title(&mut w, &chart.title);
+
+    w.start_tag("cx:plotArea", &[]);
+    w.start_tag("cx:plotAreaRegion", &[]);
+
+    w.start_tag("cx:series", &[("layoutId", "sunburst"), ("uniqueId", "{00000000-0000-0000-0000-000000000004}")]);
+
+    if let Some(ref name) = chart.series_name {
+        w.start_tag("cx:tx", &[]);
+        w.start_tag("cx:txData", &[]);
+        w.text_element("cx:v", &[], name);
+        w.end_tag("cx:txData");
+        w.end_tag("cx:tx");
+    }
+
+    w.empty_tag("cx:dataId", &[("val", "0")]);
+    w.end_tag("cx:series");
+    w.end_tag("cx:plotAreaRegion");
+    w.end_tag("cx:plotArea");
+
+    // Legend
+    w.start_tag("cx:legend", &[("pos", "b"), ("align", "ctr"), ("overlay", "0")]);
+    w.end_tag("cx:legend");
+
+    w.end_tag("cx:chart");
+    w.end_tag("cx:chartSpace");
+    w.into_bytes()
+}
+
+fn write_histogram_xml(chart: &HistogramChart) -> Vec<u8> {
+    let mut w = XmlWriter::new();
+    chartex_header(&mut w);
+
+    // Chart Data
+    w.start_tag("cx:chartData", &[]);
+    w.start_tag("cx:data", &[("id", "0")]);
+
+    // Numeric dimension (values)
+    let pt_count = chart.values.len().to_string();
+    w.start_tag("cx:numDim", &[("type", "val")]);
+    w.start_tag("cx:lvl", &[("ptCount", &pt_count), ("formatCode", "General")]);
+    for (i, val) in chart.values.iter().enumerate() {
+        let idx = i.to_string();
+        let vs = format!("{val}");
+        w.start_tag("cx:pt", &[("idx", &idx)]);
+        w.text(&vs);
+        w.end_tag("cx:pt");
+    }
+    w.end_tag("cx:lvl");
+    w.end_tag("cx:numDim");
+
+    w.end_tag("cx:data");
+    w.end_tag("cx:chartData");
+
+    // Chart
+    w.start_tag("cx:chart", &[]);
+    write_chartex_title(&mut w, &chart.title);
+
+    w.start_tag("cx:plotArea", &[]);
+    w.start_tag("cx:plotAreaRegion", &[]);
+
+    let layout_id = if chart.is_pareto { "paretoLine" } else { "clusteredColumn" };
+    w.start_tag("cx:series", &[("layoutId", layout_id), ("uniqueId", "{00000000-0000-0000-0000-000000000005}")]);
+
+    if let Some(ref name) = chart.series_name {
+        w.start_tag("cx:tx", &[]);
+        w.start_tag("cx:txData", &[]);
+        w.text_element("cx:v", &[], name);
+        w.end_tag("cx:txData");
+        w.end_tag("cx:tx");
+    }
+
+    w.empty_tag("cx:dataId", &[("val", "0")]);
+
+    // Binning configuration
+    w.start_tag("cx:layoutPr", &[]);
+    let mut bin_attrs: Vec<(&str, String)> = Vec::new();
+    if let Some(count) = chart.bin_count {
+        bin_attrs.push(("binCount", count.to_string()));
+    }
+    if let Some(width) = chart.bin_width {
+        bin_attrs.push(("binWidth", format!("{width}")));
+    }
+    if bin_attrs.is_empty() {
+        w.empty_tag("cx:binning", &[]);
+    } else {
+        let attrs: Vec<(&str, &str)> = bin_attrs.iter().map(|(k, v)| (*k, v.as_str())).collect();
+        w.empty_tag("cx:binning", &attrs);
+    }
+    w.end_tag("cx:layoutPr");
+
+    w.end_tag("cx:series");
+    w.end_tag("cx:plotAreaRegion");
+
+    // Axes
+    w.start_tag("cx:axis", &[("id", "0")]);
+    w.empty_tag("cx:catScaling", &[]);
+    w.end_tag("cx:axis");
+    w.start_tag("cx:axis", &[("id", "1")]);
+    w.empty_tag("cx:valScaling", &[]);
+    w.end_tag("cx:axis");
+
+    w.end_tag("cx:plotArea");
+    w.end_tag("cx:chart");
+    w.end_tag("cx:chartSpace");
+    w.into_bytes()
+}
+
+fn write_box_whisker_xml(chart: &BoxWhiskerChart) -> Vec<u8> {
+    let mut w = XmlWriter::new();
+    chartex_header(&mut w);
+
+    // Chart Data — flatten all data sets into a single data block
+    w.start_tag("cx:chartData", &[]);
+    w.start_tag("cx:data", &[("id", "0")]);
+
+    // String dimension (categories)
+    w.start_tag("cx:strDim", &[("type", "cat")]);
+    let pt_count = chart.categories.len().to_string();
+    w.start_tag("cx:lvl", &[("ptCount", &pt_count)]);
+    for (i, cat) in chart.categories.iter().enumerate() {
+        let idx = i.to_string();
+        w.start_tag("cx:pt", &[("idx", &idx)]);
+        w.text(cat);
+        w.end_tag("cx:pt");
+    }
+    w.end_tag("cx:lvl");
+    w.end_tag("cx:strDim");
+
+    // Numeric dimension (values) — all data points flattened
+    let all_values: Vec<&f64> = chart.data_sets.iter().flat_map(|ds| ds.iter()).collect();
+    let val_count = all_values.len().to_string();
+    w.start_tag("cx:numDim", &[("type", "val")]);
+    w.start_tag("cx:lvl", &[("ptCount", &val_count), ("formatCode", "General")]);
+    for (i, val) in all_values.iter().enumerate() {
+        let idx = i.to_string();
+        let vs = format!("{val}");
+        w.start_tag("cx:pt", &[("idx", &idx)]);
+        w.text(&vs);
+        w.end_tag("cx:pt");
+    }
+    w.end_tag("cx:lvl");
+    w.end_tag("cx:numDim");
+
+    w.end_tag("cx:data");
+    w.end_tag("cx:chartData");
+
+    // Chart
+    w.start_tag("cx:chart", &[]);
+    write_chartex_title(&mut w, &chart.title);
+
+    w.start_tag("cx:plotArea", &[]);
+    w.start_tag("cx:plotAreaRegion", &[]);
+
+    w.start_tag("cx:series", &[("layoutId", "boxWhisker"), ("uniqueId", "{00000000-0000-0000-0000-000000000006}")]);
+
+    if let Some(ref name) = chart.series_name {
+        w.start_tag("cx:tx", &[]);
+        w.start_tag("cx:txData", &[]);
+        w.text_element("cx:v", &[], name);
+        w.end_tag("cx:txData");
+        w.end_tag("cx:tx");
+    }
+
+    w.empty_tag("cx:dataId", &[("val", "0")]);
+
+    // Layout properties for box & whisker options
+    w.start_tag("cx:layoutPr", &[]);
+    let outliers = if chart.show_outliers { "1" } else { "0" };
+    let mean = if chart.show_mean_markers { "1" } else { "0" };
+    let inner = if chart.show_inner_points { "1" } else { "0" };
+    w.empty_tag("cx:visibility", &[
+        ("outliers", outliers),
+        ("meanMarker", mean),
+        ("nonoutliers", inner),
+    ]);
+    w.end_tag("cx:layoutPr");
+
+    w.end_tag("cx:series");
+    w.end_tag("cx:plotAreaRegion");
+
+    // Axes
+    w.start_tag("cx:axis", &[("id", "0")]);
+    w.empty_tag("cx:catScaling", &[]);
+    w.end_tag("cx:axis");
+    w.start_tag("cx:axis", &[("id", "1")]);
+    w.empty_tag("cx:valScaling", &[]);
+    w.end_tag("cx:axis");
+
+    w.end_tag("cx:plotArea");
     w.end_tag("cx:chart");
     w.end_tag("cx:chartSpace");
     w.into_bytes()

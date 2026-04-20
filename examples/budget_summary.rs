@@ -88,10 +88,10 @@ fn main() -> Result<()> {
     let navy = "#2B579A";
     let dark_navy = "#1B2A4A";
     let gray = "#808080";
-    let light_gray = "#F2F2F2";
+    let _light_gray = "#F2F2F2";
     let border = "#D6DCE4";
-    let red_text = "#C00000";
-    let green_text = "#0D7C3D";
+    let _red_text = "#C00000";
+    let _green_text = "#0D7C3D";
 
     // Styles
     let title = Format::new().bold().font_size(26.0).font_color(dark_navy).align(Align::Left).align(Align::Bottom);

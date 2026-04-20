@@ -106,7 +106,7 @@ fn generate_invoice(inv: &Invoice, doc_type: &str) -> Result<()> {
     for (c, w) in widths.iter().enumerate() { ws.set_column_width(c as u16, *w)?; }
 
     // ── Styles ──
-    let spacer = Format::new().font_size(4.0);
+    let _spacer = Format::new().font_size(4.0);
     let doc_title = Format::new().bold().font_size(28.0).font_color(navy).align(Align::Left).align(Align::Bottom);
     let doc_number = Format::new().font_size(12.0).font_color(accent).align(Align::Right).align(Align::Bottom);
     let section_label = Format::new().bold().font_size(9.0).font_color("#667085").align(Align::Left);

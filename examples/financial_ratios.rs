@@ -107,7 +107,7 @@ fn main() -> Result<()> {
     for (c, y) in years.iter().enumerate() { ws2.write_with_format(liq_row + 1, (c+7) as u16, *y, &hdr)?; }
 
     let liq_start = liq_row + 2;
-    let liq_ratios: Vec<(&str, &str, &str)> = vec![
+    let _liq_ratios: Vec<(&str, &str, &str)> = vec![
         ("Current Ratio", "9", "11"),   // CA / CL
         ("Working Capital ($k)", "9", "11"), // CA - CL (special)
     ];

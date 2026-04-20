@@ -114,7 +114,8 @@ impl StreamingWorkbook {
         let sheet = &mut self.sheets[self.current_sheet];
         sheet.ensure_header();
         sheet.ensure_row(row)?;
-        sheet.write_cell_xml(row, col, &CellType::Formula { text: formula.to_string(), cached_number: None }, 0);
+        let text = formula.strip_prefix('=').unwrap_or(formula);
+        sheet.write_cell_xml(row, col, &CellType::Formula { text: text.to_string(), cached_number: None }, 0);
         Ok(())
     }
 
@@ -260,11 +261,10 @@ impl StreamingSheet {
                 if xf > 0 { w.start_tag("c", &[("r", &ref_str), ("s", &xf_s)]); }
                 else { w.start_tag("c", &[("r", &ref_str)]); }
                 w.text_element("f", &[], text);
-                if let Some(n) = cached_number {
-                    let mut v = String::new();
-                    let _ = write!(v, "{n}");
-                    w.text_element("v", &[], &v);
-                }
+                let n = cached_number.unwrap_or(0.0);
+                let mut v = String::new();
+                let _ = write!(v, "{n}");
+                w.text_element("v", &[], &v);
                 w.end_tag("c");
             }
             CellType::DateTime(serial) => {

@@ -15,7 +15,7 @@ use crate::worksheet::{Hyperlink, Orientation, PrintSettings, SheetProtection};
 use cells::write_cell;
 use validation::{write_data_validation, compute_dimension};
 
-pub struct SheetCells<'a> {
+pub(crate) struct SheetCells<'a> {
     pub cells: &'a BTreeMap<RowNum, BTreeMap<ColNum, (CellType, u32)>>,
     pub merge_ranges: &'a [(RowNum, ColNum, RowNum, ColNum)],
     pub col_widths: &'a BTreeMap<ColNum, f64>,
@@ -56,7 +56,7 @@ pub struct SheetCells<'a> {
 // write_sheet is the main orchestrator — kept in mod.rs as it coordinates all submodules.
 // At 350 lines it's the largest single function but each section is clearly commented.
 
-pub fn write_sheet(data: &SheetCells<'_>) -> Vec<u8> {
+pub(crate) fn write_sheet(data: &SheetCells<'_>) -> Vec<u8> {
     let mut w = XmlWriter::new();
     w.declaration();
     w.start_tag("worksheet", &[
@@ -191,6 +191,19 @@ pub fn write_sheet(data: &SheetCells<'_>) -> Vec<u8> {
         }
         if prot.objects { attrs.push(("objects", "1")); }
         if prot.scenarios { attrs.push(("scenarios", "1")); }
+        if !prot.format_cells { attrs.push(("formatCells", "0")); }
+        if !prot.format_columns { attrs.push(("formatColumns", "0")); }
+        if !prot.format_rows { attrs.push(("formatRows", "0")); }
+        if !prot.insert_columns { attrs.push(("insertColumns", "0")); }
+        if !prot.insert_rows { attrs.push(("insertRows", "0")); }
+        if !prot.insert_hyperlinks { attrs.push(("insertHyperlinks", "0")); }
+        if !prot.delete_columns { attrs.push(("deleteColumns", "0")); }
+        if !prot.delete_rows { attrs.push(("deleteRows", "0")); }
+        if prot.select_locked_cells { attrs.push(("selectLockedCells", "1")); }
+        if !prot.sort { attrs.push(("sort", "0")); }
+        if !prot.auto_filter { attrs.push(("autoFilter", "0")); }
+        if !prot.pivot_tables { attrs.push(("pivotTables", "0")); }
+        if prot.select_unlocked_cells { attrs.push(("selectUnlockedCells", "1")); }
         w.empty_tag("sheetProtection", &attrs);
     }
 
@@ -200,7 +213,7 @@ pub fn write_sheet(data: &SheetCells<'_>) -> Vec<u8> {
             w.start_tag("protectedRanges", &[]);
             for (name, sqref, pw_hash) in &ps.protected_ranges {
                 let mut attrs: Vec<(&str, &str)> = vec![("sqref", sqref), ("name", name)];
-                if let Some(ref h) = pw_hash { attrs.push(("password", h)); }
+                if let Some(h) = pw_hash { attrs.push(("password", h)); }
                 w.empty_tag("protectedRange", &attrs);
             }
             w.end_tag("protectedRanges");

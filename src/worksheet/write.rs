@@ -42,30 +42,34 @@ impl Worksheet {
     pub fn write_formula(&mut self, row: RowNum, col: ColNum, formula: &str) -> crate::Result<&mut Self> {
         self.ensure_deserialized();
         self.dirty = true;
-        self.cells.entry(row).or_default().insert(col, (CellType::Formula { text: formula.to_string(), cached_number: None }, 0));
+        let text = formula.strip_prefix('=').unwrap_or(formula);
+        self.cells.entry(row).or_default().insert(col, (CellType::Formula { text: text.to_string(), cached_number: None }, 0));
         Ok(self)
     }
 
     pub fn write_formula_with_result(&mut self, row: RowNum, col: ColNum, formula: &str, result: f64) -> crate::Result<&mut Self> {
         self.ensure_deserialized();
         self.dirty = true;
-        self.cells.entry(row).or_default().insert(col, (CellType::Formula { text: formula.to_string(), cached_number: Some(result) }, 0));
+        let text = formula.strip_prefix('=').unwrap_or(formula);
+        self.cells.entry(row).or_default().insert(col, (CellType::Formula { text: text.to_string(), cached_number: Some(result) }, 0));
         Ok(self)
     }
 
     pub fn write_array_formula(&mut self, r1: RowNum, c1: ColNum, r2: RowNum, c2: ColNum, formula: &str) -> crate::Result<&mut Self> {
         self.ensure_deserialized();
         self.dirty = true;
+        let text = formula.strip_prefix('=').unwrap_or(formula);
         let range = format!("{}{}:{}{}", crate::utility::col_to_letter(c1), r1 + 1, crate::utility::col_to_letter(c2), r2 + 1);
-        self.cells.entry(r1).or_default().insert(c1, (CellType::ArrayFormula { text: formula.to_string(), range }, 0));
+        self.cells.entry(r1).or_default().insert(c1, (CellType::ArrayFormula { text: text.to_string(), range }, 0));
         Ok(self)
     }
 
     pub fn write_dynamic_formula(&mut self, row: RowNum, col: ColNum, formula: &str) -> crate::Result<&mut Self> {
         self.ensure_deserialized();
         self.dirty = true;
+        let text = formula.strip_prefix('=').unwrap_or(formula);
         let range = format!("{}{}", crate::utility::col_to_letter(col), row + 1);
-        self.cells.entry(row).or_default().insert(col, (CellType::DynamicFormula { text: formula.to_string(), range }, 0));
+        self.cells.entry(row).or_default().insert(col, (CellType::DynamicFormula { text: text.to_string(), range }, 0));
         Ok(self)
     }
 

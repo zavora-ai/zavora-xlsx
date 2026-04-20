@@ -1,6 +1,6 @@
 use crate::utility::{ColNum, RowNum};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ValidationRule {
     List(Vec<String>),
     ListRange(String),
@@ -11,7 +11,7 @@ pub enum ValidationRule {
     Custom(String),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ErrorStyle { Stop, Warning, Information }
 
 impl ErrorStyle {
@@ -48,4 +48,17 @@ impl DataValidation {
     pub fn set_error_message(&mut self, style: ErrorStyle, title: &str, msg: &str) -> &mut Self {
         self.error_style = style; self.error_title = Some(title.into()); self.error_message = Some(msg.into()); self
     }
+
+    // ── Read accessors ──
+
+    pub fn rule(&self) -> &ValidationRule { &self.rule }
+    pub fn input_title(&self) -> Option<&str> { self.input_title.as_deref() }
+    pub fn input_message(&self) -> Option<&str> { self.input_message.as_deref() }
+    pub fn error_style(&self) -> ErrorStyle { self.error_style }
+    pub fn error_title(&self) -> Option<&str> { self.error_title.as_deref() }
+    pub fn error_message(&self) -> Option<&str> { self.error_message.as_deref() }
+    pub fn first_row(&self) -> RowNum { self.first_row }
+    pub fn first_col(&self) -> ColNum { self.first_col }
+    pub fn last_row(&self) -> RowNum { self.last_row }
+    pub fn last_col(&self) -> ColNum { self.last_col }
 }

@@ -1,4 +1,5 @@
 pub mod chart;
+pub mod chartex;
 pub mod conditional;
 pub mod image;
 pub mod pivot;

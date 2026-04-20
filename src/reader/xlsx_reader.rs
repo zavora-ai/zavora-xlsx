@@ -12,6 +12,8 @@ use crate::reader::style_parser::ParsedStyles;
 use crate::zip::zip_reader::ZipReader;
 use crate::xml::xml_reader::get_attr;
 
+use crate::workbook::{DefinedName, DefinedNameScope};
+
 pub use crate::reader::sheet_reader::RawCell;
 
 pub struct SheetInfo {
@@ -27,6 +29,7 @@ pub struct XlsxData {
     #[allow(dead_code)]
     pub is_1904: bool,
     pub defined_names: Vec<(String, String)>,
+    pub scoped_defined_names: Vec<DefinedName>,
     pub properties: DocProperties,
 }
 
@@ -48,6 +51,7 @@ pub fn read_xlsx_from_zip<R: std::io::Read + std::io::Seek>(zip: &mut ZipReader<
     let mut sheets = Vec::new();
     let mut is_1904 = false;
     let mut defined_names = Vec::new();
+    let mut scoped_defined_names = Vec::new();
 
     if let Some(data) = zip.read_entry("xl/workbook.xml") {
         let data = data?;
@@ -58,6 +62,7 @@ pub fn read_xlsx_from_zip<R: std::io::Read + std::io::Seek>(zip: &mut ZipReader<
         let mut in_defined_name = false;
         let mut dn_name = String::new();
         let mut dn_value = String::new();
+        let mut dn_local_sheet_id: Option<usize> = None;
 
         loop {
             buf.clear();
@@ -87,6 +92,9 @@ pub fn read_xlsx_from_zip<R: std::io::Read + std::io::Seek>(zip: &mut ZipReader<
                             dn_name = get_attr(e.attributes(), b"name")
                                 .and_then(|v| std::str::from_utf8(v).ok())
                                 .unwrap_or("").to_string();
+                            dn_local_sheet_id = get_attr(e.attributes(), b"localSheetId")
+                                .and_then(|v| std::str::from_utf8(v).ok())
+                                .and_then(|v| v.parse::<usize>().ok());
                             dn_value.clear();
                             in_defined_name = true;
                         }
@@ -98,9 +106,21 @@ pub fn read_xlsx_from_zip<R: std::io::Read + std::io::Seek>(zip: &mut ZipReader<
                 }
                 Event::End(e) if e.local_name().as_ref() == b"definedName" => {
                     if !dn_name.is_empty() {
+                        // Populate legacy defined_names (name, formula) for backward compat
                         defined_names.push((dn_name.clone(), dn_value.clone()));
+                        // Populate scoped defined names
+                        let scope = match dn_local_sheet_id {
+                            Some(idx) => DefinedNameScope::Sheet(idx),
+                            None => DefinedNameScope::Workbook,
+                        };
+                        scoped_defined_names.push(DefinedName {
+                            name: dn_name.clone(),
+                            formula: dn_value.clone(),
+                            scope,
+                        });
                     }
                     in_defined_name = false;
+                    dn_local_sheet_id = None;
                 }
                 Event::Eof => break,
                 _ => {}
@@ -126,7 +146,7 @@ pub fn read_xlsx_from_zip<R: std::io::Read + std::io::Seek>(zip: &mut ZipReader<
         DocProperties::default()
     };
 
-    let xlsx_data = XlsxData { sheets, sst, styles, is_1904, defined_names, properties: doc_props };
+    let xlsx_data = XlsxData { sheets, sst, styles, is_1904, defined_names, scoped_defined_names, properties: doc_props };
     Ok(xlsx_data)
 }
 

@@ -1,11 +1,15 @@
 [package]
 name = "zavora-xlsx"
 version = "0.1.0"
-edition = "2021"
-license = "MIT OR Apache-2.0"
+edition = "2024"
+license = "Apache-2.0"
 description = "High-performance Excel xlsx reader, writer, and editor"
 keywords = ["excel", "xlsx", "spreadsheet", "ooxml"]
 categories = ["parser-implementations", "encoding"]
+repository = "https://github.com/zavora-ai/zavora-xlsx"
+homepage = "https://zavora.ai"
+authors = ["James Karanja Maina"]
+readme = "README.md"
 
 [dependencies]
 quick-xml = { version = "0.37", features = ["encoding"] }

@@ -1,7 +1,7 @@
 use zavora_xlsx::*;
 fn main() -> Result<()> {
     let mut wb = Workbook::new();
-    let navy="#1B2A4A";let green="#0D7C3D";let blue="#2B579A";let border="#D6DCE4";let light="#F5F7FA";
+    let navy="#1B2A4A";let green="#0D7C3D";let _blue="#2B579A";let border="#D6DCE4";let light="#F5F7FA";
     let ws=wb.worksheet(0)?;ws.set_name("Vendor Scorecard")?;ws.hide_gridlines();
     let cw=[2.0,20.0,14.0,12.0,12.0,12.0,12.0,12.0,14.0];
     for(c,w)in cw.iter().enumerate(){ws.set_column_width(c as u16,*w)?;}

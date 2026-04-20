@@ -19,6 +19,7 @@ pub mod error;
 pub mod features;
 pub mod format;
 pub mod formula;
+pub mod formula_engine;
 pub mod properties;
 pub mod streaming;
 pub mod utility;
@@ -27,31 +28,37 @@ pub mod worksheet;
 
 mod model;
 mod reader;
-mod writer;
+pub mod writer;
 pub(crate) mod xml;
 mod zip;
 
 pub use cell::{CellValue, IntoExcelData, RichText, RichTextRun};
 pub use datetime::ExcelDateTime;
 pub use error::{Error, Result};
-pub use features::chart::{Chart, ChartSeries, ChartType, LegendPosition, MarkerType, PivotChartSource, TrendlineType};
+pub use features::chart::{Chart, ChartSeries, ChartType, LegendPosition, MarkerType, PivotChartSource, TrendlineType, View3D, MapLevel, AxisFormat, TickMark, GridlineStyle, PlotAreaFormat, DashStyle, ErrorBar, ErrorBarType, ErrorBarValueType};
 pub use features::conditional::{
     AverageType, CfOperator, ConditionalFormat, ConditionalFormat2ColorScale,
     ConditionalFormat3ColorScale, ConditionalFormatAverage, ConditionalFormatCell,
     ConditionalFormatDataBar, ConditionalFormatDate, ConditionalFormatDuplicate,
     ConditionalFormatFormula, ConditionalFormatIconSet, ConditionalFormatText,
     ConditionalFormatTopBottom, ConditionalFormatUnique, DateOccurring, IconSetType,
-    TextOperator, TopBottomType,
+    StoredCf, TextOperator, TopBottomType,
 };
 pub use features::image::Image;
 pub use features::pivot::{PivotAggregation, PivotLayout, PivotTable};
 pub use features::treemap::TreemapChart;
+pub use features::chartex::{
+    WaterfallChart, WaterfallPointType, FunnelChart, SunburstChart,
+    HistogramChart, BoxWhiskerChart,
+};
 pub use features::sparkline::{Sparkline, SparklineType};
 pub use features::table::{Table, TableColumn, TableStyle};
 pub use features::validation::{DataValidation, ErrorStyle, ValidationRule};
 pub use format::{Align, BorderStyle, Color, DiagonalType, Format, IntoColor, NamedColor, Pattern, Underline};
 pub use properties::DocProperties;
 pub use utility::{ColNum, RowNum};
-pub use workbook::{Workbook, CalcMode};
+pub use workbook::{Workbook, CalcMode, DefinedName, DefinedNameScope};
 pub use worksheet::{Comment, Hyperlink, Orientation, PrintSettings, SheetProtection, SheetVisibility, Worksheet};
 pub use streaming::StreamingWorkbook;
+
+pub use formula_engine::tokenize;

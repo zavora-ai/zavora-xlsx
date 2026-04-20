@@ -84,7 +84,7 @@ impl Workbook {
         let mut image_extensions: Vec<String> = Vec::new();
 
         for (i, ws) in self.worksheets.iter().enumerate() {
-            let has_drawing = !ws.charts.is_empty() || !ws.images.is_empty() || !ws.treemap_charts.is_empty() || ws.original_drawing_rid.is_some();
+            let has_drawing = !ws.charts.is_empty() || !ws.images.is_empty() || !ws.treemap_charts.is_empty() || !ws.chartex_charts.is_empty() || ws.original_drawing_rid.is_some();
             if has_drawing { sheets_with_drawings.push(i); }
             if !ws.comments.is_empty() || ws.original_legacy_drawing_rid.is_some() { sheets_with_comments.push(i); }
             total_charts += ws.charts.len();
@@ -97,7 +97,7 @@ impl Workbook {
 
         // Count treemap (chartEx) charts
         let mut total_chartex = 0usize;
-        for ws in &self.worksheets { total_chartex += ws.treemap_charts.len(); }
+        for ws in &self.worksheets { total_chartex += ws.treemap_charts.len() + ws.chartex_charts.len(); }
 
         // Count pivot tables
         let mut total_pivots = 0usize;
@@ -137,7 +137,7 @@ impl Workbook {
         let mut global_table_idx = 0usize;
 
         for (i, ws) in self.worksheets.iter().enumerate() {
-            let has_drawing = !ws.charts.is_empty() || !ws.images.is_empty();
+            let has_drawing = !ws.charts.is_empty() || !ws.images.is_empty() || !ws.treemap_charts.is_empty() || !ws.chartex_charts.is_empty();
             let mut sheet_rels: Vec<(String, String, String)> = Vec::new();
             let mut next_rid = 1;
 
@@ -193,7 +193,7 @@ impl Workbook {
                 global_image_start: global_image_idx, global_table_start: global_table_idx,
             });
             global_chart_idx += ws.charts.len();
-            global_chartex_idx += ws.treemap_charts.len();
+            global_chartex_idx += ws.treemap_charts.len() + ws.chartex_charts.len();
             global_image_idx += ws.images.len();
             global_table_idx += ws.tables.len();
         }
@@ -252,12 +252,12 @@ impl Workbook {
                 zip.add_file(&rels_path, ws.original_rels.as_ref().unwrap())?;
             }
 
-            if !ws.charts.is_empty() || !ws.images.is_empty() || !ws.treemap_charts.is_empty() {
+            if !ws.charts.is_empty() || !ws.images.is_empty() || !ws.treemap_charts.is_empty() || !ws.chartex_charts.is_empty() {
                 let drawing_path = format!("xl/drawings/drawing{}.xml", i + 1);
-                zip.add_file(&drawing_path, &drawing_writer::write_drawing_xml(&ws.charts, &ws.treemap_charts, &ws.images, i))?;
+                zip.add_file(&drawing_path, &drawing_writer::write_drawing_xml(&ws.charts, &ws.treemap_charts, &ws.chartex_charts, &ws.images, i))?;
                 let img_types: Vec<&str> = ws.images.iter().map(|img| img.image_type.extension()).collect();
                 let drawing_rels_path = format!("xl/drawings/_rels/drawing{}.xml.rels", i + 1);
-                zip.add_file(&drawing_rels_path, &drawing_writer::write_drawing_rels(ws.charts.len(), ws.treemap_charts.len(), ws.images.len(), &img_types, meta.global_chart_start, meta.global_chartex_start, meta.global_image_start))?;
+                zip.add_file(&drawing_rels_path, &drawing_writer::write_drawing_rels(ws.charts.len(), ws.treemap_charts.len() + ws.chartex_charts.len(), ws.images.len(), &img_types, meta.global_chart_start, meta.global_chartex_start, meta.global_image_start))?;
             }
 
             for (ci, chart) in ws.charts.iter().enumerate() {
@@ -268,6 +268,19 @@ impl Workbook {
             for (ci, tc) in ws.treemap_charts.iter().enumerate() {
                 let idx = meta.global_chartex_start + ci + 1;
                 zip.add_file(&format!("xl/charts/chartEx{idx}.xml"), &crate::writer::chartex_writer::write_chartex_xml(tc, idx))?;
+                // ChartEx style and color parts + rels
+                zip.add_file(&format!("xl/charts/style{idx}.xml"), &chartex_style_xml())?;
+                zip.add_file(&format!("xl/charts/colors{idx}.xml"), &chartex_colors_xml())?;
+                zip.add_file(&format!("xl/charts/_rels/chartEx{idx}.xml.rels"), &chartex_rels_xml(idx))?;
+            }
+            // ChartEx (waterfall, funnel, sunburst, histogram, box-whisker) files
+            for (ci, cex) in ws.chartex_charts.iter().enumerate() {
+                let idx = meta.global_chartex_start + ws.treemap_charts.len() + ci + 1;
+                zip.add_file(&format!("xl/charts/chartEx{idx}.xml"), &crate::writer::chartex_writer::write_chartex_generic_xml(cex, idx))?;
+                // ChartEx style and color parts + rels
+                zip.add_file(&format!("xl/charts/style{idx}.xml"), &chartex_style_xml())?;
+                zip.add_file(&format!("xl/charts/colors{idx}.xml"), &chartex_colors_xml())?;
+                zip.add_file(&format!("xl/charts/_rels/chartEx{idx}.xml.rels"), &chartex_rels_xml(idx))?;
             }
             for (ii, img) in ws.images.iter().enumerate() {
                 let idx = meta.global_image_start + ii + 1;
@@ -337,4 +350,49 @@ fn parse_pivot_source(source_range: &str) -> (String, String) {
     } else {
         ("Sheet1".into(), source_range.into())
     }
+}
+
+/// Generate a minimal ChartEx style XML part.
+fn chartex_style_xml() -> Vec<u8> {
+    use crate::xml::xml_writer::XmlWriter;
+    let mut w = XmlWriter::new();
+    w.declaration();
+    w.start_tag("cs:chartStyle", &[
+        ("xmlns:cs", "http://schemas.microsoft.com/office/drawing/2012/chartStyle"),
+        ("xmlns:a", "http://schemas.openxmlformats.org/drawingml/2006/main"),
+        ("id", "102"),
+    ]);
+    w.end_tag("cs:chartStyle");
+    w.into_bytes()
+}
+
+/// Generate a minimal ChartEx colors XML part.
+fn chartex_colors_xml() -> Vec<u8> {
+    use crate::xml::xml_writer::XmlWriter;
+    let mut w = XmlWriter::new();
+    w.declaration();
+    w.start_tag("cs:colorStyle", &[
+        ("xmlns:cs", "http://schemas.microsoft.com/office/drawing/2012/chartStyle"),
+        ("xmlns:a", "http://schemas.openxmlformats.org/drawingml/2006/main"),
+        ("meth", "cycle"),
+        ("id", "10"),
+    ]);
+    // Variation entries for the color cycle
+    w.empty_tag("cs:variation", &[]);
+    w.empty_tag("cs:variation", &[]);
+    w.empty_tag("cs:variation", &[]);
+    w.empty_tag("cs:variation", &[]);
+    w.empty_tag("cs:variation", &[]);
+    w.empty_tag("cs:variation", &[]);
+    w.end_tag("cs:colorStyle");
+    w.into_bytes()
+}
+
+/// Generate relationship file for a ChartEx part pointing to its style and colors.
+fn chartex_rels_xml(idx: usize) -> Vec<u8> {
+    use crate::writer::rel_writer;
+    rel_writer::write_rels(&[
+        ("rId1", "http://schemas.microsoft.com/office/2014/relationships/chartStyle", &format!("style{idx}.xml")),
+        ("rId2", "http://schemas.microsoft.com/office/2014/relationships/chartColorStyle", &format!("colors{idx}.xml")),
+    ])
 }

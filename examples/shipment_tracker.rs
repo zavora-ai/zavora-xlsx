@@ -50,7 +50,7 @@ fn main() -> Result<()> {
     }
     let de=r-1;r+=1;
     let sl=Format::new().bold().font_size(10.0).font_color(navy).align(Align::Right);
-    let sv=Format::new().bold().font_size(12.0).font_color(navy).align(Align::Center);
+    let _sv=Format::new().bold().font_size(12.0).font_color(navy).align(Align::Center);
     ws.write_with_format(r,6,"Total Cost:",&sl)?;ws.write_formula(r,7,&format!("SUM(J{}:J{})",ds+1,de+1))?;
     ws.set_cell_format(r,7,&Format::new().bold().font_size(12.0).font_color(green).align(Align::Center).num_format("$#,##0"))?;
     ws.write_with_format(r,8,"Avg Transit:",&sl)?;ws.write_formula(r,9,&format!("AVERAGE(K{}:K{})",ds+1,de+1))?;

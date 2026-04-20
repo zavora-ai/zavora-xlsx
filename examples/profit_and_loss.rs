@@ -77,7 +77,7 @@ fn main() -> Result<()> {
     ws.set_row_height(r, 22.0)?; r += 1;
 
     // ── REVENUE ──
-    let rev_section = r;
+    let _rev_section = r;
     ws.write_with_format(r, 1, "REVENUE", &section_fmt(green))?;
     for c in 2..=14u16 { ws.write_with_format(r, c, "", &section_val(green))?; }
     ws.set_row_height(r, 24.0)?; r += 1;

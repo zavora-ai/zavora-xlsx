@@ -21,7 +21,7 @@ fn main() -> Result<()> {
         .background_color(orange).align(Align::Left).align(Align::VerticalCenter);
     let title_bar = Format::new().background_color(orange);
 
-    let section_hdr = |color: &str| -> Format {
+    let _section_hdr = |_color: &str| -> Format {
         Format::new().bold().font_size(12.0).font_color(dark).align(Align::Left)
             .align(Align::Bottom)
     };
@@ -85,7 +85,7 @@ fn main() -> Result<()> {
         .background_color(light).border(BorderStyle::Thin).border_color(border))?;
     r += 1;
 
-    let savings_start = r;
+    let _savings_start = r;
     let savings: Vec<(&str, f64, &str)> = vec![
         ("Retirement Savings", 1500.0, "Monthly"),
         ("Long-term Savings", 100.0, "Monthly"),

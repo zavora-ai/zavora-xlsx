@@ -208,7 +208,7 @@ fn main() -> Result<()> {
     ws2.write_with_format(r, 8, "Growth", &tbl_hdr)?;
     ws2.set_row_height(r, 20.0)?; r += 1;
 
-    let nw_dash_start = r;
+    let _nw_dash_start = r;
     let item_fmt = Format::new().font_size(10.0).font_color(navy).align(Align::Left)
         .border(BorderStyle::Thin).border_color(border);
     let type_fmt = Format::new().font_size(10.0).font_color(navy).align(Align::Center)

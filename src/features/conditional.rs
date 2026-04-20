@@ -440,7 +440,7 @@ impl ConditionalFormat for ConditionalFormatDate {
 // ══════════════════════════════════════════════════════════════
 
 /// Stored conditional format with range info.
-pub(crate) struct StoredCf {
+pub struct StoredCf {
     pub range: (RowNum, ColNum, RowNum, ColNum),
     pub rule: Box<dyn ConditionalFormat>,
     pub dxf_id: Option<u32>,

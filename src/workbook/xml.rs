@@ -46,8 +46,19 @@ impl Workbook {
         w.end_tag("sheets");
 
         let mut all_names: Vec<(String, String, Option<usize>)> = Vec::new();
-        for (name, formula) in &self.defined_names {
-            all_names.push((name.clone(), formula.clone(), None));
+        // Use scoped_defined_names if available (includes scope info), otherwise fall back to legacy
+        if !self.scoped_defined_names.is_empty() {
+            for dn in &self.scoped_defined_names {
+                let local_sheet = match dn.scope {
+                    super::DefinedNameScope::Workbook => None,
+                    super::DefinedNameScope::Sheet(idx) => Some(idx),
+                };
+                all_names.push((dn.name.clone(), dn.formula.clone(), local_sheet));
+            }
+        } else {
+            for (name, formula) in &self.defined_names {
+                all_names.push((name.clone(), formula.clone(), None));
+            }
         }
         for (i, ws) in self.worksheets.iter().enumerate() {
             if let Some(ref ps) = ws.print_settings {
@@ -85,7 +96,9 @@ impl Workbook {
 
         if let Some(mode) = &self.calc_mode {
             let val = match mode { CalcMode::Auto => "auto", CalcMode::Manual => "manual", CalcMode::AutoNoTable => "autoNoTable" };
-            w.empty_tag("calcPr", &[("calcMode", val)]);
+            w.empty_tag("calcPr", &[("calcMode", val), ("fullCalcOnLoad", "1")]);
+        } else {
+            w.empty_tag("calcPr", &[("calcId", "0"), ("fullCalcOnLoad", "1")]);
         }
 
         // pivotCaches — links cacheId to workbook rel
@@ -169,6 +182,10 @@ pub(crate) fn write_content_types_full(sheet_count: usize, has_props: bool, char
     for i in 1..=chartex_count {
         let ce = format!("/xl/charts/chartEx{i}.xml");
         w.empty_tag("Override", &[("PartName", &ce), ("ContentType", "application/vnd.ms-office.chartEx+xml")]);
+        let st = format!("/xl/charts/style{i}.xml");
+        w.empty_tag("Override", &[("PartName", &st), ("ContentType", "application/vnd.ms-office.chartstyle+xml")]);
+        let co = format!("/xl/charts/colors{i}.xml");
+        w.empty_tag("Override", &[("PartName", &co), ("ContentType", "application/vnd.ms-office.chartcolorstyle+xml")]);
     }
     w.end_tag("Types");
     w.into_bytes()

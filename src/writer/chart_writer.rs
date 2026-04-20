@@ -28,6 +28,37 @@ pub fn write_chart_xml(chart: &Chart, _chart_id: usize) -> Vec<u8> {
     }
     w.empty_tag("c:autoTitleDeleted", &[("val", if chart.title.is_some() { "0" } else { "1" })]);
 
+    // 3D view settings
+    if let Some(ref v) = chart.view3d {
+        w.start_tag("c:view3D", &[]);
+        w.empty_tag("c:rotX", &[("val", &v.rot_x.to_string())]);
+        w.empty_tag("c:rotY", &[("val", &v.rot_y.to_string())]);
+        w.empty_tag("c:perspective", &[("val", &v.perspective.to_string())]);
+        w.empty_tag("c:rAngAx", &[("val", if v.right_angle_axes { "1" } else { "0" })]);
+        w.end_tag("c:view3D");
+    } else if matches!(chart.chart_type, ChartType::Column3D | ChartType::Bar3D | ChartType::Line3D | ChartType::Pie3D | ChartType::Area3D | ChartType::Surface | ChartType::WireframeSurface) {
+        // Default 3D view for 3D chart types
+        w.start_tag("c:view3D", &[]);
+        w.empty_tag("c:rotX", &[("val", "15")]);
+        w.empty_tag("c:rotY", &[("val", "20")]);
+        if matches!(chart.chart_type, ChartType::Surface | ChartType::WireframeSurface) {
+            w.empty_tag("c:rAngAx", &[("val", "0")]);
+        } else {
+            w.empty_tag("c:perspective", &[("val", "30")]);
+            w.empty_tag("c:rAngAx", &[("val", "1")]);
+        }
+        w.end_tag("c:view3D");
+    }
+
+    // Floor, side wall, back wall for 3D and surface charts
+    if matches!(chart.chart_type, ChartType::Column3D | ChartType::Bar3D | ChartType::Line3D | ChartType::Area3D | ChartType::Surface | ChartType::WireframeSurface) {
+        for tag in &["c:floor", "c:sideWall", "c:backWall"] {
+            w.start_tag(tag, &[]);
+            w.empty_tag("c:thickness", &[("val", "0")]);
+            w.end_tag(tag);
+        }
+    }
+
     // Pivot format entries — one per series with Office theme accent colors
     if chart.pivot_source.is_some() {
         write_pivot_fmts(&mut w, chart.series.len().max(1));
@@ -48,7 +79,7 @@ pub fn write_chart_xml(chart: &Chart, _chart_id: usize) -> Vec<u8> {
 
     // Axes (not for pie/doughnut)
     let base_type = chart.chart_type;
-    if !matches!(base_type, ChartType::Pie | ChartType::Doughnut) {
+    if !matches!(base_type, ChartType::Pie | ChartType::Doughnut | ChartType::Pie3D) {
         write_axes(&mut w, chart, has_secondary);
     }
 
@@ -78,6 +109,12 @@ pub fn write_chart_xml(chart: &Chart, _chart_id: usize) -> Vec<u8> {
     }
 
     w.empty_tag("c:plotVisOnly", &[("val", "1")]);
+
+    // Chart style
+    if let Some(style) = chart.style {
+        w.empty_tag("c:style", &[("val", &style.to_string())]);
+    }
+
     w.end_tag("c:chart");
     w.start_tag("c:printSettings", &[]);
     w.empty_tag("c:headerFooter", &[]);
@@ -183,30 +220,61 @@ fn write_chart_type_block(w: &mut XmlWriter, ct: ChartType, series: &[(usize, &c
     match ct {
         ChartType::Bar => { w.empty_tag("c:barDir", &[("val", "bar")]); w.empty_tag("c:grouping", &[("val", "clustered")]); }
         ChartType::Column => { w.empty_tag("c:barDir", &[("val", "col")]); w.empty_tag("c:grouping", &[("val", "clustered")]); }
-        ChartType::Line | ChartType::Area => { w.empty_tag("c:grouping", &[("val", "standard")]); }
+        ChartType::Bar3D => { w.empty_tag("c:barDir", &[("val", "bar")]); w.empty_tag("c:grouping", &[("val", "clustered")]); }
+        ChartType::Column3D => { w.empty_tag("c:barDir", &[("val", "col")]); w.empty_tag("c:grouping", &[("val", "clustered")]); }
+        ChartType::Line | ChartType::Area | ChartType::Line3D | ChartType::Area3D => { w.empty_tag("c:grouping", &[("val", "standard")]); }
         ChartType::Scatter => { w.empty_tag("c:scatterStyle", &[("val", "lineMarker")]); }
         ChartType::Radar => { w.empty_tag("c:radarStyle", &[("val", "marker")]); }
+        ChartType::Bubble => { w.empty_tag("c:varyColors", &[("val", "0")]); }
+        ChartType::Surface | ChartType::WireframeSurface => {
+            let wf = if matches!(ct, ChartType::WireframeSurface) { "1" } else { "0" };
+            w.empty_tag("c:wireframe", &[("val", wf)]);
+        }
         _ => {}
     }
-    w.empty_tag("c:varyColors", &[("val", "0")]);
+    // varyColors — NOT for surface or bubble (bubble already emitted above)
+    if !matches!(ct, ChartType::Bubble | ChartType::Surface | ChartType::WireframeSurface) {
+        w.empty_tag("c:varyColors", &[("val", "0")]);
+    }
 
     for &(idx, s) in series {
         write_series(w, idx, s, ct);
     }
 
     // Chart-type-level elements after series
-    if matches!(ct, ChartType::Bar | ChartType::Column) {
+    if matches!(ct, ChartType::Bar | ChartType::Column | ChartType::Bar3D | ChartType::Column3D) {
         w.empty_tag("c:gapWidth", &[("val", "219")]);
         w.empty_tag("c:overlap", &[("val", "-27")]);
     }
-    if matches!(ct, ChartType::Line) {
+    if matches!(ct, ChartType::Line | ChartType::Line3D) {
         w.empty_tag("c:marker", &[("val", "1")]);
         w.empty_tag("c:smooth", &[("val", "0")]);
     }
 
-    if !matches!(ct, ChartType::Pie | ChartType::Doughnut) {
+    if !matches!(ct, ChartType::Pie | ChartType::Doughnut | ChartType::Pie3D) {
+        // Band formats for surface charts (color bands)
+        if matches!(ct, ChartType::Surface | ChartType::WireframeSurface) {
+            let accents = ["accent1", "accent2", "accent3", "accent4", "accent5", "accent6"];
+            w.start_tag("c:bandFmts", &[]);
+            for (i, accent) in accents.iter().enumerate() {
+                let idx = i.to_string();
+                w.start_tag("c:bandFmt", &[]);
+                w.empty_tag("c:idx", &[("val", &idx)]);
+                w.start_tag("c:spPr", &[]);
+                w.start_tag("a:solidFill", &[]);
+                w.empty_tag("a:schemeClr", &[("val", accent)]);
+                w.end_tag("a:solidFill");
+                w.end_tag("c:spPr");
+                w.end_tag("c:bandFmt");
+            }
+            w.end_tag("c:bandFmts");
+        }
         w.empty_tag("c:axId", &[("val", cat_ax_id)]);
         w.empty_tag("c:axId", &[("val", val_ax_id)]);
+        // Surface charts require a third axis (series axis)
+        if matches!(ct, ChartType::Surface | ChartType::WireframeSurface) {
+            w.empty_tag("c:axId", &[("val", "555555555")]);
+        }
     }
 
     w.end_tag(tag);
@@ -219,9 +287,12 @@ fn write_series(w: &mut XmlWriter, idx: usize, s: &crate::features::chart::Chart
     w.empty_tag("c:idx", &[("val", &idx_s)]);
     w.empty_tag("c:order", &[("val", &idx_s)]);
     if let Some(ref name) = s.name {
-        w.start_tag("c:tx", &[]);
-        w.text_element("c:v", &[], name);
-        w.end_tag("c:tx");
+        // Surface charts don't use c:tx (series name) — it causes issues
+        if !matches!(ct, ChartType::Surface | ChartType::WireframeSurface) {
+            w.start_tag("c:tx", &[]);
+            w.text_element("c:v", &[], name);
+            w.end_tag("c:tx");
+        }
     }
 
     // Series fill color
@@ -291,23 +362,43 @@ fn write_series(w: &mut XmlWriter, idx: usize, s: &crate::features::chart::Chart
         write_trendline(w, s);
     }
 
-    // Categories
+    // Categories (not for surface charts — surface uses only val)
     if let Some(ref cats) = s.categories {
-        let cat_tag = if matches!(ct, ChartType::Scatter) { "c:xVal" } else { "c:cat" };
-        w.start_tag(cat_tag, &[]);
-        w.start_tag("c:strRef", &[]);
-        w.text_element("c:f", &[], cats);
-        w.end_tag("c:strRef");
-        w.end_tag(cat_tag);
+        if !matches!(ct, ChartType::Surface | ChartType::WireframeSurface) {
+            let cat_tag = if matches!(ct, ChartType::Scatter | ChartType::Bubble) { "c:xVal" } else { "c:cat" };
+            w.start_tag(cat_tag, &[]);
+            w.start_tag("c:strRef", &[]);
+            w.text_element("c:f", &[], cats);
+            w.end_tag("c:strRef");
+            w.end_tag(cat_tag);
+        }
     }
 
     // Values
-    let val_tag = if matches!(ct, ChartType::Scatter) { "c:yVal" } else { "c:val" };
+    let val_tag = if matches!(ct, ChartType::Scatter | ChartType::Bubble) { "c:yVal" } else { "c:val" };
     w.start_tag(val_tag, &[]);
     w.start_tag("c:numRef", &[]);
     w.text_element("c:f", &[], &s.values);
+    // Surface charts require a numCache to avoid crashing Excel's Chart module
+    if matches!(ct, ChartType::Surface | ChartType::WireframeSurface) {
+        w.start_tag("c:numCache", &[]);
+        w.text_element("c:formatCode", &[], "General");
+        w.empty_tag("c:ptCount", &[("val", "0")]);
+        w.end_tag("c:numCache");
+    }
     w.end_tag("c:numRef");
     w.end_tag(val_tag);
+
+    // Bubble sizes (bubble chart only)
+    if matches!(ct, ChartType::Bubble) {
+        if let Some(ref sizes) = s.bubble_sizes {
+            w.start_tag("c:bubbleSize", &[]);
+            w.start_tag("c:numRef", &[]);
+            w.text_element("c:f", &[], sizes);
+            w.end_tag("c:numRef");
+            w.end_tag("c:bubbleSize");
+        }
+    }
 
     // Line: smooth
     if matches!(ct, ChartType::Line) {
@@ -405,6 +496,21 @@ fn write_axes(w: &mut XmlWriter, chart: &Chart, has_secondary: bool) {
         w.empty_tag("c:crossBetween", &[("val", "between")]);
         w.end_tag("c:valAx");
     }
+
+    // Series axis for surface charts
+    if matches!(chart.chart_type, ChartType::Surface | ChartType::WireframeSurface) {
+        w.start_tag("c:serAx", &[]);
+        w.empty_tag("c:axId", &[("val", "555555555")]);
+        w.start_tag("c:scaling", &[]);
+        w.empty_tag("c:orientation", &[("val", "minMax")]);
+        w.end_tag("c:scaling");
+        w.empty_tag("c:delete", &[("val", "0")]);
+        w.empty_tag("c:axPos", &[("val", "b")]);
+        w.empty_tag("c:tickLblPos", &[("val", "nextTo")]);
+        w.empty_tag("c:crossAx", &[("val", "222222222")]);
+        w.empty_tag("c:crosses", &[("val", "autoZero")]);
+        w.end_tag("c:serAx");
+    }
 }
 
 fn chart_type_tag(ct: ChartType) -> &'static str {
@@ -413,7 +519,13 @@ fn chart_type_tag(ct: ChartType) -> &'static str {
         ChartType::Line => "c:lineChart", ChartType::Pie => "c:pieChart",
         ChartType::Scatter => "c:scatterChart", ChartType::Area => "c:areaChart",
         ChartType::Doughnut => "c:doughnutChart", ChartType::Radar => "c:radarChart",
-        ChartType::Stock => "c:stockChart",
+        ChartType::Stock => "c:stockChart", ChartType::Bubble => "c:bubbleChart",
+        ChartType::Column3D => "c:bar3DChart", ChartType::Bar3D => "c:bar3DChart",
+        ChartType::Line3D => "c:line3DChart", ChartType::Pie3D => "c:pie3DChart",
+        ChartType::Area3D => "c:area3DChart",
+        ChartType::Surface => "c:surface3DChart",
+        ChartType::WireframeSurface => "c:surface3DChart",
+        ChartType::Map => "c:barChart", // Map charts use a special namespace; fallback to bar
     }
 }
 

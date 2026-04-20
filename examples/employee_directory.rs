@@ -2,7 +2,7 @@ use zavora_xlsx::*;
 
 fn main() -> Result<()> {
     let mut wb = Workbook::new();
-    let navy = "#1B2A4A"; let green = "#0D7C3D"; let red = "#C00000"; let blue = "#2B579A"; let border = "#D6DCE4"; let light = "#F5F7FA";
+    let navy = "#1B2A4A"; let green = "#0D7C3D"; let _red = "#C00000"; let blue = "#2B579A"; let border = "#D6DCE4"; let light = "#F5F7FA";
 
     let ws = wb.worksheet(0)?;
     ws.set_name("Employee Directory")?;

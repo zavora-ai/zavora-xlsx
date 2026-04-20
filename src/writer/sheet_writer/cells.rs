@@ -47,11 +47,10 @@ pub(crate) fn write_cell(w: &mut XmlWriter, row: RowNum, col: ColNum, cell: &Cel
             if xf > 0 { w.start_tag("c", &[("r", &ref_str), ("s", &xf_s)]); }
             else { w.start_tag("c", &[("r", &ref_str)]); }
             w.text_element("f", &[], text);
-            if let Some(n) = cached_number {
-                let mut v = String::new();
-                let _ = write!(v, "{n}");
-                w.text_element("v", &[], &v);
-            }
+            let n = cached_number.unwrap_or(0.0);
+            let mut v = String::new();
+            let _ = write!(v, "{n}");
+            w.text_element("v", &[], &v);
             w.end_tag("c");
         }
         CellType::ArrayFormula { text, range } | CellType::DynamicFormula { text, range } => {

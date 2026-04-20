@@ -4,7 +4,7 @@ fn main() -> Result<()> {
     let mut wb = Workbook::new();
 
     let navy = "#1B2A4A"; let blue = "#2B579A"; let green = "#0D7C3D";
-    let red = "#C00000"; let gold = "#C68E17"; let border = "#D6DCE4";
+    let red = "#C00000"; let _gold = "#C68E17"; let border = "#D6DCE4";
 
     let ws = wb.worksheet(0)?;
     ws.set_name("Mortgage Calculator")?;
@@ -110,7 +110,7 @@ fn main() -> Result<()> {
     ws.set_row_height(r, 28.0)?; r += 1;
 
     let headers = ["Month", "Payment", "Principal", "Interest", "Balance", "Cum. Interest"];
-    let hcols = [4u16, 5, 6, 7, 8, 8]; // skip — use E-I
+    let _hcols = [4u16, 5, 6, 7, 8, 8]; // skip — use E-I
     ws.write_with_format(r, 4, headers[0], &tbl_hdr)?;
     ws.write_with_format(r, 5, headers[1], &tbl_hdr)?;
     ws.write_with_format(r, 6, headers[2], &tbl_hdr)?;

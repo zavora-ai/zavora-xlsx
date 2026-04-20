@@ -50,7 +50,7 @@ fn main() -> Result<()> {
     let day_cell_fmt = Format::new()
         .font_size(10.0).align(Align::Right).align(Align::Top)
         .border(BorderStyle::Thin).border_color("#D6DCE4");
-    let today_fmt = Format::new()
+    let _today_fmt = Format::new()
         .font_size(10.0).bold().align(Align::Right).align(Align::Top)
         .background_color("#E2EFDA")
         .border(BorderStyle::Thin).border_color("#A9D18E");

@@ -4,7 +4,7 @@ fn main() -> Result<()> {
     let mut wb = Workbook::new();
 
     let navy = "#1B2A4A"; let green = "#0D7C3D"; let red = "#C00000";
-    let amber = "#E8A317"; let blue = "#2B579A"; let light = "#F5F7FA"; let border = "#D6DCE4";
+    let amber = "#E8A317"; let blue = "#2B579A"; let _light = "#F5F7FA"; let border = "#D6DCE4";
     let cat_colors: [(&str, &str); 5] = [
         ("Deployment","#4472C4"), ("Design","#ED7D31"), ("Requirements","#70AD47"),
         ("Development","#FFC000"), ("Testing","#C00000"),
