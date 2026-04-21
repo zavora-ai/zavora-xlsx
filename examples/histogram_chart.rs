@@ -8,7 +8,7 @@ fn main() {
     let mut wb = Workbook::new();
     let ws = wb.worksheet(0).unwrap();
 
-    // Histogram with custom bin count
+    // Histogram without custom bin count (let Excel decide)
     let mut hist = HistogramChart::new();
     hist.set_title("Response Time Distribution");
     hist.set_series_name("Latency (ms)");
@@ -16,7 +16,6 @@ fn main() {
         12.0, 15.0, 18.0, 22.0, 25.0, 28.0, 30.0, 32.0, 35.0, 38.0,
         40.0, 42.0, 45.0, 50.0, 55.0, 60.0, 65.0, 80.0, 95.0, 120.0,
     ]);
-    hist.set_bin_count(8);
     ws.insert_histogram(0, 0, &hist).unwrap();
 
     // Pareto chart on second sheet
