@@ -17,7 +17,7 @@ path = "src/main.rs"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
-zavora-xlsx = { path = ".." }
+zavora-xlsx = { path = "..", version = "0.1.0" }
 
 [dev-dependencies]
 proptest = "1"
