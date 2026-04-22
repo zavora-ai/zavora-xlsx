@@ -120,7 +120,7 @@ struct Record {
 
 ## The Derive Macro Alternative
 
-For a zero-dependency alternative to serde, see the `#[derive(ExcelRow)]` proc macro in [DERIVE_MACRO.md](DERIVE_MACRO.md). It provides `ExcelRowWriter` and `ExcelRowReader` traits without requiring serde.
+For a zero-dependency alternative to serde, see the `#[derive(ExcelRow)]` proc macro in [derive-macro.md](../ecosystem/derive-macro.md). It provides `ExcelRowWriter` and `ExcelRowReader` traits without requiring serde.
 
 ```rust
 use zavora_xlsx::*;

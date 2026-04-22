@@ -244,9 +244,9 @@ No heavy frameworks — just 4 runtime dependencies.
 
 ## Next Steps
 
-- [Formatting Guide](FORMATTING.md) — fonts, colors, borders, alignment, number formats
-- [Charts Guide](CHARTS.md) — all chart types with series configuration
-- [Tables & Data](TABLES_AND_DATA.md) — tables, validation, conditional formatting
-- [Reading Guide](READING.md) — streaming reader, cell formats, metadata
-- [Advanced Features](ADVANCED.md) — streaming write, pivot tables, images, protection
-- [Serde Integration](SERDE.md) — serialize/deserialize structs to rows
+- [Formatting Guide](formatting.md) — fonts, colors, borders, alignment, number formats
+- [Charts Guide](charts.md) — all chart types with series configuration
+- [Tables & Data](tables-and-data.md) — tables, validation, conditional formatting
+- [Reading Guide](reading.md) — streaming reader, cell formats, metadata
+- [Advanced Features](advanced.md) — streaming write, pivot tables, images, protection
+- [Serde Integration](serde.md) — serialize/deserialize structs to rows
