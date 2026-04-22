@@ -1,7 +1,7 @@
 //! Tests for core formula functions: SUM, AVERAGE, COUNT, COUNTA, MIN, MAX,
 //! IF, VLOOKUP, INDEX, MATCH.
 
-use zavora_xlsx::formula_engine::evaluator::{evaluate, ErrorKind, SimpleContext, Value};
+use zavora_xlsx::formula_engine::evaluator::{ErrorKind, SimpleContext, Value, evaluate};
 use zavora_xlsx::formula_engine::{parse, tokenize};
 
 // ---------------------------------------------------------------------------
@@ -105,7 +105,10 @@ fn test_average_single_value() {
 #[test]
 fn test_average_empty_returns_div0() {
     let ctx = SimpleContext::new(1);
-    assert_eq!(eval_ctx("AVERAGE(A1:A3)", &ctx), Value::Error(ErrorKind::Div0));
+    assert_eq!(
+        eval_ctx("AVERAGE(A1:A3)", &ctx),
+        Value::Error(ErrorKind::Div0)
+    );
 }
 
 #[test]
@@ -256,9 +259,15 @@ fn test_if_string_condition_error() {
 fn test_if_with_comparison() {
     let mut ctx = SimpleContext::new(1);
     ctx.set(0, 0, 0, Value::Number(10.0));
-    assert_eq!(eval_ctx("IF(A1>5,\"big\",\"small\")", &ctx), Value::String("big".into()));
+    assert_eq!(
+        eval_ctx("IF(A1>5,\"big\",\"small\")", &ctx),
+        Value::String("big".into())
+    );
     ctx.set(0, 0, 0, Value::Number(3.0));
-    assert_eq!(eval_ctx("IF(A1>5,\"big\",\"small\")", &ctx), Value::String("small".into()));
+    assert_eq!(
+        eval_ctx("IF(A1>5,\"big\",\"small\")", &ctx),
+        Value::String("small".into())
+    );
 }
 
 // ===========================================================================
@@ -376,7 +385,10 @@ fn test_index_2d() {
 #[test]
 fn test_index_out_of_bounds() {
     let ctx = numeric_column();
-    assert_eq!(eval_ctx("INDEX(A1:A5,10)", &ctx), Value::Error(ErrorKind::Ref));
+    assert_eq!(
+        eval_ctx("INDEX(A1:A5,10)", &ctx),
+        Value::Error(ErrorKind::Ref)
+    );
 }
 
 #[test]
@@ -408,7 +420,10 @@ fn test_match_exact() {
 #[test]
 fn test_match_exact_not_found() {
     let ctx = numeric_column();
-    assert_eq!(eval_ctx("MATCH(6,A1:A5,0)", &ctx), Value::Error(ErrorKind::Na));
+    assert_eq!(
+        eval_ctx("MATCH(6,A1:A5,0)", &ctx),
+        Value::Error(ErrorKind::Na)
+    );
 }
 
 #[test]

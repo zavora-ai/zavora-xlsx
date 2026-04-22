@@ -1,51 +1,64 @@
-//! Example: Create 3D chart variants with custom view settings.
-//!
-//! Run with: cargo run --example chart_3d
+//! Example: Create 3D chart variants with custom View3D settings (Task 33).
 
-use zavora_xlsx::{Chart, ChartType, View3D, Workbook};
+use zavora_xlsx::*;
 
-fn main() {
+fn main() -> Result<()> {
+    let path = std::path::PathBuf::from("output/chart_3d_example.xlsx");
+
     let mut wb = Workbook::new();
-    let ws = wb.worksheet(0).unwrap();
-    ws.set_name("Sales").unwrap();
+    let ws = wb.worksheet(0)?;
+    ws.set_name("3D Charts")?;
 
-    ws.write(0, 0, "Quarter").unwrap();
-    ws.write(0, 1, "Product A").unwrap();
-    ws.write(0, 2, "Product B").unwrap();
+    let hdr = Format::new().bold();
+    ws.write_with_format(0, 0, "Quarter", &hdr)?;
+    ws.write_with_format(0, 1, "Sales", &hdr)?;
+    ws.write_with_format(0, 2, "Costs", &hdr)?;
+
     let quarters = ["Q1", "Q2", "Q3", "Q4"];
-    let prod_a = [120.0, 150.0, 180.0, 200.0];
-    let prod_b = [90.0, 110.0, 130.0, 160.0];
-    for (i, (q, (a, b))) in quarters.iter().zip(prod_a.iter().zip(prod_b.iter())).enumerate() {
-        ws.write(i as u32 + 1, 0, *q).unwrap();
-        ws.write(i as u32 + 1, 1, *a).unwrap();
-        ws.write(i as u32 + 1, 2, *b).unwrap();
+    let sales = [120.0, 180.0, 150.0, 210.0];
+    let costs = [80.0, 110.0, 95.0, 130.0];
+    for (i, (q, (s, c))) in quarters
+        .iter()
+        .zip(sales.iter().zip(costs.iter()))
+        .enumerate()
+    {
+        let r = (i + 1) as u32;
+        ws.write(r, 0, *q)?;
+        ws.write(r, 1, *s)?;
+        ws.write(r, 2, *c)?;
     }
 
-    // 3D Column chart
-    let mut chart = Chart::new(ChartType::Column3D);
-    chart.set_title("3D Column Chart");
-    chart.set_view3d(View3D { rot_x: 20, rot_y: 30, perspective: 25, right_angle_axes: false });
-    let s = chart.add_series();
-    s.set_categories("Sales!$A$2:$A$5").set_values("Sales!$B$2:$B$5").set_name("Product A");
-    let s = chart.add_series();
-    s.set_values("Sales!$C$2:$C$5").set_name("Product B");
-    ws.insert_chart(6, 0, &chart).unwrap();
+    // 3D Column chart with custom perspective
+    let mut col3d = Chart::new(ChartType::Column3D);
+    col3d.set_title("3D Column — Sales vs Costs");
+    col3d.set_view3d(View3D {
+        rot_x: 20,
+        rot_y: 30,
+        perspective: 40,
+        right_angle_axes: false,
+    });
+    col3d
+        .add_series()
+        .set_values("'3D Charts'!$B$2:$B$5")
+        .set_categories("'3D Charts'!$A$2:$A$5")
+        .set_name("Sales");
+    col3d
+        .add_series()
+        .set_values("'3D Charts'!$C$2:$C$5")
+        .set_categories("'3D Charts'!$A$2:$A$5")
+        .set_name("Costs");
+    ws.insert_chart(7, 0, &col3d)?;
 
-    // 3D Pie chart on second sheet
-    let ws2 = wb.add_worksheet_with_name("Pie").unwrap();
-    ws2.write(0, 0, "Category").unwrap();
-    ws2.write(0, 1, "Value").unwrap();
-    for (i, (cat, val)) in [("Desktop", 45.0), ("Mobile", 35.0), ("Tablet", 20.0)].iter().enumerate() {
-        ws2.write(i as u32 + 1, 0, *cat).unwrap();
-        ws2.write(i as u32 + 1, 1, *val).unwrap();
-    }
-    let mut pie = Chart::new(ChartType::Pie3D);
-    pie.set_title("Device Share (3D Pie)");
-    pie.set_view3d(View3D { rot_x: 30, rot_y: 0, perspective: 30, right_angle_axes: true });
-    let s = pie.add_series();
-    s.set_categories("Pie!$A$2:$A$4").set_values("Pie!$B$2:$B$4");
-    ws2.insert_chart(5, 0, &pie).unwrap();
+    // 3D Pie chart
+    let mut pie3d = Chart::new(ChartType::Pie3D);
+    pie3d.set_title("3D Pie — Sales Distribution");
+    pie3d
+        .add_series()
+        .set_values("'3D Charts'!$B$2:$B$5")
+        .set_categories("'3D Charts'!$A$2:$A$5");
+    ws.insert_chart(7, 6, &pie3d)?;
 
-    wb.save("chart_3d.xlsx").unwrap();
-    println!("Created chart_3d.xlsx");
+    wb.save(&path)?;
+    println!("✅ 3D charts saved to {}", path.display());
+    Ok(())
 }

@@ -91,9 +91,11 @@ fn main() -> zavora_xlsx::Result<()> {
 
                 // Fit to page
                 if ps.fit_to_page {
-                    println!("  Fit to page: {}w x {}h",
+                    println!(
+                        "  Fit to page: {}w x {}h",
                         ps.fit_to_width.unwrap_or(1),
-                        ps.fit_to_height.unwrap_or(1));
+                        ps.fit_to_height.unwrap_or(1)
+                    );
                 }
 
                 // Page breaks
@@ -109,9 +111,11 @@ fn main() -> zavora_xlsx::Result<()> {
                     println!("  Repeat rows: {} to {}", first + 1, last + 1);
                 }
                 if let Some((first, last)) = ps.repeat_cols {
-                    println!("  Repeat cols: {} to {}",
+                    println!(
+                        "  Repeat cols: {} to {}",
                         (b'A' + first as u8) as char,
-                        (b'A' + last as u8) as char);
+                        (b'A' + last as u8) as char
+                    );
                 }
             }
             None => {

@@ -1,5 +1,5 @@
-use std::cell::RefCell;
 use napi_derive::napi;
+use std::cell::RefCell;
 use zavora_xlsx::ChartType;
 
 #[napi]

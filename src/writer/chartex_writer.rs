@@ -11,11 +11,23 @@ use crate::xml::xml_writer::XmlWriter;
 pub fn write_chartex_xml(chart: &TreemapChart, _chart_id: usize) -> Vec<u8> {
     let mut w = XmlWriter::new();
     w.declaration();
-    w.start_tag("cx:chartSpace", &[
-        ("xmlns:cx", "http://schemas.microsoft.com/office/drawing/2014/chartex"),
-        ("xmlns:a", "http://schemas.openxmlformats.org/drawingml/2006/main"),
-        ("xmlns:r", "http://schemas.openxmlformats.org/officeDocument/2006/relationships"),
-    ]);
+    w.start_tag(
+        "cx:chartSpace",
+        &[
+            (
+                "xmlns:cx",
+                "http://schemas.microsoft.com/office/drawing/2014/chartex",
+            ),
+            (
+                "xmlns:a",
+                "http://schemas.openxmlformats.org/drawingml/2006/main",
+            ),
+            (
+                "xmlns:r",
+                "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+            ),
+        ],
+    );
 
     // ── Chart Data ──
     w.start_tag("cx:chartData", &[]);
@@ -42,7 +54,10 @@ pub fn write_chartex_xml(chart: &TreemapChart, _chart_id: usize) -> Vec<u8> {
     if let Some(ref vr) = chart.val_range {
         w.text_element("cx:f", &[], vr);
     }
-    w.start_tag("cx:lvl", &[("ptCount", &pt_count), ("formatCode", "General")]);
+    w.start_tag(
+        "cx:lvl",
+        &[("ptCount", &pt_count), ("formatCode", "General")],
+    );
     for (i, val) in chart.values.iter().enumerate() {
         let idx = i.to_string();
         let vs = format!("{val}");
@@ -61,7 +76,10 @@ pub fn write_chartex_xml(chart: &TreemapChart, _chart_id: usize) -> Vec<u8> {
 
     // Title
     if let Some(ref title) = chart.title {
-        w.start_tag("cx:title", &[("pos", "t"), ("align", "ctr"), ("overlay", "0")]);
+        w.start_tag(
+            "cx:title",
+            &[("pos", "t"), ("align", "ctr"), ("overlay", "0")],
+        );
         w.start_tag("cx:tx", &[]);
         w.start_tag("cx:rich", &[]);
         w.empty_tag("a:bodyPr", &[]);
@@ -80,7 +98,13 @@ pub fn write_chartex_xml(chart: &TreemapChart, _chart_id: usize) -> Vec<u8> {
     w.start_tag("cx:plotArea", &[]);
     w.start_tag("cx:plotAreaRegion", &[]);
 
-    w.start_tag("cx:series", &[("layoutId", "treemap"), ("uniqueId", "{00000000-0000-0000-0000-000000000001}")]);
+    w.start_tag(
+        "cx:series",
+        &[
+            ("layoutId", "treemap"),
+            ("uniqueId", "{00000000-0000-0000-0000-000000000001}"),
+        ],
+    );
 
     // Series name
     if let Some(ref name) = chart.series_name {
@@ -116,7 +140,10 @@ pub fn write_chartex_xml(chart: &TreemapChart, _chart_id: usize) -> Vec<u8> {
     w.end_tag("cx:plotArea");
 
     // Legend
-    w.start_tag("cx:legend", &[("pos", "b"), ("align", "ctr"), ("overlay", "0")]);
+    w.start_tag(
+        "cx:legend",
+        &[("pos", "b"), ("align", "ctr"), ("overlay", "0")],
+    );
     w.end_tag("cx:legend");
 
     w.end_tag("cx:chart");
@@ -138,16 +165,31 @@ pub fn write_chartex_generic_xml(chart: &ChartExChart, _chart_id: usize) -> Vec<
 
 fn chartex_header(w: &mut XmlWriter) {
     w.declaration();
-    w.start_tag("cx:chartSpace", &[
-        ("xmlns:cx", "http://schemas.microsoft.com/office/drawing/2014/chartex"),
-        ("xmlns:a", "http://schemas.openxmlformats.org/drawingml/2006/main"),
-        ("xmlns:r", "http://schemas.openxmlformats.org/officeDocument/2006/relationships"),
-    ]);
+    w.start_tag(
+        "cx:chartSpace",
+        &[
+            (
+                "xmlns:cx",
+                "http://schemas.microsoft.com/office/drawing/2014/chartex",
+            ),
+            (
+                "xmlns:a",
+                "http://schemas.openxmlformats.org/drawingml/2006/main",
+            ),
+            (
+                "xmlns:r",
+                "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+            ),
+        ],
+    );
 }
 
 fn write_chartex_title(w: &mut XmlWriter, title: &Option<String>) {
     if let Some(title) = title {
-        w.start_tag("cx:title", &[("pos", "t"), ("align", "ctr"), ("overlay", "0")]);
+        w.start_tag(
+            "cx:title",
+            &[("pos", "t"), ("align", "ctr"), ("overlay", "0")],
+        );
         w.start_tag("cx:tx", &[]);
         w.start_tag("cx:rich", &[]);
         w.empty_tag("a:bodyPr", &[]);
@@ -186,7 +228,10 @@ fn write_waterfall_xml(chart: &WaterfallChart) -> Vec<u8> {
 
     // Numeric dimension (values)
     w.start_tag("cx:numDim", &[("type", "val")]);
-    w.start_tag("cx:lvl", &[("ptCount", &pt_count), ("formatCode", "General")]);
+    w.start_tag(
+        "cx:lvl",
+        &[("ptCount", &pt_count), ("formatCode", "General")],
+    );
     for (i, val) in chart.values.iter().enumerate() {
         let idx = i.to_string();
         let vs = format!("{val}");
@@ -207,7 +252,13 @@ fn write_waterfall_xml(chart: &WaterfallChart) -> Vec<u8> {
     w.start_tag("cx:plotArea", &[]);
     w.start_tag("cx:plotAreaRegion", &[]);
 
-    w.start_tag("cx:series", &[("layoutId", "waterfall"), ("uniqueId", "{00000000-0000-0000-0000-000000000002}")]);
+    w.start_tag(
+        "cx:series",
+        &[
+            ("layoutId", "waterfall"),
+            ("uniqueId", "{00000000-0000-0000-0000-000000000002}"),
+        ],
+    );
 
     if let Some(ref name) = chart.series_name {
         w.start_tag("cx:tx", &[]);
@@ -270,7 +321,10 @@ fn write_funnel_xml(chart: &FunnelChart) -> Vec<u8> {
 
     // Numeric dimension (values)
     w.start_tag("cx:numDim", &[("type", "val")]);
-    w.start_tag("cx:lvl", &[("ptCount", &pt_count), ("formatCode", "General")]);
+    w.start_tag(
+        "cx:lvl",
+        &[("ptCount", &pt_count), ("formatCode", "General")],
+    );
     for (i, val) in chart.values.iter().enumerate() {
         let idx = i.to_string();
         let vs = format!("{val}");
@@ -291,7 +345,13 @@ fn write_funnel_xml(chart: &FunnelChart) -> Vec<u8> {
     w.start_tag("cx:plotArea", &[]);
     w.start_tag("cx:plotAreaRegion", &[]);
 
-    w.start_tag("cx:series", &[("layoutId", "funnel"), ("uniqueId", "{00000000-0000-0000-0000-000000000003}")]);
+    w.start_tag(
+        "cx:series",
+        &[
+            ("layoutId", "funnel"),
+            ("uniqueId", "{00000000-0000-0000-0000-000000000003}"),
+        ],
+    );
 
     if let Some(ref name) = chart.series_name {
         w.start_tag("cx:tx", &[]);
@@ -338,7 +398,10 @@ fn write_sunburst_xml(chart: &SunburstChart) -> Vec<u8> {
     // Numeric dimension (values/sizes)
     let val_count = chart.values.len().to_string();
     w.start_tag("cx:numDim", &[("type", "size")]);
-    w.start_tag("cx:lvl", &[("ptCount", &val_count), ("formatCode", "General")]);
+    w.start_tag(
+        "cx:lvl",
+        &[("ptCount", &val_count), ("formatCode", "General")],
+    );
     for (i, val) in chart.values.iter().enumerate() {
         let idx = i.to_string();
         let vs = format!("{val}");
@@ -359,7 +422,13 @@ fn write_sunburst_xml(chart: &SunburstChart) -> Vec<u8> {
     w.start_tag("cx:plotArea", &[]);
     w.start_tag("cx:plotAreaRegion", &[]);
 
-    w.start_tag("cx:series", &[("layoutId", "sunburst"), ("uniqueId", "{00000000-0000-0000-0000-000000000004}")]);
+    w.start_tag(
+        "cx:series",
+        &[
+            ("layoutId", "sunburst"),
+            ("uniqueId", "{00000000-0000-0000-0000-000000000004}"),
+        ],
+    );
 
     if let Some(ref name) = chart.series_name {
         w.start_tag("cx:tx", &[]);
@@ -375,7 +444,10 @@ fn write_sunburst_xml(chart: &SunburstChart) -> Vec<u8> {
     w.end_tag("cx:plotArea");
 
     // Legend
-    w.start_tag("cx:legend", &[("pos", "b"), ("align", "ctr"), ("overlay", "0")]);
+    w.start_tag(
+        "cx:legend",
+        &[("pos", "b"), ("align", "ctr"), ("overlay", "0")],
+    );
     w.end_tag("cx:legend");
 
     w.end_tag("cx:chart");
@@ -394,7 +466,10 @@ fn write_histogram_xml(chart: &HistogramChart) -> Vec<u8> {
     // Numeric dimension (values)
     let pt_count = chart.values.len().to_string();
     w.start_tag("cx:numDim", &[("type", "val")]);
-    w.start_tag("cx:lvl", &[("ptCount", &pt_count), ("formatCode", "General")]);
+    w.start_tag(
+        "cx:lvl",
+        &[("ptCount", &pt_count), ("formatCode", "General")],
+    );
     for (i, val) in chart.values.iter().enumerate() {
         let idx = i.to_string();
         let vs = format!("{val}");
@@ -415,8 +490,18 @@ fn write_histogram_xml(chart: &HistogramChart) -> Vec<u8> {
     w.start_tag("cx:plotArea", &[]);
     w.start_tag("cx:plotAreaRegion", &[]);
 
-    let layout_id = if chart.is_pareto { "paretoLine" } else { "histogram" };
-    w.start_tag("cx:series", &[("layoutId", layout_id), ("uniqueId", "{00000000-0000-0000-0000-000000000005}")]);
+    let layout_id = if chart.is_pareto {
+        "paretoLine"
+    } else {
+        "histogram"
+    };
+    w.start_tag(
+        "cx:series",
+        &[
+            ("layoutId", layout_id),
+            ("uniqueId", "{00000000-0000-0000-0000-000000000005}"),
+        ],
+    );
 
     if let Some(ref name) = chart.series_name {
         w.start_tag("cx:tx", &[]);
@@ -472,7 +557,12 @@ fn write_box_whisker_xml(chart: &BoxWhiskerChart) -> Vec<u8> {
 
     // Chart Data — one cx:data block per data set (series)
     w.start_tag("cx:chartData", &[]);
-    for (i, (cat, values)) in chart.categories.iter().zip(chart.data_sets.iter()).enumerate() {
+    for (i, (_cat, values)) in chart
+        .categories
+        .iter()
+        .zip(chart.data_sets.iter())
+        .enumerate()
+    {
         let id = i.to_string();
         w.start_tag("cx:data", &[("id", &id)]);
 
@@ -492,10 +582,17 @@ fn write_box_whisker_xml(chart: &BoxWhiskerChart) -> Vec<u8> {
         // Numeric dimension (values for this series)
         let val_count = values.len().to_string();
         w.start_tag("cx:numDim", &[("type", "val")]);
-        w.start_tag("cx:lvl", &[("ptCount", &val_count), ("formatCode", "General")]);
+        w.start_tag(
+            "cx:lvl",
+            &[("ptCount", &val_count), ("formatCode", "General")],
+        );
         for (j, val) in values.iter().enumerate() {
             let idx = j.to_string();
-            let vs = if *val == val.trunc() { format!("{}", *val as i64) } else { format!("{val}") };
+            let vs = if *val == val.trunc() {
+                format!("{}", *val as i64)
+            } else {
+                format!("{val}")
+            };
             w.start_tag("cx:pt", &[("idx", &idx)]);
             w.text(&vs);
             w.end_tag("cx:pt");
@@ -509,8 +606,11 @@ fn write_box_whisker_xml(chart: &BoxWhiskerChart) -> Vec<u8> {
 
     // Chart
     w.start_tag("cx:chart", &[]);
-    if let Some(ref title) = chart.title {
-        w.start_tag("cx:title", &[("pos", "t"), ("align", "ctr"), ("overlay", "0")]);
+    if chart.title.is_some() {
+        w.start_tag(
+            "cx:title",
+            &[("pos", "t"), ("align", "ctr"), ("overlay", "0")],
+        );
         w.end_tag("cx:title");
     }
 
@@ -521,7 +621,10 @@ fn write_box_whisker_xml(chart: &BoxWhiskerChart) -> Vec<u8> {
     for (i, cat) in chart.categories.iter().enumerate() {
         let id = i.to_string();
         let uid = format!("{{00000000-0000-0000-0000-{:012X}}}", i + 1);
-        w.start_tag("cx:series", &[("layoutId", "boxWhisker"), ("uniqueId", &uid)]);
+        w.start_tag(
+            "cx:series",
+            &[("layoutId", "boxWhisker"), ("uniqueId", &uid)],
+        );
 
         // Series name
         w.start_tag("cx:tx", &[]);
@@ -581,7 +684,10 @@ fn write_map_xml(chart: &MapChart) -> Vec<u8> {
 
     // Numeric dimension (colorVal — map charts use color values)
     w.start_tag("cx:numDim", &[("type", "colorVal")]);
-    w.start_tag("cx:lvl", &[("ptCount", &pt_count), ("formatCode", "General")]);
+    w.start_tag(
+        "cx:lvl",
+        &[("ptCount", &pt_count), ("formatCode", "General")],
+    );
     for (i, val) in chart.values.iter().enumerate() {
         let idx = i.to_string();
         let vs = format!("{val}");
@@ -602,10 +708,14 @@ fn write_map_xml(chart: &MapChart) -> Vec<u8> {
     w.start_tag("cx:plotArea", &[]);
     w.start_tag("cx:plotAreaRegion", &[]);
 
-    w.start_tag("cx:series", &[
-        ("layoutId", "regionMap"),
-        ("uniqueId", "{00000000-0000-0000-0000-000000000007}"),
-    ]);
+    // Use "regionMap" for both levels — the projection level attribute differentiates
+    w.start_tag(
+        "cx:series",
+        &[
+            ("layoutId", "regionMap"),
+            ("uniqueId", "{00000000-0000-0000-0000-000000000007}"),
+        ],
+    );
 
     if let Some(ref name) = chart.series_name {
         w.start_tag("cx:tx", &[]);
@@ -618,13 +728,21 @@ fn write_map_xml(chart: &MapChart) -> Vec<u8> {
     w.empty_tag("cx:dataId", &[("val", "0")]);
 
     // Geography layout — tells Excel to use Bing Maps
+    let projection_level = match chart.map_level {
+        crate::features::chart::MapLevel::Country => "country",
+        crate::features::chart::MapLevel::Region => "region",
+    };
     w.start_tag("cx:layoutPr", &[]);
-    w.start_tag("cx:geography", &[
-        ("cultureLanguage", "en-US"),
-        ("cultureRegion", "US"),
-        ("attribution", "Powered by Bing"),
-    ]);
-    // No geoCache — Excel will fetch from Bing on open
+    w.start_tag(
+        "cx:geography",
+        &[
+            ("cultureLanguage", "en-US"),
+            ("cultureRegion", "US"),
+            ("attribution", "Powered by Bing"),
+        ],
+    );
+    w.empty_tag("cx:geoProjection", &[("projectionType", "mercator")]);
+    w.empty_tag("cx:level", &[("val", projection_level)]);
     w.end_tag("cx:geography");
     w.end_tag("cx:layoutPr");
 
@@ -633,7 +751,10 @@ fn write_map_xml(chart: &MapChart) -> Vec<u8> {
     w.end_tag("cx:plotArea");
 
     // Legend
-    w.start_tag("cx:legend", &[("pos", "b"), ("align", "ctr"), ("overlay", "0")]);
+    w.start_tag(
+        "cx:legend",
+        &[("pos", "b"), ("align", "ctr"), ("overlay", "0")],
+    );
     w.end_tag("cx:legend");
 
     w.end_tag("cx:chart");

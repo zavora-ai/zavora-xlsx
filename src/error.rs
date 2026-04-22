@@ -13,6 +13,7 @@ pub enum Error {
     ReadOnly,
     InvalidData(String),
     Password,
+    UnsupportedFormat(String),
 }
 
 impl fmt::Display for Error {
@@ -28,6 +29,7 @@ impl fmt::Display for Error {
             Error::ReadOnly => write!(f, "Workbook is read-only"),
             Error::InvalidData(s) => write!(f, "Invalid data: {s}"),
             Error::Password => write!(f, "File is password-protected"),
+            Error::UnsupportedFormat(s) => write!(f, "Unsupported format: {s}"),
         }
     }
 }
@@ -35,16 +37,24 @@ impl fmt::Display for Error {
 impl std::error::Error for Error {}
 
 impl From<std::io::Error> for Error {
-    fn from(e: std::io::Error) -> Self { Error::Io(e) }
+    fn from(e: std::io::Error) -> Self {
+        Error::Io(e)
+    }
 }
 impl From<zip::result::ZipError> for Error {
-    fn from(e: zip::result::ZipError) -> Self { Error::Zip(e) }
+    fn from(e: zip::result::ZipError) -> Self {
+        Error::Zip(e)
+    }
 }
 impl From<quick_xml::Error> for Error {
-    fn from(e: quick_xml::Error) -> Self { Error::Xml(e) }
+    fn from(e: quick_xml::Error) -> Self {
+        Error::Xml(e)
+    }
 }
 impl From<quick_xml::events::attributes::AttrError> for Error {
-    fn from(e: quick_xml::events::attributes::AttrError) -> Self { Error::XmlAttr(e) }
+    fn from(e: quick_xml::events::attributes::AttrError) -> Self {
+        Error::XmlAttr(e)
+    }
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

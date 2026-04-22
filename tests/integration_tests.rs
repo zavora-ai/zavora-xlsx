@@ -40,7 +40,7 @@ fn create_save_and_read_back() {
 
 #[test]
 fn verify_with_calamine() {
-    use calamine::{Reader, Xlsx, open_workbook, DataType};
+    use calamine::{DataType, Reader, Xlsx, open_workbook};
 
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("test_calamine.xlsx");
@@ -94,8 +94,14 @@ fn multiple_sheets() {
     {
         let mut wb = Workbook::open_readonly(&path).unwrap();
         assert_eq!(wb.sheet_names(), vec!["Data", "Summary"]);
-        assert_eq!(wb.worksheet(0).unwrap().read_cell(0, 0), CellValue::String("Sheet1 data".into()));
-        assert_eq!(wb.worksheet(1).unwrap().read_cell(0, 0), CellValue::String("Sheet2 data".into()));
+        assert_eq!(
+            wb.worksheet(0).unwrap().read_cell(0, 0),
+            CellValue::String("Sheet1 data".into())
+        );
+        assert_eq!(
+            wb.worksheet(1).unwrap().read_cell(0, 0),
+            CellValue::String("Sheet2 data".into())
+        );
     }
 }
 
@@ -124,7 +130,7 @@ fn write_row_and_column() {
 
 #[test]
 fn formatting_roundtrip_calamine() {
-    use calamine::{Reader, Xlsx, open_workbook, DataType};
+    use calamine::{DataType, Reader, Xlsx, open_workbook};
 
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("test_format.xlsx");
@@ -177,7 +183,7 @@ fn formula_roundtrip() {
 
 #[test]
 fn datetime_roundtrip() {
-    use calamine::{Reader, Xlsx, open_workbook, DataType};
+    use calamine::{Reader, Xlsx, open_workbook};
 
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("test_datetime.xlsx");
@@ -202,7 +208,12 @@ fn datetime_roundtrip() {
         calamine::Data::DateTime(edt) => edt.as_f64(),
         other => panic!("Unexpected calamine type: {:?}", other),
     };
-    assert!((serial - dt.serial()).abs() < 0.001, "Serial date mismatch: {} vs {}", serial, dt.serial());
+    assert!(
+        (serial - dt.serial()).abs() < 0.001,
+        "Serial date mismatch: {} vs {}",
+        serial,
+        dt.serial()
+    );
 }
 
 #[test]
@@ -218,7 +229,7 @@ fn used_range_tracking() {
 
 #[test]
 fn large_dataset_calamine_verify() {
-    use calamine::{Reader, Xlsx, open_workbook, DataType};
+    use calamine::{DataType, Reader, Xlsx, open_workbook};
 
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("test_large.xlsx");
@@ -247,7 +258,11 @@ fn large_dataset_calamine_verify() {
     for r in [0u32, 100, 500, 999] {
         for c in [0u32, 5, 9] {
             let expected = (r * cols + c) as f64;
-            let actual = range.get((r as usize, c as usize)).unwrap().as_f64().unwrap();
+            let actual = range
+                .get((r as usize, c as usize))
+                .unwrap()
+                .as_f64()
+                .unwrap();
             assert_eq!(actual, expected, "Mismatch at ({r}, {c})");
         }
     }

@@ -20,7 +20,12 @@ fn main() {
     let y_values = [10.0, 25.0, 15.0, 30.0, 20.0, 35.0];
     let sizes = [5.0, 10.0, 8.0, 15.0, 12.0, 20.0];
 
-    for (i, ((x, y), s)) in x_values.iter().zip(y_values.iter()).zip(sizes.iter()).enumerate() {
+    for (i, ((x, y), s)) in x_values
+        .iter()
+        .zip(y_values.iter())
+        .zip(sizes.iter())
+        .enumerate()
+    {
         ws.write(i as u32 + 1, 0, *x).unwrap();
         ws.write(i as u32 + 1, 1, *y).unwrap();
         ws.write(i as u32 + 1, 2, *s).unwrap();

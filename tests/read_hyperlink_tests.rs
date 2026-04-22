@@ -7,7 +7,8 @@ fn round_trip_external_hyperlink() {
     {
         let mut wb = Workbook::new();
         let ws = wb.worksheet(0).unwrap();
-        ws.write_url(0, 0, "https://example.com", "Example").unwrap();
+        ws.write_url(0, 0, "https://example.com", "Example")
+            .unwrap();
         ws.write_url(1, 0, "https://rust-lang.org", "").unwrap();
         wb.save(path).unwrap();
     }
@@ -39,7 +40,8 @@ fn round_trip_internal_hyperlink() {
         let mut wb = Workbook::new();
         wb.add_worksheet();
         let ws = wb.worksheet(0).unwrap();
-        ws.write_internal_link(0, 0, "Sheet2!A1", "Go to Sheet2").unwrap();
+        ws.write_internal_link(0, 0, "Sheet2!A1", "Go to Sheet2")
+            .unwrap();
         wb.save(path).unwrap();
     }
     // Read back
@@ -99,8 +101,10 @@ fn round_trip_hyperlinks_edit_mode() {
     {
         let mut wb = Workbook::new();
         let ws = wb.worksheet(0).unwrap();
-        ws.write_url(0, 0, "https://example.com", "Example").unwrap();
-        ws.write_internal_link(1, 0, "Sheet1!C3", "Self ref").unwrap();
+        ws.write_url(0, 0, "https://example.com", "Example")
+            .unwrap();
+        ws.write_internal_link(1, 0, "Sheet1!C3", "Self ref")
+            .unwrap();
         wb.save(path).unwrap();
     }
     // Open in edit mode and read hyperlinks

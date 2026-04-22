@@ -19,7 +19,12 @@ fn test_roundtrip_comments_basic() {
     let ws2 = wb2.worksheet_ref(0).unwrap();
     let comments = ws2.comments();
 
-    assert_eq!(comments.len(), 3, "Expected 3 comments, got {}", comments.len());
+    assert_eq!(
+        comments.len(),
+        3,
+        "Expected 3 comments, got {}",
+        comments.len()
+    );
 
     // Verify first comment (default author)
     assert_eq!(comments[0].row, 0);

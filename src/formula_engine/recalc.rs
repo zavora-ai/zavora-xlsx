@@ -5,7 +5,7 @@ use std::collections::HashSet;
 
 use crate::formula_engine::ast::AstNode;
 use crate::formula_engine::dependency::{CellAddr, DependencyGraph};
-use crate::formula_engine::evaluator::{evaluate, CellContext, Value};
+use crate::formula_engine::evaluator::{CellContext, Value, evaluate};
 
 /// Set of function names that are volatile (must be re-evaluated every time).
 const VOLATILE_FUNCTIONS: &[&str] = &["RAND", "RANDBETWEEN", "NOW", "TODAY", "INDIRECT"];
@@ -21,7 +21,9 @@ impl std::fmt::Display for CircularRefError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Circular reference detected involving cells: ")?;
         for (i, cell) in self.cells.iter().enumerate() {
-            if i > 0 { write!(f, ", ")?; }
+            if i > 0 {
+                write!(f, ", ")?;
+            }
             write!(f, "sheet{}!R{}C{}", cell.sheet, cell.row + 1, cell.col + 1)?;
         }
         Ok(())
@@ -43,7 +45,9 @@ pub struct MutableSimpleContext {
 
 impl MutableSimpleContext {
     pub fn new(num_sheets: usize) -> Self {
-        Self { cells: vec![std::collections::HashMap::new(); num_sheets] }
+        Self {
+            cells: vec![std::collections::HashMap::new(); num_sheets],
+        }
     }
 
     pub fn set(&mut self, sheet: usize, row: u32, col: u16, val: Value) {
@@ -51,7 +55,8 @@ impl MutableSimpleContext {
     }
 
     pub fn get(&self, sheet: usize, row: u32, col: u16) -> Value {
-        self.cells.get(sheet)
+        self.cells
+            .get(sheet)
             .and_then(|s| s.get(&(row, col)))
             .cloned()
             .unwrap_or(Value::Empty)
@@ -84,26 +89,24 @@ pub fn recalculate(
     ctx: &mut dyn MutableCellContext,
 ) -> Result<usize, CircularRefError> {
     // Build refs for the dependency graph
-    let refs: Vec<(CellAddr, &AstNode)> = formulas.iter()
-        .map(|(addr, ast)| (*addr, ast))
-        .collect();
+    let refs: Vec<(CellAddr, &AstNode)> = formulas.iter().map(|(addr, ast)| (*addr, ast)).collect();
     let graph = DependencyGraph::build_from_formulas(&refs);
 
     // Check for cycles
-    let order = graph.topological_order().map_err(|cycle_cells| {
-        CircularRefError { cells: cycle_cells }
-    })?;
+    let order = graph
+        .topological_order()
+        .map_err(|cycle_cells| CircularRefError { cells: cycle_cells })?;
 
     // Identify volatile cells
-    let volatile_cells: HashSet<CellAddr> = formulas.iter()
+    let volatile_cells: HashSet<CellAddr> = formulas
+        .iter()
         .filter(|(_, ast)| contains_volatile(ast))
         .map(|(addr, _)| *addr)
         .collect();
 
     // Build a lookup from CellAddr to AST
-    let formula_map: std::collections::HashMap<CellAddr, &AstNode> = formulas.iter()
-        .map(|(addr, ast)| (*addr, ast))
-        .collect();
+    let formula_map: std::collections::HashMap<CellAddr, &AstNode> =
+        formulas.iter().map(|(addr, ast)| (*addr, ast)).collect();
 
     // Evaluate in topological order
     let mut eval_count = 0;
@@ -126,12 +129,12 @@ pub fn recalculate(
 
         // Re-evaluate in topological order (only the affected cells)
         for cell in &order {
-            if to_reevaluate.contains(cell) {
-                if let Some(ast) = formula_map.get(cell) {
-                    let val = evaluate(ast, ctx, cell.sheet);
-                    ctx.set_cell(cell.sheet, cell.row, cell.col, val);
-                    eval_count += 1;
-                }
+            if to_reevaluate.contains(cell)
+                && let Some(ast) = formula_map.get(cell)
+            {
+                let val = evaluate(ast, ctx, cell.sheet);
+                ctx.set_cell(cell.sheet, cell.row, cell.col, val);
+                eval_count += 1;
             }
         }
     }
@@ -152,13 +155,9 @@ fn contains_volatile(node: &AstNode) -> bool {
             contains_volatile(left) || contains_volatile(right)
         }
         AstNode::UnaryOp { operand, .. } => contains_volatile(operand),
-        AstNode::Range { start, end } => {
-            contains_volatile(start) || contains_volatile(end)
-        }
+        AstNode::Range { start, end } => contains_volatile(start) || contains_volatile(end),
         AstNode::SheetRef { inner, .. } => contains_volatile(inner),
-        AstNode::Array { rows } => {
-            rows.iter().any(|row| row.iter().any(contains_volatile))
-        }
+        AstNode::Array { rows } => rows.iter().any(|row| row.iter().any(contains_volatile)),
         _ => false,
     }
 }
@@ -171,7 +170,7 @@ pub fn is_volatile(name: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::formula_engine::{tokenize, parse};
+    use crate::formula_engine::{parse, tokenize};
 
     fn addr(sheet: usize, row: u32, col: u16) -> CellAddr {
         CellAddr { sheet, row, col }
@@ -191,8 +190,8 @@ mod tests {
         ctx.set(0, 0, 0, Value::Number(10.0)); // A1 = 10
 
         let formulas = vec![
-            (addr(0, 0, 1), parse_ast("A1+1")),   // B1
-            (addr(0, 0, 2), parse_ast("B1*2")),   // C1
+            (addr(0, 0, 1), parse_ast("A1+1")), // B1
+            (addr(0, 0, 2), parse_ast("B1*2")), // C1
         ];
 
         let count = recalculate(&formulas, &mut ctx).unwrap();

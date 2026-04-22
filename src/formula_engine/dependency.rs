@@ -24,6 +24,12 @@ pub struct DependencyGraph {
     reverse: HashMap<CellAddr, HashSet<CellAddr>>,
 }
 
+impl Default for DependencyGraph {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DependencyGraph {
     /// Create an empty dependency graph.
     pub fn new() -> Self {
@@ -66,7 +72,7 @@ impl DependencyGraph {
                 all_nodes.insert(dep);
             }
         }
-        for (&cell, _) in &self.reverse {
+        for &cell in self.reverse.keys() {
             all_nodes.insert(cell);
         }
 
@@ -115,10 +121,7 @@ impl DependencyGraph {
 
     /// Detect cycles using DFS. Returns `Some(cycle)` if a cycle exists.
     pub fn detect_cycle(&self) -> Option<Vec<CellAddr>> {
-        match self.topological_order() {
-            Ok(_) => None,
-            Err(cycle) => Some(cycle),
-        }
+        self.topological_order().err()
     }
 
     /// Return all cells that transitively depend on the given cell.
@@ -147,7 +150,9 @@ impl DependencyGraph {
 
     /// Get the direct precedents (cells referenced by) a given cell.
     pub fn precedents_of(&self, cell: CellAddr) -> Vec<CellAddr> {
-        self.edges.get(&cell).map_or_else(Vec::new, |s| s.iter().copied().collect())
+        self.edges
+            .get(&cell)
+            .map_or_else(Vec::new, |s| s.iter().copied().collect())
     }
 }
 
@@ -163,7 +168,11 @@ fn extract_cell_refs(node: &AstNode, default_sheet: usize) -> Vec<CellAddr> {
 fn collect_refs(node: &AstNode, default_sheet: usize, refs: &mut Vec<CellAddr>) {
     match node {
         AstNode::CellRef { col, row, .. } => {
-            refs.push(CellAddr { sheet: default_sheet, row: *row, col: *col });
+            refs.push(CellAddr {
+                sheet: default_sheet,
+                row: *row,
+                col: *col,
+            });
         }
         AstNode::SheetRef { sheet: _, inner } => {
             // For now, we can't resolve sheet names to indices without a workbook.
@@ -173,16 +182,25 @@ fn collect_refs(node: &AstNode, default_sheet: usize, refs: &mut Vec<CellAddr>) 
         AstNode::Range { start, end } => {
             // For a range like A1:B5, we add all cells in the range
             if let (
-                AstNode::CellRef { col: c1, row: r1, .. },
-                AstNode::CellRef { col: c2, row: r2, .. },
-            ) = (start.as_ref(), end.as_ref()) {
+                AstNode::CellRef {
+                    col: c1, row: r1, ..
+                },
+                AstNode::CellRef {
+                    col: c2, row: r2, ..
+                },
+            ) = (start.as_ref(), end.as_ref())
+            {
                 let min_r = (*r1).min(*r2);
                 let max_r = (*r1).max(*r2);
                 let min_c = (*c1).min(*c2);
                 let max_c = (*c1).max(*c2);
                 for r in min_r..=max_r {
                     for c in min_c..=max_c {
-                        refs.push(CellAddr { sheet: default_sheet, row: r, col: c });
+                        refs.push(CellAddr {
+                            sheet: default_sheet,
+                            row: r,
+                            col: c,
+                        });
                     }
                 }
             } else {
@@ -216,7 +234,7 @@ fn collect_refs(node: &AstNode, default_sheet: usize, refs: &mut Vec<CellAddr>) 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::formula_engine::{tokenize, parse};
+    use crate::formula_engine::{parse, tokenize};
 
     fn addr(sheet: usize, row: u32, col: u16) -> CellAddr {
         CellAddr { sheet, row, col }
@@ -289,10 +307,7 @@ mod tests {
         let a1_ast = parse_ast("B1+1");
         let b1_ast = parse_ast("A1+1");
 
-        let formulas = vec![
-            (addr(0, 0, 0), &a1_ast),
-            (addr(0, 0, 1), &b1_ast),
-        ];
+        let formulas = vec![(addr(0, 0, 0), &a1_ast), (addr(0, 0, 1), &b1_ast)];
 
         let graph = DependencyGraph::build_from_formulas(&formulas);
         let cycle = graph.detect_cycle();
@@ -337,9 +352,7 @@ mod tests {
         // A1 = SUM(B1:B3)
         let a1_ast = parse_ast("SUM(B1:B3)");
 
-        let formulas = vec![
-            (addr(0, 0, 0), &a1_ast),
-        ];
+        let formulas = vec![(addr(0, 0, 0), &a1_ast)];
 
         let graph = DependencyGraph::build_from_formulas(&formulas);
 

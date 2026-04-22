@@ -6,8 +6,12 @@ pub struct ExcelDateTime {
 }
 
 impl ExcelDateTime {
-    pub fn new(serial: f64, is_1904: bool) -> Self { Self { serial, is_1904 } }
-    pub fn serial(&self) -> f64 { self.serial }
+    pub fn new(serial: f64, is_1904: bool) -> Self {
+        Self { serial, is_1904 }
+    }
+    pub fn serial(&self) -> f64 {
+        self.serial
+    }
 
     /// Create from year/month/day.
     pub fn from_ymd(year: i32, month: u32, day: u32) -> Option<Self> {
@@ -15,21 +19,39 @@ impl ExcelDateTime {
     }
 
     /// Create from year/month/day/hour/minute/second.
-    pub fn from_ymd_hms(year: i32, month: u32, day: u32, hour: u32, min: u32, sec: u32) -> Option<Self> {
-        if month < 1 || month > 12 || day < 1 || day > 31 { return None; }
+    pub fn from_ymd_hms(
+        year: i32,
+        month: u32,
+        day: u32,
+        hour: u32,
+        min: u32,
+        sec: u32,
+    ) -> Option<Self> {
+        if !(1..=12).contains(&month) || !(1..=31).contains(&day) {
+            return None;
+        }
         let serial = ymd_to_serial(year, month, day)?;
         let time_frac = (hour as f64 * 3600.0 + min as f64 * 60.0 + sec as f64) / 86400.0;
-        Some(Self { serial: serial as f64 + time_frac, is_1904: false })
+        Some(Self {
+            serial: serial as f64 + time_frac,
+            is_1904: false,
+        })
     }
 
     /// Parse "2024-01-15" or "2024-01-15T10:30:00".
     pub fn parse(s: &str) -> Option<Self> {
         let s = s.trim();
-        if s.len() < 10 { return None; }
+        if s.len() < 10 {
+            return None;
+        }
         let year: i32 = s[0..4].parse().ok()?;
-        if s.as_bytes()[4] != b'-' { return None; }
+        if s.as_bytes()[4] != b'-' {
+            return None;
+        }
         let month: u32 = s[5..7].parse().ok()?;
-        if s.as_bytes()[7] != b'-' { return None; }
+        if s.as_bytes()[7] != b'-' {
+            return None;
+        }
         let day: u32 = s[8..10].parse().ok()?;
 
         if s.len() == 10 {
@@ -46,7 +68,11 @@ impl ExcelDateTime {
 
     /// Convert serial date to (year, month, day, hour, min, sec).
     pub fn to_ymd_hms(&self) -> (i32, u32, u32, u32, u32, u32) {
-        let base = if self.is_1904 { self.serial + 1462.0 } else { self.serial };
+        let base = if self.is_1904 {
+            self.serial + 1462.0
+        } else {
+            self.serial
+        };
         serial_to_ymd_hms(base)
     }
 
@@ -63,7 +89,9 @@ impl ExcelDateTime {
 
 /// Convert y/m/d to Excel serial date (1900 epoch).
 fn ymd_to_serial(year: i32, month: u32, day: u32) -> Option<i64> {
-    if year < 1900 || month < 1 || month > 12 || day < 1 || day > 31 { return None; }
+    if year < 1900 || !(1..=12).contains(&month) || !(1..=31).contains(&day) {
+        return None;
+    }
 
     // Count days from 1900-01-01 (which is serial date 1)
     let mut days: i64 = 0;
@@ -79,8 +107,8 @@ fn ymd_to_serial(year: i32, month: u32, day: u32) -> Option<i64> {
     } else {
         [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
     };
-    for m in 0..(month as usize - 1) {
-        days += month_days[m] as i64;
+    for md in month_days.iter().take(month as usize - 1) {
+        days += *md as i64;
     }
 
     // Add the day
@@ -105,11 +133,17 @@ fn serial_to_ymd_hms(serial: f64) -> (i32, u32, u32, u32, u32, u32) {
     let mut day_num = serial.floor() as i64;
     let time_frac = serial - serial.floor();
 
-    if day_num <= 0 { return (1900, 1, 1, 0, 0, 0); }
-    if day_num == 60 { return (1900, 2, 29, 0, 0, 0); } // Excel's phantom leap day
+    if day_num <= 0 {
+        return (1900, 1, 1, 0, 0, 0);
+    }
+    if day_num == 60 {
+        return (1900, 2, 29, 0, 0, 0);
+    } // Excel's phantom leap day
 
     // Undo the phantom leap day adjustment
-    if day_num > 60 { day_num -= 1; }
+    if day_num > 60 {
+        day_num -= 1;
+    }
 
     // Now day_num is days since 1900-01-01 where 1900-01-01 = 1
     day_num -= 1; // make 0-based (1900-01-01 = 0)
@@ -132,7 +166,9 @@ fn serial_to_ymd_hms(serial: f64) -> (i32, u32, u32, u32, u32, u32) {
 
     let mut month = 1u32;
     for &md in &month_days {
-        if day_num < md { break; }
+        if day_num < md {
+            break;
+        }
         day_num -= md;
         month += 1;
     }

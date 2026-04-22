@@ -1,59 +1,51 @@
-//! Example: Create surface and wireframe surface charts.
-//!
-//! Run with: cargo run --example surface_chart
+//! Example: Create surface and wireframe surface charts (Task 34).
 
-use zavora_xlsx::{Chart, ChartType, View3D, Workbook};
+use zavora_xlsx::*;
 
-fn main() {
+fn main() -> Result<()> {
+    let path = std::path::PathBuf::from("output/surface_chart_example.xlsx");
+
     let mut wb = Workbook::new();
-    let ws = wb.worksheet(0).unwrap();
-    ws.set_name("Surface").unwrap();
+    let ws = wb.worksheet(0)?;
+    ws.set_name("Surface Data")?;
 
-    // Generate a 5x5 grid of Z values: z = sin(x) * cos(y)
-    ws.write(0, 0, "").unwrap();
-    for c in 0..5u16 {
-        ws.write(0, c + 1, format!("Y={}", c)).unwrap();
+    // Create a grid of data for the surface
+    let hdr = Format::new().bold();
+    ws.write_with_format(0, 0, "", &hdr)?;
+    for col in 1..=5u16 {
+        ws.write_with_format(0, col, format!("X{}", col), &hdr)?;
     }
-    for r in 0..5u32 {
-        ws.write(r + 1, 0, format!("X={}", r)).unwrap();
-        for c in 0..5u16 {
-            let x = r as f64 * 0.5;
-            let y = c as f64 * 0.5;
-            let z = (x.sin() * y.cos() * 100.0).round() / 100.0;
-            ws.write(r + 1, c + 1, z).unwrap();
+    for row in 1..=5u32 {
+        ws.write(row, 0, format!("Y{}", row))?;
+        for col in 1..=5u16 {
+            let val = (row as f64 * col as f64).sin() * 10.0 + 20.0;
+            ws.write(row, col, val)?;
         }
     }
 
-    let mut chart = Chart::new(ChartType::Surface);
-    chart.set_title("Surface Chart: sin(x)*cos(y)");
-    chart.set_view3d(View3D { rot_x: 25, rot_y: 30, perspective: 20, right_angle_axes: false });
-    for c in 0..5 {
-        let col_letter = (b'B' + c as u8) as char;
-        let s = chart.add_series();
-        s.set_categories("Surface!$A$2:$A$6")
-         .set_values(&format!("Surface!${col_letter}$2:${col_letter}$6"))
-         .set_name(&format!("Y={c}"));
+    // Solid surface chart
+    let mut surface = Chart::new(ChartType::Surface);
+    surface.set_title("3D Surface");
+    for row in 1..=5u32 {
+        surface
+            .add_series()
+            .set_name(&format!("Y{}", row))
+            .set_values(&format!("'Surface Data'!$B${}:$F${}", row + 1, row + 1));
     }
-    ws.insert_chart(7, 0, &chart).unwrap();
+    ws.insert_chart(8, 0, &surface)?;
 
-    // Wireframe variant
-    let ws2 = wb.add_worksheet_with_name("Wireframe").unwrap();
-    for r in 0..5u32 {
-        for c in 0..5u16 {
-            let x = r as f64 * 0.5;
-            let y = c as f64 * 0.5;
-            ws2.write(r, c, (x * y).sqrt()).unwrap();
-        }
+    // Wireframe surface chart
+    let mut wireframe = Chart::new(ChartType::WireframeSurface);
+    wireframe.set_title("Wireframe Surface");
+    for row in 1..=5u32 {
+        wireframe
+            .add_series()
+            .set_name(&format!("Y{}", row))
+            .set_values(&format!("'Surface Data'!$B${}:$F${}", row + 1, row + 1));
     }
-    let mut wire = Chart::new(ChartType::WireframeSurface);
-    wire.set_title("Wireframe Surface");
-    for c in 0..5 {
-        let col_letter = (b'A' + c as u8) as char;
-        let s = wire.add_series();
-        s.set_values(&format!("Wireframe!${col_letter}$1:${col_letter}$5"));
-    }
-    ws2.insert_chart(6, 0, &wire).unwrap();
+    ws.insert_chart(8, 6, &wireframe)?;
 
-    wb.save("surface_chart.xlsx").unwrap();
-    println!("Created surface_chart.xlsx");
+    wb.save(&path)?;
+    println!("✅ Surface charts saved to {}", path.display());
+    Ok(())
 }

@@ -57,7 +57,8 @@ pub fn parse_sparklines(data: &[u8]) -> Vec<Sparkline> {
                             .unwrap_or("line"),
                     );
                     // Parse the color attribute if present within the group
-                    let color = parse_sparkline_group_color(&mut reader, &mut buf, sp_type, &mut results);
+                    let color =
+                        parse_sparkline_group_color(&mut reader, &mut buf, sp_type, &mut results);
                     // If parse_sparkline_group_color didn't consume the end tag, color is returned
                     let _ = color;
                 }
@@ -185,10 +186,8 @@ fn parse_single_sparkline(
                     if let Ok(s) = t.unescape() {
                         data_range.push_str(&s);
                     }
-                } else if in_sqref {
-                    if let Ok(s) = t.unescape() {
-                        location.push_str(&s);
-                    }
+                } else if in_sqref && let Ok(s) = t.unescape() {
+                    location.push_str(&s);
                 }
             }
             Ok(Event::End(ref e)) => {

@@ -6,7 +6,7 @@
 use zavora_xlsx::*;
 
 fn main() -> Result<()> {
-    let path = std::env::temp_dir().join("read_dv_example.xlsx");
+    let path = std::path::PathBuf::from("output/read_dv_example.xlsx");
 
     // ── Step 1: Create a workbook with data validations ──
     println!("📝 Creating workbook with data validation rules...\n");
@@ -37,7 +37,11 @@ fn main() -> Result<()> {
             "Date".into(),
         ]));
         dv1.set_input_message("Fruit", "Pick a fruit from the list");
-        dv1.set_error_message(ErrorStyle::Stop, "Invalid!", "Please select from the dropdown");
+        dv1.set_error_message(
+            ErrorStyle::Stop,
+            "Invalid!",
+            "Please select from the dropdown",
+        );
         ws.add_data_validation(1, 0, 10, 0, &dv1)?;
 
         // Rule 2: Whole number between 1 and 100 on column B
@@ -65,7 +69,11 @@ fn main() -> Result<()> {
 
         // Rule 5: Custom formula on column E
         let mut dv5 = DataValidation::new(ValidationRule::Custom("AND(E2>0,E2<1000)".into()));
-        dv5.set_error_message(ErrorStyle::Information, "Note", "Value should be between 0 and 1000");
+        dv5.set_error_message(
+            ErrorStyle::Information,
+            "Note",
+            "Value should be between 0 and 1000",
+        );
         ws.add_data_validation(1, 4, 10, 4, &dv5)?;
 
         wb.save(&path)?;
@@ -86,8 +94,10 @@ fn main() -> Result<()> {
     for (i, dv) in dvs.iter().enumerate() {
         let range_str = format!(
             "{}{}:{}{}",
-            col_letter(dv.first_col()), dv.first_row() + 1,
-            col_letter(dv.last_col()), dv.last_row() + 1
+            col_letter(dv.first_col()),
+            dv.first_row() + 1,
+            col_letter(dv.last_col()),
+            dv.last_row() + 1
         );
 
         println!("  Rule {} — range={}", i + 1, range_str);
@@ -119,12 +129,19 @@ fn main() -> Result<()> {
 
         // Print messages if present
         if let Some(title) = dv.input_title() {
-            println!("    Input: title=\"{}\" msg=\"{}\"",
-                title, dv.input_message().unwrap_or(""));
+            println!(
+                "    Input: title=\"{}\" msg=\"{}\"",
+                title,
+                dv.input_message().unwrap_or("")
+            );
         }
         if let Some(title) = dv.error_title() {
-            println!("    Error: style={:?} title=\"{}\" msg=\"{}\"",
-                dv.error_style(), title, dv.error_message().unwrap_or(""));
+            println!(
+                "    Error: style={:?} title=\"{}\" msg=\"{}\"",
+                dv.error_style(),
+                title,
+                dv.error_message().unwrap_or("")
+            );
         }
 
         println!();
@@ -142,7 +159,9 @@ fn col_letter(col: u16) -> String {
     let mut c = col as u32;
     loop {
         result.insert(0, (b'A' + (c % 26) as u8) as char);
-        if c < 26 { break; }
+        if c < 26 {
+            break;
+        }
         c = c / 26 - 1;
     }
     result

@@ -3,7 +3,7 @@ use zavora_xlsx::*;
 /// Create a file, reopen in edit mode, modify, save, verify with calamine.
 #[test]
 fn edit_mode_modify_cell() {
-    use calamine::{Reader, Xlsx, open_workbook, DataType};
+    use calamine::{DataType, Reader, Xlsx, open_workbook};
 
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("edit_cell.xlsx");
@@ -39,7 +39,7 @@ fn edit_mode_modify_cell() {
 /// Test that unmodified sheets pass through as raw bytes.
 #[test]
 fn edit_mode_raw_passthrough() {
-    use calamine::{Reader, Xlsx, open_workbook, DataType};
+    use calamine::{DataType, Reader, Xlsx, open_workbook};
 
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("passthrough.xlsx");
@@ -69,7 +69,10 @@ fn edit_mode_raw_passthrough() {
     assert_eq!(r1.rows().next().unwrap()[0].get_string(), Some("Modified"));
 
     let r2 = workbook.worksheet_range("Sheet2").unwrap();
-    assert_eq!(r2.rows().next().unwrap()[0].get_string(), Some("Sheet2 data"));
+    assert_eq!(
+        r2.rows().next().unwrap()[0].get_string(),
+        Some("Sheet2 data")
+    );
 }
 
 /// Test sheet management: add, remove, rename.
@@ -83,8 +86,14 @@ fn sheet_management() {
     {
         let mut wb = Workbook::new();
         wb.worksheet(0).unwrap().write(0, 0, "A").unwrap();
-        wb.add_worksheet_with_name("Second").unwrap().write(0, 0, "B").unwrap();
-        wb.add_worksheet_with_name("Third").unwrap().write(0, 0, "C").unwrap();
+        wb.add_worksheet_with_name("Second")
+            .unwrap()
+            .write(0, 0, "B")
+            .unwrap();
+        wb.add_worksheet_with_name("Third")
+            .unwrap()
+            .write(0, 0, "C")
+            .unwrap();
 
         // Remove middle sheet
         wb.remove_worksheet(1).unwrap();
@@ -97,7 +106,7 @@ fn sheet_management() {
         wb.save(&path).unwrap();
     }
 
-    let mut workbook: Xlsx<_> = open_workbook(&path).unwrap();
+    let workbook: Xlsx<_> = open_workbook(&path).unwrap();
     let names = workbook.sheet_names().to_vec();
     assert_eq!(names, vec!["Sheet1", "Last"]);
 }
@@ -134,7 +143,7 @@ fn insert_rows_shifts_cells_and_formulas() {
     }
 
     // Verify with calamine
-    use calamine::{Reader, Xlsx, open_workbook, DataType};
+    use calamine::{DataType, Reader, Xlsx, open_workbook};
     let mut workbook: Xlsx<_> = open_workbook(&path).unwrap();
     let range = workbook.worksheet_range("Sheet1").unwrap();
     assert_eq!(range.get((0, 0)).unwrap().get_string(), Some("Header"));
@@ -257,14 +266,14 @@ fn move_worksheet_reorder() {
         wb.save(&path).unwrap();
     }
 
-    let mut workbook: Xlsx<_> = open_workbook(&path).unwrap();
+    let workbook: Xlsx<_> = open_workbook(&path).unwrap();
     assert_eq!(workbook.sheet_names(), &["C", "A", "B"]);
 }
 
 /// Full edit workflow: create → save → open edit → add sheet → modify → save → verify.
 #[test]
 fn full_edit_workflow() {
-    use calamine::{Reader, Xlsx, open_workbook, DataType};
+    use calamine::{DataType, Reader, Xlsx, open_workbook};
 
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("full_edit.xlsx");
@@ -310,5 +319,8 @@ fn full_edit_workflow() {
     assert_eq!(rows[3][0].get_string(), Some("Bob"));
 
     let summary = workbook.worksheet_range("Summary").unwrap();
-    assert_eq!(summary.rows().next().unwrap()[0].get_string(), Some("Total students: 3"));
+    assert_eq!(
+        summary.rows().next().unwrap()[0].get_string(),
+        Some("Total students: 3")
+    );
 }

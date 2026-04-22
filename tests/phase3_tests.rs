@@ -8,13 +8,17 @@ fn chart_column_basic() {
     let mut wb = Workbook::new();
     let ws = wb.worksheet(0).unwrap();
     ws.write_row(0, 0, ["Category", "Value"]).unwrap();
-    ws.write(1, 0, "A").unwrap(); ws.write(1, 1, 10.0).unwrap();
-    ws.write(2, 0, "B").unwrap(); ws.write(2, 1, 20.0).unwrap();
-    ws.write(3, 0, "C").unwrap(); ws.write(3, 1, 30.0).unwrap();
+    ws.write(1, 0, "A").unwrap();
+    ws.write(1, 1, 10.0).unwrap();
+    ws.write(2, 0, "B").unwrap();
+    ws.write(2, 1, 20.0).unwrap();
+    ws.write(3, 0, "C").unwrap();
+    ws.write(3, 1, 30.0).unwrap();
 
     let mut chart = Chart::new(ChartType::Column);
     chart.set_title("Sales");
-    chart.add_series()
+    chart
+        .add_series()
         .set_values("Sheet1!$B$2:$B$4")
         .set_categories("Sheet1!$A$2:$A$4")
         .set_name("Revenue");
@@ -25,7 +29,7 @@ fn chart_column_basic() {
     wb.save(&path).unwrap();
 
     // Verify file is valid xlsx that calamine can open
-    use calamine::{Reader, Xlsx, open_workbook, DataType};
+    use calamine::{DataType, Reader, Xlsx, open_workbook};
     let mut workbook: Xlsx<_> = open_workbook(&path).unwrap();
     let range = workbook.worksheet_range("Sheet1").unwrap();
     assert_eq!(range.get((0, 0)).unwrap().get_string(), Some("Category"));
@@ -39,10 +43,20 @@ fn chart_all_types() {
 
     let mut wb = Workbook::new();
     let ws = wb.worksheet(0).unwrap();
-    for r in 0..5u32 { ws.write(r, 0, (r + 1) as f64).unwrap(); }
+    for r in 0..5u32 {
+        ws.write(r, 0, (r + 1) as f64).unwrap();
+    }
 
-    for chart_type in [ChartType::Bar, ChartType::Column, ChartType::Line, ChartType::Pie,
-                       ChartType::Scatter, ChartType::Area, ChartType::Doughnut, ChartType::Radar] {
+    for chart_type in [
+        ChartType::Bar,
+        ChartType::Column,
+        ChartType::Line,
+        ChartType::Pie,
+        ChartType::Scatter,
+        ChartType::Area,
+        ChartType::Doughnut,
+        ChartType::Radar,
+    ] {
         let mut chart = Chart::new(chart_type);
         chart.add_series().set_values("Sheet1!$A$1:$A$5");
         ws.insert_chart(6, 0, &chart).unwrap();
@@ -55,15 +69,19 @@ fn chart_all_types() {
 
 #[test]
 fn table_basic() {
-    use calamine::{Reader, Xlsx, open_workbook, DataType};
+    use calamine::{DataType, Reader, Xlsx, open_workbook};
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("table.xlsx");
 
     let mut wb = Workbook::new();
     let ws = wb.worksheet(0).unwrap();
     ws.write_row(0, 0, ["Name", "Score", "Grade"]).unwrap();
-    ws.write(1, 0, "Alice").unwrap(); ws.write(1, 1, 95.0).unwrap(); ws.write(1, 2, "A").unwrap();
-    ws.write(2, 0, "Bob").unwrap(); ws.write(2, 1, 87.0).unwrap(); ws.write(2, 2, "B").unwrap();
+    ws.write(1, 0, "Alice").unwrap();
+    ws.write(1, 1, 95.0).unwrap();
+    ws.write(1, 2, "A").unwrap();
+    ws.write(2, 0, "Bob").unwrap();
+    ws.write(2, 1, 87.0).unwrap();
+    ws.write(2, 2, "B").unwrap();
 
     let mut table = Table::new();
     table.set_columns(&[
@@ -100,19 +118,22 @@ fn image_png_embed() {
     // Verify the file contains the image in media/
     let file = std::fs::File::open(&path).unwrap();
     let mut zip = zip::ZipArchive::new(std::io::BufReader::new(file)).unwrap();
-    let has_media = (0..zip.len()).any(|i| zip.by_index(i).unwrap().name().starts_with("xl/media/"));
+    let has_media =
+        (0..zip.len()).any(|i| zip.by_index(i).unwrap().name().starts_with("xl/media/"));
     assert!(has_media, "Expected image in xl/media/");
 }
 
 #[test]
 fn conditional_format_cell_value() {
-    use calamine::{Reader, Xlsx, open_workbook, DataType};
+    use calamine::{DataType, Reader, Xlsx, open_workbook};
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("cf.xlsx");
 
     let mut wb = Workbook::new();
     let ws = wb.worksheet(0).unwrap();
-    for r in 0..10u32 { ws.write(r, 0, (r * 10) as f64).unwrap(); }
+    for r in 0..10u32 {
+        ws.write(r, 0, (r * 10) as f64).unwrap();
+    }
 
     let cf = ConditionalFormatCell::new(CfOperator::GreaterThan, 50.0);
     ws.add_conditional_format(0, 0, 9, 0, cf).unwrap();
@@ -142,12 +163,19 @@ fn data_validation_list() {
     let ws = wb.worksheet(0).unwrap();
     ws.write(0, 0, "Status:").unwrap();
 
-    let mut dv = DataValidation::new(ValidationRule::List(vec!["Yes".into(), "No".into(), "Maybe".into()]));
+    let mut dv = DataValidation::new(ValidationRule::List(vec![
+        "Yes".into(),
+        "No".into(),
+        "Maybe".into(),
+    ]));
     dv.set_input_message("Choose", "Select a value from the list");
     dv.set_error_message(ErrorStyle::Stop, "Invalid", "Please select from the list");
     ws.add_data_validation(1, 0, 10, 0, &dv).unwrap();
 
-    let mut dv2 = DataValidation::new(ValidationRule::WholeNumber { min: Some(1), max: Some(100) });
+    let dv2 = DataValidation::new(ValidationRule::WholeNumber {
+        min: Some(1),
+        max: Some(100),
+    });
     ws.add_data_validation(1, 1, 10, 1, &dv2).unwrap();
 
     wb.save(&path).unwrap();
@@ -177,7 +205,7 @@ fn sparkline_basic() {
 
 #[test]
 fn all_features_combined() {
-    use calamine::{Reader, Xlsx, open_workbook, DataType};
+    use calamine::{DataType, Reader, Xlsx, open_workbook};
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("all_features.xlsx");
 
@@ -185,17 +213,22 @@ fn all_features_combined() {
     let ws = wb.worksheet(0).unwrap();
 
     // Data
-    ws.write_row(0, 0, ["Product", "Q1", "Q2", "Q3", "Q4"]).unwrap();
+    ws.write_row(0, 0, ["Product", "Q1", "Q2", "Q3", "Q4"])
+        .unwrap();
     ws.write(1, 0, "Widget").unwrap();
-    ws.write_row(1, 1, [100.0_f64, 150.0, 200.0, 180.0]).unwrap();
+    ws.write_row(1, 1, [100.0_f64, 150.0, 200.0, 180.0])
+        .unwrap();
     ws.write(2, 0, "Gadget").unwrap();
     ws.write_row(2, 1, [80.0_f64, 90.0, 120.0, 110.0]).unwrap();
 
     // Table
     let mut table = Table::new();
     table.set_columns(&[
-        TableColumn::new("Product"), TableColumn::new("Q1"),
-        TableColumn::new("Q2"), TableColumn::new("Q3"), TableColumn::new("Q4"),
+        TableColumn::new("Product"),
+        TableColumn::new("Q1"),
+        TableColumn::new("Q2"),
+        TableColumn::new("Q3"),
+        TableColumn::new("Q4"),
     ]);
     table.set_style(TableStyle::Medium(9));
     ws.add_table(0, 0, 2, 4, &table).unwrap();
@@ -203,11 +236,13 @@ fn all_features_combined() {
     // Chart
     let mut chart = Chart::new(ChartType::Line);
     chart.set_title("Quarterly Sales");
-    chart.add_series()
+    chart
+        .add_series()
         .set_values("Sheet1!$B$2:$E$2")
         .set_categories("Sheet1!$B$1:$E$1")
         .set_name("Widget");
-    chart.add_series()
+    chart
+        .add_series()
         .set_values("Sheet1!$B$3:$E$3")
         .set_categories("Sheet1!$B$1:$E$1")
         .set_name("Gadget");
@@ -218,7 +253,10 @@ fn all_features_combined() {
     ws.add_conditional_format(1, 1, 2, 4, cf).unwrap();
 
     // Data validation
-    let dv = DataValidation::new(ValidationRule::Decimal { min: Some(0.0), max: Some(1000.0) });
+    let dv = DataValidation::new(ValidationRule::Decimal {
+        min: Some(0.0),
+        max: Some(1000.0),
+    });
     ws.add_data_validation(1, 1, 2, 4, &dv).unwrap();
 
     // Sparklines
@@ -244,13 +282,15 @@ fn create_minimal_png() -> Vec<u8> {
     let ihdr_data = [
         0, 0, 0, 1, // width = 1
         0, 0, 0, 1, // height = 1
-        8,           // bit depth
-        2,           // color type (RGB)
-        0, 0, 0,     // compression, filter, interlace
+        8, // bit depth
+        2, // color type (RGB)
+        0, 0, 0, // compression, filter, interlace
     ];
     write_png_chunk(&mut png, b"IHDR", &ihdr_data);
     // IDAT chunk (zlib-compressed single white pixel)
-    let idat_data = [0x78, 0x01, 0x62, 0xF8, 0xCF, 0xC0, 0x00, 0x00, 0x00, 0x04, 0x00, 0x01];
+    let idat_data = [
+        0x78, 0x01, 0x62, 0xF8, 0xCF, 0xC0, 0x00, 0x00, 0x00, 0x04, 0x00, 0x01,
+    ];
     write_png_chunk(&mut png, b"IDAT", &idat_data);
     // IEND chunk
     write_png_chunk(&mut png, b"IEND", &[]);
@@ -273,8 +313,11 @@ fn crc32(data: &[u8]) -> u32 {
     for &byte in data {
         crc ^= byte as u32;
         for _ in 0..8 {
-            if crc & 1 != 0 { crc = (crc >> 1) ^ 0xEDB88320; }
-            else { crc >>= 1; }
+            if crc & 1 != 0 {
+                crc = (crc >> 1) ^ 0xEDB88320;
+            } else {
+                crc >>= 1;
+            }
         }
     }
     !crc

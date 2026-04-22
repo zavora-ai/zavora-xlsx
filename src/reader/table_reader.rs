@@ -33,21 +33,21 @@ pub fn read_table(data: &[u8]) -> crate::Result<Table> {
                         if let Some(n) = get_attr_str(e.attributes(), b"name") {
                             table.name = Some(n.to_string());
                         }
-                        if let Some(range_str) = get_attr_str(e.attributes(), b"ref") {
-                            if let Some((r1, c1, r2, c2)) = parse_range(range_str) {
-                                table.first_row = r1;
-                                table.first_col = c1;
-                                table.last_row = r2;
-                                table.last_col = c2;
-                            }
+                        if let Some(range_str) = get_attr_str(e.attributes(), b"ref")
+                            && let Some((r1, c1, r2, c2)) = parse_range(range_str)
+                        {
+                            table.first_row = r1;
+                            table.first_col = c1;
+                            table.last_row = r2;
+                            table.last_col = c2;
                         }
                         if let Some(v) = get_attr_str(e.attributes(), b"totalsRowShown") {
                             table.total_row = v == "1";
                         }
-                        if let Some(v) = get_attr_str(e.attributes(), b"totalsRowCount") {
-                            if v != "0" {
-                                table.total_row = true;
-                            }
+                        if let Some(v) = get_attr_str(e.attributes(), b"totalsRowCount")
+                            && v != "0"
+                        {
+                            table.total_row = true;
                         }
                     }
                     b"autoFilter" => {
@@ -67,10 +67,10 @@ pub fn read_table(data: &[u8]) -> crate::Result<Table> {
                         table.columns.push(col);
                     }
                     b"tableStyleInfo" => {
-                        if let Some(style_name) = get_attr_str(e.attributes(), b"name") {
-                            if let Some(style) = resolve_table_style(style_name) {
-                                table.style = Some(style);
-                            }
+                        if let Some(style_name) = get_attr_str(e.attributes(), b"name")
+                            && let Some(style) = resolve_table_style(style_name)
+                        {
+                            table.style = Some(style);
                         }
                     }
                     _ => {

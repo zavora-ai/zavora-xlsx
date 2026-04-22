@@ -38,10 +38,7 @@ fn test_version_exits_0() {
 
 #[test]
 fn test_no_args_exits_nonzero() {
-    Command::cargo_bin("zavora-xlsx")
-        .unwrap()
-        .assert()
-        .code(2);
+    Command::cargo_bin("zavora-xlsx").unwrap().assert().code(2);
 }
 
 #[test]
@@ -174,7 +171,10 @@ fn test_convert_xlsx_to_csv() {
         .success();
 
     let csv_file = out_dir.join("Sheet1.csv");
-    assert!(csv_file.exists(), "Sheet1.csv should exist in output directory");
+    assert!(
+        csv_file.exists(),
+        "Sheet1.csv should exist in output directory"
+    );
 }
 
 #[test]

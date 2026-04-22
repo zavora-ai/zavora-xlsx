@@ -25,9 +25,7 @@ fn values_equal(a: &Value, b: &Value) -> bool {
 fn compare_values(a: &Value, b: &Value) -> Option<std::cmp::Ordering> {
     match (a, b) {
         (Value::Number(x), Value::Number(y)) => x.partial_cmp(y),
-        (Value::String(x), Value::String(y)) => {
-            Some(x.to_lowercase().cmp(&y.to_lowercase()))
-        }
+        (Value::String(x), Value::String(y)) => Some(x.to_lowercase().cmp(&y.to_lowercase())),
         (Value::Empty, Value::Number(n)) => 0.0_f64.partial_cmp(n),
         (Value::Number(n), Value::Empty) => n.partial_cmp(&0.0),
         (Value::Empty, Value::String(s)) => Some("".cmp(s.as_str())),
@@ -41,7 +39,7 @@ fn compare_values(a: &Value, b: &Value) -> Option<std::cmp::Ordering> {
 // HLOOKUP
 // ---------------------------------------------------------------------------
 
-/// HLOOKUP(lookup_value, table_array, row_index_num, [range_lookup])
+/// HLOOKUP(`lookup_value`, `table_array`, `row_index_num`, \[`range_lookup`\])
 ///
 /// Searches for a value in the first row of a table and returns a value in the
 /// same column from a specified row.
@@ -126,7 +124,7 @@ pub fn fn_hlookup(args: &[Value]) -> Value {
 // XLOOKUP
 // ---------------------------------------------------------------------------
 
-/// XLOOKUP(lookup_value, lookup_array, return_array, [if_not_found], [match_mode], [search_mode])
+/// XLOOKUP(`lookup_value`, `lookup_array`, `return_array`, \[`if_not_found`\], \[`match_mode`\], \[`search_mode`\])
 ///
 /// match_mode: 0 = exact (default), -1 = exact or next smaller, 1 = exact or next larger, 2 = wildcard
 /// search_mode: 1 = first-to-last (default), -1 = last-to-first, 2 = binary asc, -2 = binary desc
@@ -270,7 +268,7 @@ fn get_return_value(return_array: &[Value], index: usize) -> Value {
 // INDIRECT
 // ---------------------------------------------------------------------------
 
-/// INDIRECT(ref_text, [a1])
+/// INDIRECT(`ref_text`, \[`a1`\])
 ///
 /// Converts a text string to a cell reference. This requires runtime context
 /// to resolve the reference, so for now it returns #VALUE!.
@@ -288,7 +286,7 @@ pub fn fn_indirect(args: &[Value]) -> Value {
 // OFFSET
 // ---------------------------------------------------------------------------
 
-/// OFFSET(reference, rows, cols, [height], [width])
+/// OFFSET(`reference`, `rows`, `cols`, \[`height`\], \[`width`\])
 ///
 /// Returns a reference shifted by the specified rows and columns.
 /// This requires runtime context for full implementation.
@@ -357,10 +355,7 @@ mod tests {
             s("twenty")
         );
         // 30 → exact match
-        assert_eq!(
-            fn_hlookup(&[num(30.0), table, num(2.0)]),
-            s("thirty")
-        );
+        assert_eq!(fn_hlookup(&[num(30.0), table, num(2.0)]), s("thirty"));
     }
 
     #[test]
@@ -377,10 +372,7 @@ mod tests {
             Value::Error(ErrorKind::Na)
         );
         // Not found, with if_not_found
-        assert_eq!(
-            fn_xlookup(&[s("D"), lookup, returns, s("N/A")]),
-            s("N/A")
-        );
+        assert_eq!(fn_xlookup(&[s("D"), lookup, returns, s("N/A")]), s("N/A"));
     }
 
     #[test]
@@ -389,7 +381,13 @@ mod tests {
         let returns = Value::Array(vec![vec![s("ten"), s("twenty"), s("thirty")]]);
         // match_mode = -1: exact or next smaller
         assert_eq!(
-            fn_xlookup(&[num(25.0), lookup, returns, Value::Error(ErrorKind::Na), num(-1.0)]),
+            fn_xlookup(&[
+                num(25.0),
+                lookup,
+                returns,
+                Value::Error(ErrorKind::Na),
+                num(-1.0)
+            ]),
             s("twenty")
         );
     }
@@ -400,7 +398,13 @@ mod tests {
         let returns = Value::Array(vec![vec![s("ten"), s("twenty"), s("thirty")]]);
         // match_mode = 1: exact or next larger
         assert_eq!(
-            fn_xlookup(&[num(15.0), lookup, returns, Value::Error(ErrorKind::Na), num(1.0)]),
+            fn_xlookup(&[
+                num(15.0),
+                lookup,
+                returns,
+                Value::Error(ErrorKind::Na),
+                num(1.0)
+            ]),
             s("twenty")
         );
     }

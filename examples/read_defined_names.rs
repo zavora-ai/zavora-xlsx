@@ -5,7 +5,6 @@
 /// - Creating sheet-scoped (local) defined names
 /// - Reading back defined names with scope information
 /// - Using the legacy `defined_names()` API for backward compatibility
-
 use zavora_xlsx::{DefinedNameScope, Workbook};
 
 fn main() -> zavora_xlsx::Result<()> {
@@ -51,7 +50,10 @@ fn main() -> zavora_xlsx::Result<()> {
                 format!("Sheet {} (\"{}\")", idx, sheet_name)
             }
         };
-        println!("  Name: {:<15} Formula: {:<30} Scope: {}", dn.name, dn.formula, scope_str);
+        println!(
+            "  Name: {:<15} Formula: {:<30} Scope: {}",
+            dn.name, dn.formula, scope_str
+        );
     }
 
     println!("\n=== Legacy API (name, formula pairs) ===");

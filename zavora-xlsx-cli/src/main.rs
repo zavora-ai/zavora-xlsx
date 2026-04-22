@@ -66,7 +66,11 @@ fn detect_cell_value(field: &str) -> CellValueType {
 }
 
 #[derive(Parser)]
-#[command(name = "zavora-xlsx", version, about = "Inspect, export, and convert Excel xlsx files")]
+#[command(
+    name = "zavora-xlsx",
+    version,
+    about = "Inspect, export, and convert Excel xlsx files"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -148,13 +152,7 @@ fn main() {
             ref sheet,
             ref output,
             delimiter,
-        } => cmd_convert(
-            file,
-            format,
-            sheet.as_deref(),
-            output.as_deref(),
-            delimiter,
-        ),
+        } => cmd_convert(file, format, sheet.as_deref(), output.as_deref(), delimiter),
     };
     if let Err(e) = result {
         eprintln!("Error: {e}");
@@ -325,11 +323,9 @@ fn cmd_convert(
         "xlsx" => {
             // csv → xlsx
             if input_ext != "csv" {
-                return Err(format!(
-                    "cannot convert .{} to xlsx; expected .csv input",
-                    input_ext
-                )
-                .into());
+                return Err(
+                    format!("cannot convert .{} to xlsx; expected .csv input", input_ext).into(),
+                );
             }
 
             let delim = delimiter.map(|d| d as u8).unwrap_or(b',');
@@ -409,7 +405,6 @@ fn cmd_convert(
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -466,28 +461,19 @@ mod tests {
 
     #[test]
     fn detect_empty_string() {
-        assert_eq!(
-            detect_cell_value(""),
-            CellValueType::String("".to_string())
-        );
+        assert_eq!(detect_cell_value(""), CellValueType::String("".to_string()));
     }
 
     // --- parse_csv_line tests ---
 
     #[test]
     fn parse_simple_fields() {
-        assert_eq!(
-            parse_csv_line("a,b,c", b','),
-            vec!["a", "b", "c"]
-        );
+        assert_eq!(parse_csv_line("a,b,c", b','), vec!["a", "b", "c"]);
     }
 
     #[test]
     fn parse_empty_fields() {
-        assert_eq!(
-            parse_csv_line("a,,c", b','),
-            vec!["a", "", "c"]
-        );
+        assert_eq!(parse_csv_line("a,,c", b','), vec!["a", "", "c"]);
     }
 
     #[test]
@@ -500,10 +486,7 @@ mod tests {
 
     #[test]
     fn parse_quoted_field_with_delimiter() {
-        assert_eq!(
-            parse_csv_line(r#""a,b",c"#, b','),
-            vec!["a,b", "c"]
-        );
+        assert_eq!(parse_csv_line(r#""a,b",c"#, b','), vec!["a,b", "c"]);
     }
 
     #[test]
@@ -516,41 +499,26 @@ mod tests {
 
     #[test]
     fn parse_tab_delimiter() {
-        assert_eq!(
-            parse_csv_line("a\tb\tc", b'\t'),
-            vec!["a", "b", "c"]
-        );
+        assert_eq!(parse_csv_line("a\tb\tc", b'\t'), vec!["a", "b", "c"]);
     }
 
     #[test]
     fn parse_single_field() {
-        assert_eq!(
-            parse_csv_line("only", b','),
-            vec!["only"]
-        );
+        assert_eq!(parse_csv_line("only", b','), vec!["only"]);
     }
 
     #[test]
     fn parse_empty_line() {
-        assert_eq!(
-            parse_csv_line("", b','),
-            vec![""]
-        );
+        assert_eq!(parse_csv_line("", b','), vec![""]);
     }
 
     #[test]
     fn parse_quoted_empty_field() {
-        assert_eq!(
-            parse_csv_line(r#""",b"#, b','),
-            vec!["", "b"]
-        );
+        assert_eq!(parse_csv_line(r#""",b"#, b','), vec!["", "b"]);
     }
 
     #[test]
     fn parse_custom_delimiter() {
-        assert_eq!(
-            parse_csv_line("a|b|c", b'|'),
-            vec!["a", "b", "c"]
-        );
+        assert_eq!(parse_csv_line("a|b|c", b'|'), vec!["a", "b", "c"]);
     }
 }

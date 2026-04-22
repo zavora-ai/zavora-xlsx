@@ -12,10 +12,15 @@ pub mod printer;
 pub mod recalc;
 pub mod token;
 
-pub use token::{tokenize, Op, Token};
 pub use ast::AstNode;
+pub use dependency::{CellAddr, DependencyGraph};
+pub use evaluator::{
+    ArrayResult, CellContext, ErrorKind, SimpleContext, SpillResult, Value, evaluate,
+    evaluate_array, evaluate_dynamic_array,
+};
 pub use parser::parse;
 pub use printer::print_formula;
-pub use dependency::{CellAddr, DependencyGraph};
-pub use evaluator::{evaluate, evaluate_array, evaluate_dynamic_array, ArrayResult, SpillResult, CellContext, ErrorKind, SimpleContext, Value};
-pub use recalc::{recalculate, CircularRefError, MutableCellContext, MutableSimpleContext, is_volatile};
+pub use recalc::{
+    CircularRefError, MutableCellContext, MutableSimpleContext, is_volatile, recalculate,
+};
+pub use token::{Op, Token, tokenize};

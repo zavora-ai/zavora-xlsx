@@ -16,7 +16,7 @@ fn coerce_to_string(val: &Value) -> Result<String, ErrorKind> {
 // CONCATENATE / CONCAT
 // ---------------------------------------------------------------------------
 
-/// CONCATENATE(text1, [text2], ...)
+/// CONCATENATE(`text1`, \[`text2`\], ...)
 /// Joins multiple text strings into one.
 pub fn fn_concatenate(args: &[Value]) -> Value {
     let mut result = String::new();
@@ -50,7 +50,7 @@ pub fn fn_concat(args: &[Value]) -> Value {
 // LEFT
 // ---------------------------------------------------------------------------
 
-/// LEFT(text, [num_chars])
+/// LEFT(`text`, \[`num_chars`\])
 /// Returns the leftmost characters. Default num_chars = 1.
 pub fn fn_left(args: &[Value]) -> Value {
     if args.is_empty() || args.len() > 2 {
@@ -81,7 +81,7 @@ pub fn fn_left(args: &[Value]) -> Value {
 // RIGHT
 // ---------------------------------------------------------------------------
 
-/// RIGHT(text, [num_chars])
+/// RIGHT(`text`, \[`num_chars`\])
 /// Returns the rightmost characters. Default num_chars = 1.
 pub fn fn_right(args: &[Value]) -> Value {
     if args.is_empty() || args.len() > 2 {
@@ -178,10 +178,7 @@ pub fn fn_trim(args: &[Value]) -> Value {
         Err(e) => return Value::Error(e),
     };
     // Excel TRIM removes leading/trailing spaces and collapses internal runs to single space
-    let trimmed: String = text
-        .split_whitespace()
-        .collect::<Vec<&str>>()
-        .join(" ");
+    let trimmed: String = text.split_whitespace().collect::<Vec<&str>>().join(" ");
     Value::String(trimmed)
 }
 
@@ -221,7 +218,7 @@ pub fn fn_lower(args: &[Value]) -> Value {
 // SUBSTITUTE
 // ---------------------------------------------------------------------------
 
-/// SUBSTITUTE(text, old_text, new_text, [instance_num])
+/// SUBSTITUTE(`text`, `old_text`, `new_text`, \[`instance_num`\])
 /// Replaces occurrences of old_text with new_text.
 /// If instance_num is provided, only that occurrence is replaced (1-based).
 pub fn fn_substitute(args: &[Value]) -> Value {
@@ -362,15 +359,9 @@ mod tests {
             s("aba")
         );
         // Replace all
-        assert_eq!(
-            fn_substitute(&[s("aaa"), s("a"), s("b")]),
-            s("bbb")
-        );
+        assert_eq!(fn_substitute(&[s("aaa"), s("a"), s("b")]), s("bbb"));
         // Empty old_text returns original
-        assert_eq!(
-            fn_substitute(&[s("Hello"), s(""), s("X")]),
-            s("Hello")
-        );
+        assert_eq!(fn_substitute(&[s("Hello"), s(""), s("X")]), s("Hello"));
     }
 
     #[test]
@@ -386,9 +377,6 @@ mod tests {
         let err = Value::Error(ErrorKind::Ref);
         assert_eq!(fn_len(&[err.clone()]), Value::Error(ErrorKind::Ref));
         assert_eq!(fn_upper(&[err.clone()]), Value::Error(ErrorKind::Ref));
-        assert_eq!(
-            fn_left(&[err, num(1.0)]),
-            Value::Error(ErrorKind::Ref)
-        );
+        assert_eq!(fn_left(&[err, num(1.0)]), Value::Error(ErrorKind::Ref));
     }
 }

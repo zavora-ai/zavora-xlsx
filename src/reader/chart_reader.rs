@@ -78,10 +78,10 @@ pub fn resolve_chart_paths(
         if let Some(rel) = rels.iter().find(|r| r.id == dref.r_id) {
             // Target is relative like "../charts/chart1.xml"
             let target = &rel.target;
-            let full_path = if target.starts_with("../") {
-                format!("xl/{}", &target[3..])
-            } else if target.starts_with("/xl/") {
-                target[1..].to_string()
+            let full_path = if let Some(stripped) = target.strip_prefix("../") {
+                format!("xl/{}", stripped)
+            } else if let Some(stripped) = target.strip_prefix("/xl/") {
+                stripped.to_string()
             } else if target.starts_with("xl/") {
                 target.to_string()
             } else {
@@ -109,6 +109,7 @@ pub fn read_chart(data: &[u8]) -> crate::Result<Chart> {
     let mut y_axis_name: Option<String> = None;
     let mut legend_pos = LegendPosition::None;
     let mut bar_dir: Option<String> = None;
+    let mut style: Option<u8> = None;
 
     // Track parsing context
     let mut in_chart = false;
@@ -157,20 +158,25 @@ pub fn read_chart(data: &[u8]) -> crate::Result<Chart> {
                 let local = e.local_name();
                 let name = local.as_ref();
                 match name {
-                    b"chart" => { in_chart = true; }
-                    b"plotArea" if in_chart => { in_plot_area = true; }
-                    b"barChart" | b"lineChart" | b"pieChart" | b"scatterChart"
-                    | b"areaChart" | b"doughnutChart" | b"radarChart"
-                    | b"stockChart" | b"bar3DChart" | b"bubbleChart" if in_plot_area => {
+                    b"chart" => {
+                        in_chart = true;
+                    }
+                    b"plotArea" if in_chart => {
+                        in_plot_area = true;
+                    }
+                    b"barChart" | b"lineChart" | b"pieChart" | b"scatterChart" | b"areaChart"
+                    | b"doughnutChart" | b"radarChart" | b"stockChart" | b"bar3DChart"
+                    | b"line3DChart" | b"pie3DChart" | b"area3DChart" | b"bubbleChart"
+                    | b"surface3DChart" | b"surfaceChart"
+                        if in_plot_area =>
+                    {
                         in_chart_type_block = true;
-                        current_chart_tag = Some(
-                            std::str::from_utf8(name).unwrap_or("").to_string(),
-                        );
+                        current_chart_tag =
+                            Some(std::str::from_utf8(name).unwrap_or("").to_string());
                         bar_dir = None;
                     }
                     b"barDir" if in_chart_type_block => {
-                        bar_dir = get_attr_str(e.attributes(), b"val")
-                            .map(|s| s.to_string());
+                        bar_dir = get_attr_str(e.attributes(), b"val").map(|s| s.to_string());
                     }
                     b"ser" if in_chart_type_block => {
                         in_ser = true;
@@ -178,11 +184,21 @@ pub fn read_chart(data: &[u8]) -> crate::Result<Chart> {
                         cur_series_cats = None;
                         cur_series_vals = String::new();
                     }
-                    b"tx" if in_ser => { in_tx = true; }
-                    b"cat" | b"xVal" if in_ser => { in_cat = true; }
-                    b"val" | b"yVal" if in_ser => { in_val = true; }
-                    b"strRef" if in_tx || in_cat => { in_str_ref = true; }
-                    b"numRef" if in_val => { in_num_ref = true; }
+                    b"tx" if in_ser => {
+                        in_tx = true;
+                    }
+                    b"cat" | b"xVal" if in_ser => {
+                        in_cat = true;
+                    }
+                    b"val" | b"yVal" if in_ser => {
+                        in_val = true;
+                    }
+                    b"strRef" if in_tx || in_cat => {
+                        in_str_ref = true;
+                    }
+                    b"numRef" if in_val => {
+                        in_num_ref = true;
+                    }
                     b"f" if in_str_ref || in_num_ref => {
                         in_f = true;
                         f_text.clear();
@@ -191,7 +207,9 @@ pub fn read_chart(data: &[u8]) -> crate::Result<Chart> {
                         in_c_v = true;
                         c_v_text.clear();
                     }
-                    b"title" if in_chart && !in_plot_area && !in_ser && !in_cat_ax && !in_val_ax => {
+                    b"title"
+                        if in_chart && !in_plot_area && !in_ser && !in_cat_ax && !in_val_ax =>
+                    {
                         in_title = true;
                         title_depth = 1;
                         title_text.clear();
@@ -203,13 +221,19 @@ pub fn read_chart(data: &[u8]) -> crate::Result<Chart> {
                         in_ax_title = true;
                         ax_title_depth = 1;
                         ax_title_text.clear();
-                        if in_cat_ax { found_cat_ax_title = true; }
-                        if in_val_ax { found_val_ax_title = true; }
+                        if in_cat_ax {
+                            found_cat_ax_title = true;
+                        }
+                        if in_val_ax {
+                            found_val_ax_title = true;
+                        }
                     }
                     b"title" if in_ax_title => {
                         ax_title_depth += 1;
                     }
-                    b"legend" if in_chart => { in_legend = true; }
+                    b"legend" if in_chart => {
+                        in_legend = true;
+                    }
                     b"legendPos" if in_legend => {
                         legend_pos = match get_attr_str(e.attributes(), b"val") {
                             Some("t") => LegendPosition::Top,
@@ -219,8 +243,19 @@ pub fn read_chart(data: &[u8]) -> crate::Result<Chart> {
                             _ => LegendPosition::Bottom,
                         };
                     }
-                    b"catAx" if in_plot_area => { in_cat_ax = true; }
-                    b"valAx" if in_plot_area => { in_val_ax = true; }
+                    b"catAx" if in_plot_area => {
+                        in_cat_ax = true;
+                    }
+                    b"valAx" if in_plot_area => {
+                        in_val_ax = true;
+                    }
+                    b"style" => {
+                        if let Some(val) = get_attr_str(e.attributes(), b"val")
+                            && let Ok(n) = val.parse::<u8>()
+                        {
+                            style = Some(n);
+                        }
+                    }
                     b"t" => {
                         in_a_t = true;
                         a_t_text.clear();
@@ -233,8 +268,7 @@ pub fn read_chart(data: &[u8]) -> crate::Result<Chart> {
                 let name = local.as_ref();
                 match name {
                     b"barDir" if in_chart_type_block => {
-                        bar_dir = get_attr_str(e.attributes(), b"val")
-                            .map(|s| s.to_string());
+                        bar_dir = get_attr_str(e.attributes(), b"val").map(|s| s.to_string());
                     }
                     b"legendPos" if in_legend => {
                         legend_pos = match get_attr_str(e.attributes(), b"val") {
@@ -245,29 +279,43 @@ pub fn read_chart(data: &[u8]) -> crate::Result<Chart> {
                             _ => LegendPosition::Bottom,
                         };
                     }
+                    b"style" => {
+                        if let Some(val) = get_attr_str(e.attributes(), b"val")
+                            && let Ok(n) = val.parse::<u8>()
+                        {
+                            style = Some(n);
+                        }
+                    }
                     _ => {}
                 }
             }
             Ok(Event::Text(ref t)) => {
-                if in_f {
-                    if let Ok(s) = t.unescape() { f_text.push_str(&s); }
+                if in_f && let Ok(s) = t.unescape() {
+                    f_text.push_str(&s);
                 }
-                if in_a_t {
-                    if let Ok(s) = t.unescape() { a_t_text.push_str(&s); }
+                if in_a_t && let Ok(s) = t.unescape() {
+                    a_t_text.push_str(&s);
                 }
-                if in_c_v {
-                    if let Ok(s) = t.unescape() { c_v_text.push_str(&s); }
+                if in_c_v && let Ok(s) = t.unescape() {
+                    c_v_text.push_str(&s);
                 }
             }
             Ok(Event::End(ref e)) => {
                 let local = e.local_name();
                 let name = local.as_ref();
                 match name {
-                    b"chart" => { in_chart = false; }
-                    b"plotArea" => { in_plot_area = false; }
-                    b"barChart" | b"lineChart" | b"pieChart" | b"scatterChart"
-                    | b"areaChart" | b"doughnutChart" | b"radarChart"
-                    | b"stockChart" | b"bar3DChart" | b"bubbleChart" if in_chart_type_block => {
+                    b"chart" => {
+                        in_chart = false;
+                    }
+                    b"plotArea" => {
+                        in_plot_area = false;
+                    }
+                    b"barChart" | b"lineChart" | b"pieChart" | b"scatterChart" | b"areaChart"
+                    | b"doughnutChart" | b"radarChart" | b"stockChart" | b"bar3DChart"
+                    | b"line3DChart" | b"pie3DChart" | b"area3DChart" | b"bubbleChart"
+                    | b"surface3DChart" | b"surfaceChart"
+                        if in_chart_type_block =>
+                    {
                         // Determine chart type from the tag name
                         if let Some(ref tag) = current_chart_tag {
                             chart_type = resolve_chart_type(tag, bar_dir.as_deref());
@@ -283,11 +331,21 @@ pub fn read_chart(data: &[u8]) -> crate::Result<Chart> {
                         series.push(s);
                         in_ser = false;
                     }
-                    b"tx" if in_ser => { in_tx = false; }
-                    b"cat" | b"xVal" if in_ser => { in_cat = false; }
-                    b"val" | b"yVal" if in_ser => { in_val = false; }
-                    b"strRef" => { in_str_ref = false; }
-                    b"numRef" => { in_num_ref = false; }
+                    b"tx" if in_ser => {
+                        in_tx = false;
+                    }
+                    b"cat" | b"xVal" if in_ser => {
+                        in_cat = false;
+                    }
+                    b"val" | b"yVal" if in_ser => {
+                        in_val = false;
+                    }
+                    b"strRef" => {
+                        in_str_ref = false;
+                    }
+                    b"numRef" => {
+                        in_num_ref = false;
+                    }
                     b"f" => {
                         if in_f {
                             if in_str_ref && in_tx && in_ser {
@@ -308,15 +366,11 @@ pub fn read_chart(data: &[u8]) -> crate::Result<Chart> {
                     }
                     b"t" => {
                         if in_a_t {
-                            if in_title && !in_ax_title {
-                                if !a_t_text.is_empty() {
-                                    title_text.push_str(&a_t_text);
-                                }
+                            if in_title && !in_ax_title && !a_t_text.is_empty() {
+                                title_text.push_str(&a_t_text);
                             }
-                            if in_ax_title {
-                                if !a_t_text.is_empty() {
-                                    ax_title_text.push_str(&a_t_text);
-                                }
+                            if in_ax_title && !a_t_text.is_empty() {
+                                ax_title_text.push_str(&a_t_text);
                             }
                             in_a_t = false;
                         }
@@ -324,10 +378,16 @@ pub fn read_chart(data: &[u8]) -> crate::Result<Chart> {
                     b"title" if in_ax_title => {
                         ax_title_depth -= 1;
                         if ax_title_depth == 0 {
-                            if found_cat_ax_title && x_axis_name.is_none() && !ax_title_text.is_empty() {
+                            if found_cat_ax_title
+                                && x_axis_name.is_none()
+                                && !ax_title_text.is_empty()
+                            {
                                 x_axis_name = Some(ax_title_text.clone());
                             }
-                            if found_val_ax_title && y_axis_name.is_none() && !ax_title_text.is_empty() {
+                            if found_val_ax_title
+                                && y_axis_name.is_none()
+                                && !ax_title_text.is_empty()
+                            {
                                 y_axis_name = Some(ax_title_text.clone());
                             }
                             in_ax_title = false;
@@ -344,9 +404,15 @@ pub fn read_chart(data: &[u8]) -> crate::Result<Chart> {
                             in_title = false;
                         }
                     }
-                    b"legend" => { in_legend = false; }
-                    b"catAx" => { in_cat_ax = false; }
-                    b"valAx" => { in_val_ax = false; }
+                    b"legend" => {
+                        in_legend = false;
+                    }
+                    b"catAx" => {
+                        in_cat_ax = false;
+                    }
+                    b"valAx" => {
+                        in_val_ax = false;
+                    }
                     _ => {}
                 }
             }
@@ -362,6 +428,7 @@ pub fn read_chart(data: &[u8]) -> crate::Result<Chart> {
     chart.y_axis_name = y_axis_name;
     chart.legend_pos = legend_pos;
     chart.series = series;
+    chart.style = style;
 
     Ok(chart)
 }
@@ -369,20 +436,29 @@ pub fn read_chart(data: &[u8]) -> crate::Result<Chart> {
 /// Map chart type XML element name + barDir to ChartType.
 fn resolve_chart_type(tag: &str, bar_dir: Option<&str>) -> ChartType {
     match tag {
-        "barChart" | "bar3DChart" => match bar_dir {
+        "barChart" => match bar_dir {
             Some("bar") => ChartType::Bar,
             Some("col") => ChartType::Column,
-            // Default: if barDir is missing, treat as Column for barChart
             _ => ChartType::Column,
         },
+        "bar3DChart" => match bar_dir {
+            Some("bar") => ChartType::Bar3D,
+            Some("col") => ChartType::Column3D,
+            _ => ChartType::Column3D,
+        },
         "lineChart" => ChartType::Line,
+        "line3DChart" => ChartType::Line3D,
         "pieChart" => ChartType::Pie,
+        "pie3DChart" => ChartType::Pie3D,
         "scatterChart" => ChartType::Scatter,
         "areaChart" => ChartType::Area,
+        "area3DChart" => ChartType::Area3D,
         "doughnutChart" => ChartType::Doughnut,
         "radarChart" => ChartType::Radar,
         "stockChart" => ChartType::Stock,
         "bubbleChart" => ChartType::Bubble,
+        "surface3DChart" => ChartType::Surface,
+        "surfaceChart" => ChartType::Surface,
         _ => ChartType::Bar,
     }
 }
@@ -421,10 +497,18 @@ pub fn read_chartex(data: &[u8]) -> crate::Result<TreemapChart> {
                 let local = e.local_name();
                 let name = local.as_ref();
                 match name {
-                    b"chartData" => { in_chart_data = true; }
-                    b"strDim" if in_chart_data => { in_str_dim = true; }
-                    b"numDim" if in_chart_data => { in_num_dim = true; }
-                    b"lvl" if in_str_dim || in_num_dim => { in_lvl = true; }
+                    b"chartData" => {
+                        in_chart_data = true;
+                    }
+                    b"strDim" if in_chart_data => {
+                        in_str_dim = true;
+                    }
+                    b"numDim" if in_chart_data => {
+                        in_num_dim = true;
+                    }
+                    b"lvl" if in_str_dim || in_num_dim => {
+                        in_lvl = true;
+                    }
                     b"pt" if in_lvl => {
                         in_pt = true;
                         pt_text.clear();
@@ -433,7 +517,9 @@ pub fn read_chartex(data: &[u8]) -> crate::Result<TreemapChart> {
                         in_f = true;
                         f_text.clear();
                     }
-                    b"series" => { in_series = true; }
+                    b"series" => {
+                        in_series = true;
+                    }
                     b"title" => {
                         in_title = true;
                         title_text.clear();
@@ -453,35 +539,41 @@ pub fn read_chartex(data: &[u8]) -> crate::Result<TreemapChart> {
                 }
             }
             Ok(Event::Text(ref t)) => {
-                if in_pt {
-                    if let Ok(s) = t.unescape() { pt_text.push_str(&s); }
+                if in_pt && let Ok(s) = t.unescape() {
+                    pt_text.push_str(&s);
                 }
-                if in_f {
-                    if let Ok(s) = t.unescape() { f_text.push_str(&s); }
+                if in_f && let Ok(s) = t.unescape() {
+                    f_text.push_str(&s);
                 }
-                if in_a_t {
-                    if let Ok(s) = t.unescape() { a_t_text.push_str(&s); }
+                if in_a_t && let Ok(s) = t.unescape() {
+                    a_t_text.push_str(&s);
                 }
-                if in_v {
-                    if let Ok(s) = t.unescape() { v_text.push_str(&s); }
+                if in_v && let Ok(s) = t.unescape() {
+                    v_text.push_str(&s);
                 }
             }
             Ok(Event::End(ref e)) => {
                 let local = e.local_name();
                 let name = local.as_ref();
                 match name {
-                    b"chartData" => { in_chart_data = false; }
-                    b"strDim" => { in_str_dim = false; }
-                    b"numDim" => { in_num_dim = false; }
-                    b"lvl" => { in_lvl = false; }
+                    b"chartData" => {
+                        in_chart_data = false;
+                    }
+                    b"strDim" => {
+                        in_str_dim = false;
+                    }
+                    b"numDim" => {
+                        in_num_dim = false;
+                    }
+                    b"lvl" => {
+                        in_lvl = false;
+                    }
                     b"pt" if in_pt => {
                         if in_str_dim {
                             chart.categories.push(pt_text.clone());
                             chart.colors.push(None);
-                        } else if in_num_dim {
-                            if let Ok(v) = pt_text.parse::<f64>() {
-                                chart.values.push(v);
-                            }
+                        } else if in_num_dim && let Ok(v) = pt_text.parse::<f64>() {
+                            chart.values.push(v);
                         }
                         in_pt = false;
                     }
@@ -511,8 +603,12 @@ pub fn read_chartex(data: &[u8]) -> crate::Result<TreemapChart> {
                         }
                         in_title = false;
                     }
-                    b"tx" => { in_tx = false; }
-                    b"series" => { in_series = false; }
+                    b"tx" => {
+                        in_tx = false;
+                    }
+                    b"series" => {
+                        in_series = false;
+                    }
                     _ => {}
                 }
             }

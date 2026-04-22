@@ -67,10 +67,17 @@ fn main() {
 
     for (i, table) in ws2.tables().iter().enumerate() {
         println!("── Table {} ──", i + 1);
-        println!("  Name:       {}", table.table_name().unwrap_or("(unnamed)"));
-        println!("  Range:      ({},{}) to ({},{})",
-            table.first_row(), table.first_col(),
-            table.last_row(), table.last_col());
+        println!(
+            "  Name:       {}",
+            table.table_name().unwrap_or("(unnamed)")
+        );
+        println!(
+            "  Range:      ({},{}) to ({},{})",
+            table.first_row(),
+            table.first_col(),
+            table.last_row(),
+            table.last_col()
+        );
         println!("  Autofilter: {}", table.autofilter());
         println!("  Total row:  {}", table.total_row());
 

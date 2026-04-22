@@ -30,27 +30,56 @@ pub struct WaterfallChart {
     pub(crate) series_name: Option<String>,
 }
 
+impl Default for WaterfallChart {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl WaterfallChart {
     pub fn new() -> Self {
         Self {
-            title: None, categories: Vec::new(), values: Vec::new(),
-            point_types: Vec::new(), width: 480, height: 320, row: 0, col: 0,
+            title: None,
+            categories: Vec::new(),
+            values: Vec::new(),
+            point_types: Vec::new(),
+            width: 480,
+            height: 320,
+            row: 0,
+            col: 0,
             series_name: None,
         }
     }
 
     /// Add a data point with category, value, and point type (increase, decrease, or total).
-    pub fn add_point(&mut self, category: &str, value: f64, point_type: WaterfallPointType) -> &mut Self {
+    pub fn add_point(
+        &mut self,
+        category: &str,
+        value: f64,
+        point_type: WaterfallPointType,
+    ) -> &mut Self {
         self.categories.push(category.to_string());
         self.values.push(value);
         self.point_types.push(point_type);
         self
     }
 
-    pub fn set_title(&mut self, title: &str) -> &mut Self { self.title = Some(title.to_string()); self }
-    pub fn set_series_name(&mut self, name: &str) -> &mut Self { self.series_name = Some(name.to_string()); self }
-    pub fn set_width(&mut self, w: u32) -> &mut Self { self.width = w; self }
-    pub fn set_height(&mut self, h: u32) -> &mut Self { self.height = h; self }
+    pub fn set_title(&mut self, title: &str) -> &mut Self {
+        self.title = Some(title.to_string());
+        self
+    }
+    pub fn set_series_name(&mut self, name: &str) -> &mut Self {
+        self.series_name = Some(name.to_string());
+        self
+    }
+    pub fn set_width(&mut self, w: u32) -> &mut Self {
+        self.width = w;
+        self
+    }
+    pub fn set_height(&mut self, h: u32) -> &mut Self {
+        self.height = h;
+        self
+    }
 }
 
 /// Funnel chart (Excel 2016+ ChartEx format).
@@ -66,11 +95,23 @@ pub struct FunnelChart {
     pub(crate) series_name: Option<String>,
 }
 
+impl Default for FunnelChart {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FunnelChart {
     pub fn new() -> Self {
         Self {
-            title: None, categories: Vec::new(), values: Vec::new(),
-            width: 480, height: 320, row: 0, col: 0, series_name: None,
+            title: None,
+            categories: Vec::new(),
+            values: Vec::new(),
+            width: 480,
+            height: 320,
+            row: 0,
+            col: 0,
+            series_name: None,
         }
     }
 
@@ -81,10 +122,22 @@ impl FunnelChart {
         self
     }
 
-    pub fn set_title(&mut self, title: &str) -> &mut Self { self.title = Some(title.to_string()); self }
-    pub fn set_series_name(&mut self, name: &str) -> &mut Self { self.series_name = Some(name.to_string()); self }
-    pub fn set_width(&mut self, w: u32) -> &mut Self { self.width = w; self }
-    pub fn set_height(&mut self, h: u32) -> &mut Self { self.height = h; self }
+    pub fn set_title(&mut self, title: &str) -> &mut Self {
+        self.title = Some(title.to_string());
+        self
+    }
+    pub fn set_series_name(&mut self, name: &str) -> &mut Self {
+        self.series_name = Some(name.to_string());
+        self
+    }
+    pub fn set_width(&mut self, w: u32) -> &mut Self {
+        self.width = w;
+        self
+    }
+    pub fn set_height(&mut self, h: u32) -> &mut Self {
+        self.height = h;
+        self
+    }
 }
 
 /// A level of hierarchy data for sunburst charts.
@@ -107,11 +160,23 @@ pub struct SunburstChart {
     pub(crate) series_name: Option<String>,
 }
 
+impl Default for SunburstChart {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SunburstChart {
     pub fn new() -> Self {
         Self {
-            title: None, levels: Vec::new(), values: Vec::new(),
-            width: 480, height: 320, row: 0, col: 0, series_name: None,
+            title: None,
+            levels: Vec::new(),
+            values: Vec::new(),
+            width: 480,
+            height: 320,
+            row: 0,
+            col: 0,
+            series_name: None,
         }
     }
 
@@ -130,10 +195,22 @@ impl SunburstChart {
         self
     }
 
-    pub fn set_title(&mut self, title: &str) -> &mut Self { self.title = Some(title.to_string()); self }
-    pub fn set_series_name(&mut self, name: &str) -> &mut Self { self.series_name = Some(name.to_string()); self }
-    pub fn set_width(&mut self, w: u32) -> &mut Self { self.width = w; self }
-    pub fn set_height(&mut self, h: u32) -> &mut Self { self.height = h; self }
+    pub fn set_title(&mut self, title: &str) -> &mut Self {
+        self.title = Some(title.to_string());
+        self
+    }
+    pub fn set_series_name(&mut self, name: &str) -> &mut Self {
+        self.series_name = Some(name.to_string());
+        self
+    }
+    pub fn set_width(&mut self, w: u32) -> &mut Self {
+        self.width = w;
+        self
+    }
+    pub fn set_height(&mut self, h: u32) -> &mut Self {
+        self.height = h;
+        self
+    }
 }
 
 /// Histogram chart (Excel 2016+ ChartEx format).
@@ -151,11 +228,24 @@ pub struct HistogramChart {
     pub(crate) is_pareto: bool,
 }
 
+impl Default for HistogramChart {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HistogramChart {
     pub fn new() -> Self {
         Self {
-            title: None, values: Vec::new(), bin_count: None, bin_width: None,
-            width: 480, height: 320, row: 0, col: 0, series_name: None,
+            title: None,
+            values: Vec::new(),
+            bin_count: None,
+            bin_width: None,
+            width: 480,
+            height: 320,
+            row: 0,
+            col: 0,
+            series_name: None,
             is_pareto: false,
         }
     }
@@ -174,15 +264,33 @@ impl HistogramChart {
     }
 
     /// Set the number of bins.
-    pub fn set_bin_count(&mut self, count: u32) -> &mut Self { self.bin_count = Some(count); self }
+    pub fn set_bin_count(&mut self, count: u32) -> &mut Self {
+        self.bin_count = Some(count);
+        self
+    }
 
     /// Set the bin width.
-    pub fn set_bin_width(&mut self, width: f64) -> &mut Self { self.bin_width = Some(width); self }
+    pub fn set_bin_width(&mut self, width: f64) -> &mut Self {
+        self.bin_width = Some(width);
+        self
+    }
 
-    pub fn set_title(&mut self, title: &str) -> &mut Self { self.title = Some(title.to_string()); self }
-    pub fn set_series_name(&mut self, name: &str) -> &mut Self { self.series_name = Some(name.to_string()); self }
-    pub fn set_width(&mut self, w: u32) -> &mut Self { self.width = w; self }
-    pub fn set_height(&mut self, h: u32) -> &mut Self { self.height = h; self }
+    pub fn set_title(&mut self, title: &str) -> &mut Self {
+        self.title = Some(title.to_string());
+        self
+    }
+    pub fn set_series_name(&mut self, name: &str) -> &mut Self {
+        self.series_name = Some(name.to_string());
+        self
+    }
+    pub fn set_width(&mut self, w: u32) -> &mut Self {
+        self.width = w;
+        self
+    }
+    pub fn set_height(&mut self, h: u32) -> &mut Self {
+        self.height = h;
+        self
+    }
 }
 
 /// Box and Whisker chart (Excel 2016+ ChartEx format).
@@ -201,12 +309,26 @@ pub struct BoxWhiskerChart {
     pub(crate) series_name: Option<String>,
 }
 
+impl Default for BoxWhiskerChart {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BoxWhiskerChart {
     pub fn new() -> Self {
         Self {
-            title: None, categories: Vec::new(), data_sets: Vec::new(),
-            show_outliers: true, show_mean_markers: true, show_inner_points: false,
-            width: 480, height: 320, row: 0, col: 0, series_name: None,
+            title: None,
+            categories: Vec::new(),
+            data_sets: Vec::new(),
+            show_outliers: true,
+            show_mean_markers: true,
+            show_inner_points: false,
+            width: 480,
+            height: 320,
+            row: 0,
+            col: 0,
+            series_name: None,
         }
     }
 
@@ -218,18 +340,39 @@ impl BoxWhiskerChart {
     }
 
     /// Whether to show outlier points.
-    pub fn set_show_outliers(&mut self, v: bool) -> &mut Self { self.show_outliers = v; self }
+    pub fn set_show_outliers(&mut self, v: bool) -> &mut Self {
+        self.show_outliers = v;
+        self
+    }
 
     /// Whether to show mean markers.
-    pub fn set_show_mean_markers(&mut self, v: bool) -> &mut Self { self.show_mean_markers = v; self }
+    pub fn set_show_mean_markers(&mut self, v: bool) -> &mut Self {
+        self.show_mean_markers = v;
+        self
+    }
 
     /// Whether to show inner (non-outlier) data points.
-    pub fn set_show_inner_points(&mut self, v: bool) -> &mut Self { self.show_inner_points = v; self }
+    pub fn set_show_inner_points(&mut self, v: bool) -> &mut Self {
+        self.show_inner_points = v;
+        self
+    }
 
-    pub fn set_title(&mut self, title: &str) -> &mut Self { self.title = Some(title.to_string()); self }
-    pub fn set_series_name(&mut self, name: &str) -> &mut Self { self.series_name = Some(name.to_string()); self }
-    pub fn set_width(&mut self, w: u32) -> &mut Self { self.width = w; self }
-    pub fn set_height(&mut self, h: u32) -> &mut Self { self.height = h; self }
+    pub fn set_title(&mut self, title: &str) -> &mut Self {
+        self.title = Some(title.to_string());
+        self
+    }
+    pub fn set_series_name(&mut self, name: &str) -> &mut Self {
+        self.series_name = Some(name.to_string());
+        self
+    }
+    pub fn set_width(&mut self, w: u32) -> &mut Self {
+        self.width = w;
+        self
+    }
+    pub fn set_height(&mut self, h: u32) -> &mut Self {
+        self.height = h;
+        self
+    }
 }
 
 /// Unified enum for all ChartEx chart types (used for storage in Worksheet).
@@ -247,13 +390,27 @@ pub struct MapChart {
     pub(crate) row: RowNum,
     pub(crate) col: ColNum,
     pub(crate) series_name: Option<String>,
+    pub(crate) map_level: crate::features::chart::MapLevel,
+}
+
+impl Default for MapChart {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MapChart {
     pub fn new() -> Self {
         Self {
-            title: None, categories: Vec::new(), values: Vec::new(),
-            width: 480, height: 320, row: 0, col: 0, series_name: None,
+            title: None,
+            categories: Vec::new(),
+            values: Vec::new(),
+            width: 480,
+            height: 320,
+            row: 0,
+            col: 0,
+            series_name: None,
+            map_level: crate::features::chart::MapLevel::Country,
         }
     }
 
@@ -264,10 +421,28 @@ impl MapChart {
         self
     }
 
-    pub fn set_title(&mut self, title: &str) -> &mut Self { self.title = Some(title.to_string()); self }
-    pub fn set_series_name(&mut self, name: &str) -> &mut Self { self.series_name = Some(name.to_string()); self }
-    pub fn set_width(&mut self, w: u32) -> &mut Self { self.width = w; self }
-    pub fn set_height(&mut self, h: u32) -> &mut Self { self.height = h; self }
+    /// Set the geographic granularity level (Region or Country).
+    pub fn set_map_level(&mut self, level: crate::features::chart::MapLevel) -> &mut Self {
+        self.map_level = level;
+        self
+    }
+
+    pub fn set_title(&mut self, title: &str) -> &mut Self {
+        self.title = Some(title.to_string());
+        self
+    }
+    pub fn set_series_name(&mut self, name: &str) -> &mut Self {
+        self.series_name = Some(name.to_string());
+        self
+    }
+    pub fn set_width(&mut self, w: u32) -> &mut Self {
+        self.width = w;
+        self
+    }
+    pub fn set_height(&mut self, h: u32) -> &mut Self {
+        self.height = h;
+        self
+    }
 }
 
 #[derive(Debug, Clone)]

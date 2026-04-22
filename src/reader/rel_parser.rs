@@ -20,13 +20,21 @@ pub fn parse_rels(data: &[u8]) -> crate::Result<Vec<Rel>> {
     loop {
         buf.clear();
         match reader.read_event_into(&mut buf)? {
-            Event::Start(e) | Event::Empty(e)
-                if e.local_name().as_ref() == b"Relationship" =>
-            {
-                let id = get_attr_str(e.attributes(), b"Id").unwrap_or("").to_string();
-                let rel_type = get_attr_str(e.attributes(), b"Type").unwrap_or("").to_string();
-                let target = get_attr_str(e.attributes(), b"Target").unwrap_or("").to_string();
-                rels.push(Rel { id, rel_type, target });
+            Event::Start(e) | Event::Empty(e) if e.local_name().as_ref() == b"Relationship" => {
+                let id = get_attr_str(e.attributes(), b"Id")
+                    .unwrap_or("")
+                    .to_string();
+                let rel_type = get_attr_str(e.attributes(), b"Type")
+                    .unwrap_or("")
+                    .to_string();
+                let target = get_attr_str(e.attributes(), b"Target")
+                    .unwrap_or("")
+                    .to_string();
+                rels.push(Rel {
+                    id,
+                    rel_type,
+                    target,
+                });
             }
             Event::Eof => break,
             _ => {}

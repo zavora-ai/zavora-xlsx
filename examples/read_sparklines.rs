@@ -44,7 +44,10 @@ fn main() {
         println!("    Data range: {}", sp.data_range());
         println!("    Location:   row={}, col={}", sp.row(), sp.col());
         if let Some(color) = sp.color() {
-            println!("    Color:      #{:02X}{:02X}{:02X}", color[0], color[1], color[2]);
+            println!(
+                "    Color:      #{:02X}{:02X}{:02X}",
+                color[0], color[1], color[2]
+            );
         } else {
             println!("    Color:      (default)");
         }

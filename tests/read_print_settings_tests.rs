@@ -24,7 +24,9 @@ fn test_print_settings_round_trip_margins_and_orientation() {
     {
         let mut wb = Workbook::open_readonly(path).unwrap();
         let ws = wb.worksheet(0).unwrap();
-        let ps = ws.print_settings().expect("print_settings should be present");
+        let ps = ws
+            .print_settings()
+            .expect("print_settings should be present");
 
         // Verify orientation
         assert!(
@@ -38,16 +40,28 @@ fn test_print_settings_round_trip_margins_and_orientation() {
 
         // Verify margins
         let top = ps.margin_top.expect("margin_top should be set");
-        assert!((top - 1.0).abs() < 0.01, "Top margin should be 1.0, got {top}");
+        assert!(
+            (top - 1.0).abs() < 0.01,
+            "Top margin should be 1.0, got {top}"
+        );
 
         let bottom = ps.margin_bottom.expect("margin_bottom should be set");
-        assert!((bottom - 1.0).abs() < 0.01, "Bottom margin should be 1.0, got {bottom}");
+        assert!(
+            (bottom - 1.0).abs() < 0.01,
+            "Bottom margin should be 1.0, got {bottom}"
+        );
 
         let left = ps.margin_left.expect("margin_left should be set");
-        assert!((left - 0.75).abs() < 0.01, "Left margin should be 0.75, got {left}");
+        assert!(
+            (left - 0.75).abs() < 0.01,
+            "Left margin should be 0.75, got {left}"
+        );
 
         let right = ps.margin_right.expect("margin_right should be set");
-        assert!((right - 0.75).abs() < 0.01, "Right margin should be 0.75, got {right}");
+        assert!(
+            (right - 0.75).abs() < 0.01,
+            "Right margin should be 0.75, got {right}"
+        );
     }
 
     std::fs::remove_file(path).ok();
@@ -76,7 +90,9 @@ fn test_print_settings_round_trip_header_footer() {
     {
         let mut wb = Workbook::open_readonly(path).unwrap();
         let ws = wb.worksheet(0).unwrap();
-        let ps = ws.print_settings().expect("print_settings should be present");
+        let ps = ws
+            .print_settings()
+            .expect("print_settings should be present");
 
         assert_eq!(
             ps.header.as_deref(),
@@ -114,7 +130,9 @@ fn test_print_settings_round_trip_page_breaks() {
     {
         let mut wb = Workbook::open_readonly(path).unwrap();
         let ws = wb.worksheet(0).unwrap();
-        let ps = ws.print_settings().expect("print_settings should be present");
+        let ps = ws
+            .print_settings()
+            .expect("print_settings should be present");
 
         assert_eq!(ps.row_breaks, vec![9, 19, 29], "Row breaks should match");
         assert_eq!(ps.col_breaks, vec![3], "Col breaks should match");
@@ -146,7 +164,9 @@ fn test_print_settings_round_trip_repeat_rows_cols() {
     {
         let mut wb = Workbook::open_readonly(path).unwrap();
         let ws = wb.worksheet(0).unwrap();
-        let ps = ws.print_settings().expect("print_settings should be present");
+        let ps = ws
+            .print_settings()
+            .expect("print_settings should be present");
 
         assert_eq!(ps.repeat_rows, Some((0, 1)), "Repeat rows should be (0, 1)");
         assert_eq!(ps.repeat_cols, Some((0, 0)), "Repeat cols should be (0, 0)");
@@ -174,7 +194,9 @@ fn test_print_settings_round_trip_fit_to_page() {
     {
         let mut wb = Workbook::open_readonly(path).unwrap();
         let ws = wb.worksheet(0).unwrap();
-        let ps = ws.print_settings().expect("print_settings should be present");
+        let ps = ws
+            .print_settings()
+            .expect("print_settings should be present");
 
         assert!(ps.fit_to_page, "fit_to_page should be true");
         assert_eq!(ps.fit_to_width, Some(1), "fit_to_width should be 1");
@@ -203,7 +225,9 @@ fn test_print_settings_round_trip_scale() {
     {
         let mut wb = Workbook::open_readonly(path).unwrap();
         let ws = wb.worksheet(0).unwrap();
-        let ps = ws.print_settings().expect("print_settings should be present");
+        let ps = ws
+            .print_settings()
+            .expect("print_settings should be present");
 
         assert_eq!(ps.scale, Some(75), "Scale should be 75%");
     }
@@ -230,7 +254,9 @@ fn test_print_settings_round_trip_portrait() {
     {
         let mut wb = Workbook::open_readonly(path).unwrap();
         let ws = wb.worksheet(0).unwrap();
-        let ps = ws.print_settings().expect("print_settings should be present");
+        let ps = ws
+            .print_settings()
+            .expect("print_settings should be present");
 
         assert!(
             matches!(ps.orientation, Some(Orientation::Portrait)),
@@ -253,8 +279,7 @@ fn test_print_settings_round_trip_header_footer_margins() {
         let ws = wb.worksheet(0).unwrap();
         ws.write(0, 0, "HF Margins test").unwrap();
 
-        let mut ps = PrintSettings::new()
-            .margins(1.0, 1.0, 0.5, 0.5);
+        let mut ps = PrintSettings::new().margins(1.0, 1.0, 0.5, 0.5);
         ps.margin_header = Some(0.5);
         ps.margin_footer = Some(0.5);
         ws.set_print_settings(&ps);
@@ -266,13 +291,21 @@ fn test_print_settings_round_trip_header_footer_margins() {
     {
         let mut wb = Workbook::open_readonly(path).unwrap();
         let ws = wb.worksheet(0).unwrap();
-        let ps = ws.print_settings().expect("print_settings should be present");
+        let ps = ws
+            .print_settings()
+            .expect("print_settings should be present");
 
         let hdr = ps.margin_header.expect("header margin should be set");
-        assert!((hdr - 0.5).abs() < 0.01, "Header margin should be 0.5, got {hdr}");
+        assert!(
+            (hdr - 0.5).abs() < 0.01,
+            "Header margin should be 0.5, got {hdr}"
+        );
 
         let ftr = ps.margin_footer.expect("footer margin should be set");
-        assert!((ftr - 0.5).abs() < 0.01, "Footer margin should be 0.5, got {ftr}");
+        assert!(
+            (ftr - 0.5).abs() < 0.01,
+            "Footer margin should be 0.5, got {ftr}"
+        );
     }
 
     std::fs::remove_file(path).ok();

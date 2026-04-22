@@ -6,7 +6,7 @@
 use zavora_xlsx::*;
 
 fn main() -> Result<()> {
-    let path = std::env::temp_dir().join("read_cf_example.xlsx");
+    let path = std::path::PathBuf::from("output/read_cf_example.xlsx");
 
     // ── Step 1: Create a workbook with conditional formatting ──
     println!("📝 Creating workbook with conditional formatting rules...\n");
@@ -37,8 +37,8 @@ fn main() -> Result<()> {
 
         // Rule 3: 2-color scale (red → green) on column B
         let rule3 = ConditionalFormat2ColorScale::new(
-            (255u8, 99u8, 71u8),  // tomato red (min)
-            (34u8, 139u8, 34u8),  // forest green (max)
+            (255u8, 99u8, 71u8), // tomato red (min)
+            (34u8, 139u8, 34u8), // forest green (max)
         );
         ws.add_conditional_format(0, 1, 9, 1, rule3)?;
 
@@ -77,11 +77,7 @@ fn main() -> Result<()> {
 
     for (i, cf) in cfs.iter().enumerate() {
         let (r1, c1, r2, c2) = cf.range;
-        let range_str = format!(
-            "{}{}:{}{}",
-            col_letter(c1), r1 + 1,
-            col_letter(c2), r2 + 1
-        );
+        let range_str = format!("{}{}:{}{}", col_letter(c1), r1 + 1, col_letter(c2), r2 + 1);
 
         println!(
             "  Rule {}: type=\"{}\" range={} dxf_id={:?}",
@@ -104,7 +100,9 @@ fn col_letter(col: u16) -> String {
     let mut c = col as u32;
     loop {
         result.insert(0, (b'A' + (c % 26) as u8) as char);
-        if c < 26 { break; }
+        if c < 26 {
+            break;
+        }
         c = c / 26 - 1;
     }
     result

@@ -6,13 +6,11 @@ use crate::formula_engine::evaluator::{ErrorKind, Value};
 // Helpers
 // ---------------------------------------------------------------------------
 
-
-
 // ---------------------------------------------------------------------------
 // SUM
 // ---------------------------------------------------------------------------
 
-/// SUM(number1, [number2], ...)
+/// SUM(`number1`, \[`number2`\], ...)
 ///
 /// Sums all numeric values. In ranges, strings and bools are skipped.
 /// Direct bool args are coerced (TRUE=1). Direct string args that parse as
@@ -35,12 +33,10 @@ pub fn fn_sum(args: &[Value]) -> Value {
             }
             Value::Bool(b) => total += if *b { 1.0 } else { 0.0 },
             Value::Empty => {}
-            Value::String(s) => {
-                match s.parse::<f64>() {
-                    Ok(n) => total += n,
-                    Err(_) => return Value::Error(ErrorKind::Value),
-                }
-            }
+            Value::String(s) => match s.parse::<f64>() {
+                Ok(n) => total += n,
+                Err(_) => return Value::Error(ErrorKind::Value),
+            },
             Value::Error(e) => return Value::Error(*e),
         }
     }
@@ -51,7 +47,7 @@ pub fn fn_sum(args: &[Value]) -> Value {
 // AVERAGE
 // ---------------------------------------------------------------------------
 
-/// AVERAGE(number1, [number2], ...)
+/// AVERAGE(`number1`, \[`number2`\], ...)
 ///
 /// Returns the arithmetic mean of numeric values. Non-numeric values in
 /// ranges are skipped. Returns #DIV/0! if no numeric values are found.
@@ -60,26 +56,36 @@ pub fn fn_average(args: &[Value]) -> Value {
     let mut count = 0usize;
     for arg in args {
         match arg {
-            Value::Number(n) => { sum += n; count += 1; }
+            Value::Number(n) => {
+                sum += n;
+                count += 1;
+            }
             Value::Array(rows) => {
                 for row in rows {
                     for cell in row {
                         match cell {
-                            Value::Number(n) => { sum += n; count += 1; }
+                            Value::Number(n) => {
+                                sum += n;
+                                count += 1;
+                            }
                             Value::Error(e) => return Value::Error(*e),
                             _ => {}
                         }
                     }
                 }
             }
-            Value::Bool(b) => { sum += if *b { 1.0 } else { 0.0 }; count += 1; }
-            Value::Empty => {}
-            Value::String(s) => {
-                match s.parse::<f64>() {
-                    Ok(n) => { sum += n; count += 1; }
-                    Err(_) => return Value::Error(ErrorKind::Value),
-                }
+            Value::Bool(b) => {
+                sum += if *b { 1.0 } else { 0.0 };
+                count += 1;
             }
+            Value::Empty => {}
+            Value::String(s) => match s.parse::<f64>() {
+                Ok(n) => {
+                    sum += n;
+                    count += 1;
+                }
+                Err(_) => return Value::Error(ErrorKind::Value),
+            },
             Value::Error(e) => return Value::Error(*e),
         }
     }
@@ -94,7 +100,7 @@ pub fn fn_average(args: &[Value]) -> Value {
 // COUNT
 // ---------------------------------------------------------------------------
 
-/// COUNT(value1, [value2], ...)
+/// COUNT(`value1`, \[`value2`\], ...)
 ///
 /// Counts the number of cells/arguments that contain numeric values.
 /// Bools in ranges are NOT counted. Direct bool args ARE counted.
@@ -131,7 +137,7 @@ pub fn fn_count(args: &[Value]) -> Value {
 // COUNTA
 // ---------------------------------------------------------------------------
 
-/// COUNTA(value1, [value2], ...)
+/// COUNTA(`value1`, \[`value2`\], ...)
 ///
 /// Counts the number of non-empty cells/arguments.
 pub fn fn_counta(args: &[Value]) -> Value {
@@ -161,7 +167,7 @@ pub fn fn_counta(args: &[Value]) -> Value {
 // MIN
 // ---------------------------------------------------------------------------
 
-/// MIN(number1, [number2], ...)
+/// MIN(`number1`, \[`number2`\], ...)
 ///
 /// Returns the smallest numeric value. Non-numeric values in ranges are
 /// skipped. Returns 0 if no numeric values are found.
@@ -190,12 +196,10 @@ pub fn fn_min(args: &[Value]) -> Value {
                 min = Some(min.map_or(n, |m: f64| m.min(n)));
             }
             Value::Empty => {}
-            Value::String(s) => {
-                match s.parse::<f64>() {
-                    Ok(n) => min = Some(min.map_or(n, |m: f64| m.min(n))),
-                    Err(_) => return Value::Error(ErrorKind::Value),
-                }
-            }
+            Value::String(s) => match s.parse::<f64>() {
+                Ok(n) => min = Some(min.map_or(n, |m: f64| m.min(n))),
+                Err(_) => return Value::Error(ErrorKind::Value),
+            },
             Value::Error(e) => return Value::Error(*e),
         }
     }
@@ -206,7 +210,7 @@ pub fn fn_min(args: &[Value]) -> Value {
 // MAX
 // ---------------------------------------------------------------------------
 
-/// MAX(number1, [number2], ...)
+/// MAX(`number1`, \[`number2`\], ...)
 ///
 /// Returns the largest numeric value. Non-numeric values in ranges are
 /// skipped. Returns 0 if no numeric values are found.
@@ -235,12 +239,10 @@ pub fn fn_max(args: &[Value]) -> Value {
                 max = Some(max.map_or(n, |m: f64| m.max(n)));
             }
             Value::Empty => {}
-            Value::String(s) => {
-                match s.parse::<f64>() {
-                    Ok(n) => max = Some(max.map_or(n, |m: f64| m.max(n))),
-                    Err(_) => return Value::Error(ErrorKind::Value),
-                }
-            }
+            Value::String(s) => match s.parse::<f64>() {
+                Ok(n) => max = Some(max.map_or(n, |m: f64| m.max(n))),
+                Err(_) => return Value::Error(ErrorKind::Value),
+            },
             Value::Error(e) => return Value::Error(*e),
         }
     }
@@ -251,7 +253,7 @@ pub fn fn_max(args: &[Value]) -> Value {
 // IF
 // ---------------------------------------------------------------------------
 
-/// IF(logical_test, value_if_true, [value_if_false])
+/// IF(`logical_test`, `value_if_true`, \[`value_if_false`\])
 ///
 /// With 2 args: returns `value_if_true` when condition is truthy, FALSE otherwise.
 /// With 3 args: returns `value_if_true` or `value_if_false`.
@@ -276,7 +278,7 @@ pub fn fn_if(args: &[Value]) -> Value {
 // VLOOKUP
 // ---------------------------------------------------------------------------
 
-/// VLOOKUP(lookup_value, table_array, col_index_num, [range_lookup])
+/// VLOOKUP(`lookup_value`, `table_array`, `col_index_num`, \[`range_lookup`\])
 ///
 /// - `range_lookup` = FALSE (or 0): exact match, linear search
 /// - `range_lookup` = TRUE (or 1, or omitted): approximate match, binary search
@@ -392,7 +394,7 @@ fn vlookup_approximate(lookup_val: &Value, table: &[Vec<Value>], col_index: usiz
 // INDEX
 // ---------------------------------------------------------------------------
 
-/// INDEX(array, row_num, [col_num])
+/// INDEX(`array`, `row_num`, \[`col_num`\])
 ///
 /// Returns the value at the specified position in an array or range.
 /// Row and column numbers are 1-based.
@@ -489,11 +491,11 @@ pub fn fn_index(args: &[Value]) -> Value {
 // MATCH
 // ---------------------------------------------------------------------------
 
-/// MATCH(lookup_value, lookup_array, [match_type])
+/// MATCH(`lookup_value`, `lookup_array`, \[`match_type`\])
 ///
 /// Returns the 1-based position of a value in a one-dimensional range.
 ///
-/// - `match_type` = 1 (default): finds the largest value ≤ lookup_value
+/// - `match_type` = 1 (default): finds the largest value ≤ `lookup_value`
 ///   (lookup_array must be sorted ascending)
 /// - `match_type` = 0: finds the first exact match
 /// - `match_type` = -1: finds the smallest value ≥ lookup_value
@@ -526,9 +528,13 @@ pub fn fn_match(args: &[Value]) -> Value {
     let match_type = if args.len() >= 3 {
         match args[2].to_number() {
             Ok(n) => {
-                if n > 0.0 { 1 }
-                else if n < 0.0 { -1 }
-                else { 0 }
+                if n > 0.0 {
+                    1
+                } else if n < 0.0 {
+                    -1
+                } else {
+                    0
+                }
             }
             Err(e) => return Value::Error(e),
         }
@@ -607,9 +613,7 @@ fn values_equal(a: &Value, b: &Value) -> bool {
 fn compare_values(a: &Value, b: &Value) -> Option<std::cmp::Ordering> {
     match (a, b) {
         (Value::Number(x), Value::Number(y)) => x.partial_cmp(y),
-        (Value::String(x), Value::String(y)) => {
-            Some(x.to_lowercase().cmp(&y.to_lowercase()))
-        }
+        (Value::String(x), Value::String(y)) => Some(x.to_lowercase().cmp(&y.to_lowercase())),
         (Value::Empty, Value::Number(n)) => 0.0_f64.partial_cmp(n),
         (Value::Number(n), Value::Empty) => n.partial_cmp(&0.0),
         (Value::Empty, Value::String(s)) => Some("".cmp(s.as_str())),

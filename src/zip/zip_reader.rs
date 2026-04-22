@@ -20,13 +20,19 @@ impl<R: Read + Seek> ZipReader<R> {
                 path_cache.insert(key, name);
             }
         }
-        Ok(Self { archive, path_cache })
+        Ok(Self {
+            archive,
+            path_cache,
+        })
     }
 
     /// Resolve a path through the case-insensitive cache.
     pub fn resolve_path<'a>(&'a self, path: &'a str) -> &'a str {
         let key = path.to_ascii_lowercase();
-        self.path_cache.get(&key).map(|s| s.as_str()).unwrap_or(path)
+        self.path_cache
+            .get(&key)
+            .map(|s| s.as_str())
+            .unwrap_or(path)
     }
 
     /// Read an entry's full contents as bytes. Returns None if not found.
@@ -36,9 +42,11 @@ impl<R: Read + Seek> ZipReader<R> {
         match self.archive.by_name(&resolved) {
             Ok(mut entry) => {
                 if entry.size() > MAX_DECOMPRESSED {
-                    return Some(Err(crate::Error::InvalidData(
-                        format!("Entry '{}' decompressed size {} exceeds limit", path, entry.size()),
-                    )));
+                    return Some(Err(crate::Error::InvalidData(format!(
+                        "Entry '{}' decompressed size {} exceeds limit",
+                        path,
+                        entry.size()
+                    ))));
                 }
                 let mut buf = Vec::with_capacity(entry.size() as usize);
                 match std::io::Read::read_to_end(&mut entry, &mut buf) {

@@ -2,7 +2,7 @@
 //!
 //! Run with: cargo run --example formula_parser
 
-use zavora_xlsx::formula_engine::{tokenize, parse, print_formula};
+use zavora_xlsx::formula_engine::{parse, print_formula, tokenize};
 
 fn main() {
     let formulas = [

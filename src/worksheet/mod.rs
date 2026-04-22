@@ -1,10 +1,10 @@
 //! Worksheet module — split into logical submodules.
 
-mod write;
 mod features;
 mod layout;
 mod ops;
 pub mod types;
+mod write;
 
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
@@ -14,8 +14,10 @@ use crate::datetime::ExcelDateTime;
 use crate::features::chart::Chart;
 use crate::features::conditional::StoredCf;
 use crate::features::image::Image;
+use crate::features::slicer::Slicer;
 use crate::features::sparkline::Sparkline;
 use crate::features::table::Table;
+use crate::features::timeline::Timeline;
 use crate::features::validation::DataValidation;
 use crate::format::Format;
 use crate::model::shared_strings::SharedStringTable;
@@ -24,7 +26,10 @@ use crate::reader::sheet_reader::RawCell;
 use crate::reader::style_parser::ParsedStyles;
 use crate::utility::{ColNum, RowNum};
 
+pub use types::PhoneticRun;
+pub use types::{AdvancedFilterColumn, FilterRule, SortCondition, SortDirection, SortState};
 pub use types::{Comment, Hyperlink, Orientation, PrintSettings, SheetProtection, SheetVisibility};
+pub use types::{FormControl, ThreadedComment, ThreadedCommentReply};
 pub(crate) use types::{hash_password_public, validate_sheet_name};
 
 /// A worksheet within a workbook. Contains cells, formatting, charts, images,
@@ -56,6 +61,8 @@ pub struct Worksheet {
     pub(crate) pivot_tables: Vec<crate::features::pivot::PivotTable>,
     pub(crate) treemap_charts: Vec<crate::features::treemap::TreemapChart>,
     pub(crate) chartex_charts: Vec<crate::features::chartex::ChartExChart>,
+    pub(crate) slicers: Vec<Slicer>,
+    pub(crate) timelines: Vec<Timeline>,
     pub(crate) protection: Option<SheetProtection>,
     pub(crate) print_settings: Option<PrintSettings>,
     pub(crate) hidden_rows: std::collections::BTreeSet<RowNum>,
@@ -78,7 +85,13 @@ pub struct Worksheet {
     pub(crate) row_formats: BTreeMap<RowNum, Format>,
     pub(crate) ignored_errors: Vec<(String, String)>,
     pub(crate) autofilter_columns: Vec<(ColNum, Vec<String>)>,
+    pub(crate) advanced_filter_columns: Vec<types::AdvancedFilterColumn>,
+    pub(crate) sort_state: Option<types::SortState>,
     pub(crate) parsed_styles: Option<Arc<ParsedStyles>>,
+    pub(crate) phonetic_runs: HashMap<(RowNum, ColNum), Vec<types::PhoneticRun>>,
+    pub(crate) threaded_comments: Vec<types::ThreadedComment>,
+    pub(crate) form_controls: Vec<(RowNum, ColNum, types::FormControl)>,
+    pub(crate) shapes: Vec<crate::features::shape::Shape>,
 }
 
 impl Worksheet {
@@ -91,54 +104,137 @@ impl Worksheet {
             merge_ranges: Vec::new(),
             col_widths: BTreeMap::new(),
             row_heights: BTreeMap::new(),
-            freeze_row: 0, freeze_col: 0,
-            read_cells: None, read_cells_map: None, raw_xml: None, original_rels: None,
-            original_drawing_rid: None, original_legacy_drawing_rid: None, dirty: false,
-            charts: Vec::new(), images: Vec::new(), tables: Vec::new(),
-            conditional_formats: Vec::new(), validations: Vec::new(), sparklines: Vec::new(),
+            freeze_row: 0,
+            freeze_col: 0,
+            read_cells: None,
+            read_cells_map: None,
+            raw_xml: None,
+            original_rels: None,
+            original_drawing_rid: None,
+            original_legacy_drawing_rid: None,
+            dirty: false,
+            charts: Vec::new(),
+            images: Vec::new(),
+            tables: Vec::new(),
+            conditional_formats: Vec::new(),
+            validations: Vec::new(),
+            sparklines: Vec::new(),
             pivot_tables: Vec::new(),
             treemap_charts: Vec::new(),
             chartex_charts: Vec::new(),
-            protection: None, print_settings: None,
+            slicers: Vec::new(),
+            timelines: Vec::new(),
+            protection: None,
+            print_settings: None,
             hidden_rows: std::collections::BTreeSet::new(),
             hidden_cols: std::collections::BTreeSet::new(),
-            autofilter: None, hyperlinks: Vec::new(), comments: Vec::new(),
-            row_outline_levels: BTreeMap::new(), col_outline_levels: BTreeMap::new(),
-            zoom: None, show_gridlines: true, show_headings: true,
-            right_to_left: false, tab_color: None,
+            autofilter: None,
+            hyperlinks: Vec::new(),
+            comments: Vec::new(),
+            row_outline_levels: BTreeMap::new(),
+            col_outline_levels: BTreeMap::new(),
+            zoom: None,
+            show_gridlines: true,
+            show_headings: true,
+            right_to_left: false,
+            tab_color: None,
             visibility: SheetVisibility::Visible,
-            selection: None, top_left_cell: None,
+            selection: None,
+            top_left_cell: None,
             default_row_height: None,
-            col_formats: BTreeMap::new(), row_formats: BTreeMap::new(),
+            col_formats: BTreeMap::new(),
+            row_formats: BTreeMap::new(),
             ignored_errors: Vec::new(),
             autofilter_columns: Vec::new(),
+            advanced_filter_columns: Vec::new(),
+            sort_state: None,
             parsed_styles: None,
+            phonetic_runs: HashMap::new(),
+            threaded_comments: Vec::new(),
+            form_controls: Vec::new(),
+            shapes: Vec::new(),
         }
     }
 
     // ── Read accessors ──
 
-    pub fn name(&self) -> &str { &self.name }
-    pub fn visibility(&self) -> SheetVisibility { self.visibility }
-    pub fn is_hidden(&self) -> bool { self.visibility == SheetVisibility::Hidden }
-    pub fn is_very_hidden(&self) -> bool { self.visibility == SheetVisibility::VeryHidden }
-    pub fn merge_ranges(&self) -> &[(RowNum, ColNum, RowNum, ColNum)] { &self.merge_ranges }
-    pub fn column_width(&self, col: ColNum) -> Option<f64> { self.col_widths.get(&col).copied() }
-    pub fn row_height(&self, row: RowNum) -> Option<f64> { self.row_heights.get(&row).copied() }
-    pub fn charts(&self) -> &[Chart] { &self.charts }
-    pub fn tables(&self) -> &[Table] { &self.tables }
-    pub fn treemap_charts(&self) -> &[crate::features::treemap::TreemapChart] { &self.treemap_charts }
-    pub fn comments(&self) -> &[Comment] { &self.comments }
-    pub fn conditional_formats(&self) -> &[StoredCf] { &self.conditional_formats }
-    pub fn validations(&self) -> &[DataValidation] { &self.validations }
-    pub fn sparklines(&self) -> &[Sparkline] { &self.sparklines }
-    pub fn hyperlinks(&self) -> &[Hyperlink] { &self.hyperlinks }
-    pub fn print_settings(&self) -> Option<&PrintSettings> { self.print_settings.as_ref() }
-    pub fn protection(&self) -> Option<&SheetProtection> { self.protection.as_ref() }
-    pub fn row_outline_levels(&self) -> &BTreeMap<RowNum, u8> { &self.row_outline_levels }
-    pub fn col_outline_levels(&self) -> &BTreeMap<ColNum, u8> { &self.col_outline_levels }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+    pub fn visibility(&self) -> SheetVisibility {
+        self.visibility
+    }
+    pub fn is_hidden(&self) -> bool {
+        self.visibility == SheetVisibility::Hidden
+    }
+    pub fn is_very_hidden(&self) -> bool {
+        self.visibility == SheetVisibility::VeryHidden
+    }
+    pub fn merge_ranges(&self) -> &[(RowNum, ColNum, RowNum, ColNum)] {
+        &self.merge_ranges
+    }
+    pub fn column_width(&self, col: ColNum) -> Option<f64> {
+        self.col_widths.get(&col).copied()
+    }
+    pub fn row_height(&self, row: RowNum) -> Option<f64> {
+        self.row_heights.get(&row).copied()
+    }
+    pub fn charts(&self) -> &[Chart] {
+        &self.charts
+    }
+    pub fn tables(&self) -> &[Table] {
+        &self.tables
+    }
+    pub fn treemap_charts(&self) -> &[crate::features::treemap::TreemapChart] {
+        &self.treemap_charts
+    }
+    pub fn comments(&self) -> &[Comment] {
+        &self.comments
+    }
+    pub fn conditional_formats(&self) -> &[StoredCf] {
+        &self.conditional_formats
+    }
+    pub fn validations(&self) -> &[DataValidation] {
+        &self.validations
+    }
+    pub fn sparklines(&self) -> &[Sparkline] {
+        &self.sparklines
+    }
+    pub fn slicers(&self) -> &[Slicer] {
+        &self.slicers
+    }
+    pub fn timelines(&self) -> &[Timeline] {
+        &self.timelines
+    }
+    pub fn hyperlinks(&self) -> &[Hyperlink] {
+        &self.hyperlinks
+    }
+    pub fn threaded_comments(&self) -> &[types::ThreadedComment] {
+        &self.threaded_comments
+    }
+    pub fn form_controls(&self) -> &[(RowNum, ColNum, types::FormControl)] {
+        &self.form_controls
+    }
+    pub fn shapes(&self) -> &[crate::features::shape::Shape] {
+        &self.shapes
+    }
+    pub fn print_settings(&self) -> Option<&PrintSettings> {
+        self.print_settings.as_ref()
+    }
+    pub fn protection(&self) -> Option<&SheetProtection> {
+        self.protection.as_ref()
+    }
+    pub fn row_outline_levels(&self) -> &BTreeMap<RowNum, u8> {
+        &self.row_outline_levels
+    }
+    pub fn col_outline_levels(&self) -> &BTreeMap<ColNum, u8> {
+        &self.col_outline_levels
+    }
     pub fn get_comment(&self, row: RowNum, col: ColNum) -> Option<(&str, &str)> {
-        self.comments.iter().find(|c| c.row == row && c.col == col).map(|c| (c.author.as_str(), c.text.as_str()))
+        self.comments
+            .iter()
+            .find(|c| c.row == row && c.col == col)
+            .map(|c| (c.author.as_str(), c.text.as_str()))
     }
 
     pub fn set_name(&mut self, name: &str) -> crate::Result<&mut Self> {
@@ -151,21 +247,24 @@ impl Worksheet {
         if let Some(raw_cells) = self.read_cells.take() {
             for rc in raw_cells {
                 let cell_type = cell_value_to_type(&rc.value);
-                self.cells.entry(rc.row).or_default().insert(rc.col, (cell_type, rc.xf_index));
+                self.cells
+                    .entry(rc.row)
+                    .or_default()
+                    .insert(rc.col, (cell_type, rc.xf_index));
             }
         }
     }
 
     pub fn read_cell(&self, row: RowNum, col: ColNum) -> CellValue {
-        if let Some(cols) = self.cells.get(&row) {
-            if let Some((cell, _)) = cols.get(&col) {
-                return cell_type_to_value(cell);
-            }
+        if let Some(cols) = self.cells.get(&row)
+            && let Some((cell, _)) = cols.get(&col)
+        {
+            return cell_type_to_value(cell);
         }
-        if let Some(ref map) = self.read_cells_map {
-            if let Some(rc) = map.get(&(row, col)) {
-                return rc.clone();
-            }
+        if let Some(ref map) = self.read_cells_map
+            && let Some(rc) = map.get(&(row, col))
+        {
+            return rc.clone();
         }
         CellValue::Empty
     }
@@ -182,14 +281,14 @@ impl Worksheet {
         let styles = self.parsed_styles.as_ref()?;
 
         // First check deserialized cells (BTreeMap)
-        if let Some(cols) = self.cells.get(&row) {
-            if let Some((_, xf_index)) = cols.get(&col) {
-                let idx = *xf_index as usize;
-                if idx == 0 {
-                    return None;
-                }
-                return styles.resolve_format(idx);
+        if let Some(cols) = self.cells.get(&row)
+            && let Some((_, xf_index)) = cols.get(&col)
+        {
+            let idx = *xf_index as usize;
+            if idx == 0 {
+                return None;
             }
+            return styles.resolve_format(idx);
         }
 
         // Fall back to raw cells that haven't been deserialized yet
@@ -209,39 +308,83 @@ impl Worksheet {
     }
 
     pub fn used_range(&self) -> Option<(RowNum, ColNum, RowNum, ColNum)> {
-        let mut min_r = u32::MAX; let mut max_r = 0u32;
-        let mut min_c = u16::MAX; let mut max_c = 0u16;
+        let mut min_r = u32::MAX;
+        let mut max_r = 0u32;
+        let mut min_c = u16::MAX;
+        let mut max_c = 0u16;
         let mut found = false;
         for (&r, cols) in &self.cells {
             for &c in cols.keys() {
-                min_r = min_r.min(r); max_r = max_r.max(r);
-                min_c = min_c.min(c); max_c = max_c.max(c);
+                min_r = min_r.min(r);
+                max_r = max_r.max(r);
+                min_c = min_c.min(c);
+                max_c = max_c.max(c);
                 found = true;
             }
         }
         if let Some(ref map) = self.read_cells_map {
             for &(r, c) in map.keys() {
-                min_r = min_r.min(r); max_r = max_r.max(r);
-                min_c = min_c.min(c); max_c = max_c.max(c);
+                min_r = min_r.min(r);
+                max_r = max_r.max(r);
+                min_c = min_c.min(c);
+                max_c = max_c.max(c);
                 found = true;
             }
         }
-        if found { Some((min_r, min_c, max_r, max_c)) } else { None }
+        if found {
+            Some((min_r, min_c, max_r, max_c))
+        } else {
+            None
+        }
     }
 
     // ── Formatting ──
 
-    pub fn set_cell_format(&mut self, row: RowNum, col: ColNum, format: &Format) -> crate::Result<&mut Self> {
+    pub fn set_cell_format(
+        &mut self,
+        row: RowNum,
+        col: ColNum,
+        format: &Format,
+    ) -> crate::Result<&mut Self> {
         self.pending_formats.insert((row, col), format.clone());
-        self.dirty = true; Ok(self)
+        self.dirty = true;
+        Ok(self)
     }
 
-    pub fn set_range_format(&mut self, r1: RowNum, c1: ColNum, r2: RowNum, c2: ColNum, format: &Format) -> crate::Result<&mut Self> {
+    /// Set phonetic text (furigana) runs for a cell.
+    pub fn set_phonetic(
+        &mut self,
+        row: RowNum,
+        col: ColNum,
+        runs: Vec<types::PhoneticRun>,
+    ) -> crate::Result<&mut Self> {
+        self.phonetic_runs.insert((row, col), runs);
+        self.dirty = true;
+        Ok(self)
+    }
+
+    pub fn set_range_format(
+        &mut self,
+        r1: RowNum,
+        c1: ColNum,
+        r2: RowNum,
+        c2: ColNum,
+        format: &Format,
+    ) -> crate::Result<&mut Self> {
         self.range_formats.push((r1, c1, r2, c2, format.clone()));
-        self.dirty = true; Ok(self)
+        self.dirty = true;
+        Ok(self)
     }
 
-    pub fn merge_range(&mut self, r1: RowNum, c1: ColNum, r2: RowNum, c2: ColNum, text: &str, format: &Format) -> crate::Result<&mut Self> {
+    pub fn merge_range(
+        &mut self,
+        r1: RowNum,
+        c1: ColNum,
+        r2: RowNum,
+        c2: ColNum,
+        text: &str,
+        format: &Format,
+    ) -> crate::Result<&mut Self> {
         self.ensure_deserialized();
         self.dirty = true;
         self.merge_ranges.push((r1, c1, r2, c2));
@@ -257,7 +400,10 @@ impl Worksheet {
         let pending = std::mem::take(&mut self.pending_formats);
         for ((row, col), fmt) in pending {
             let xf = styles.register_format(&fmt);
-            self.cells.entry(row).or_default().entry(col)
+            self.cells
+                .entry(row)
+                .or_default()
+                .entry(col)
                 .and_modify(|e| e.1 = xf)
                 .or_insert((CellType::Empty, xf));
         }
@@ -267,14 +413,20 @@ impl Worksheet {
             for r in r1..=r2 {
                 if let Some(cols) = self.cells.get_mut(&r) {
                     for c in c1..=c2 {
-                        if let Some(cell) = cols.get_mut(&c) { cell.1 = xf; }
+                        if let Some(cell) = cols.get_mut(&c) {
+                            cell.1 = xf;
+                        }
                     }
                 }
             }
         }
-        for cols in self.cells.values_mut() {
-            for (cell, _) in cols.values_mut() {
+        for (&row, cols) in self.cells.iter_mut() {
+            for (&col, (cell, _)) in cols.iter_mut() {
                 if let CellType::InlineString(s) = cell {
+                    // Keep as inline string if cell has phonetic runs
+                    if self.phonetic_runs.contains_key(&(row, col)) {
+                        continue;
+                    }
                     let idx = sst.intern(s);
                     *cell = CellType::SharedString(idx);
                 }
@@ -297,16 +449,26 @@ fn cell_type_to_value(cell: &CellType) -> CellValue {
         CellType::SharedString(_) => CellValue::Empty,
         CellType::InlineString(s) => CellValue::String(s.clone()),
         CellType::Bool(b) => CellValue::Bool(*b),
-        CellType::Formula { text, cached_number } => CellValue::Formula {
+        CellType::Formula {
+            text,
+            cached_number,
+        } => CellValue::Formula {
             formula: text.clone(),
-            cached_value: Box::new(cached_number.map(CellValue::Number).unwrap_or(CellValue::Empty)),
+            cached_value: Box::new(
+                cached_number
+                    .map(CellValue::Number)
+                    .unwrap_or(CellValue::Empty),
+            ),
         },
         CellType::DateTime(s) => CellValue::DateTime(ExcelDateTime::new(*s, false)),
         CellType::Error(e) => CellValue::Error(e.clone()),
         CellType::RichText(rt) => CellValue::RichText(rt.clone()),
-        CellType::ArrayFormula { text, .. } | CellType::DynamicFormula { text, .. } => CellValue::Formula {
-            formula: text.clone(), cached_value: Box::new(CellValue::Empty),
-        },
+        CellType::ArrayFormula { text, .. } | CellType::DynamicFormula { text, .. } => {
+            CellValue::Formula {
+                formula: text.clone(),
+                cached_value: Box::new(CellValue::Empty),
+            }
+        }
     }
 }
 
@@ -318,7 +480,10 @@ fn cell_value_to_type(value: &CellValue) -> CellType {
         CellValue::Bool(b) => CellType::Bool(*b),
         CellValue::DateTime(dt) => CellType::DateTime(dt.serial()),
         CellValue::Error(e) => CellType::Error(e.clone()),
-        CellValue::Formula { formula, cached_value } => CellType::Formula {
+        CellValue::Formula {
+            formula,
+            cached_value,
+        } => CellType::Formula {
             text: formula.clone(),
             cached_number: match cached_value.as_ref() {
                 CellValue::Number(n) => Some(*n),

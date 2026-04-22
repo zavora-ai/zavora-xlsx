@@ -21,14 +21,14 @@ pub enum Value {
 /// Formula error types matching Excel's error values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErrorKind {
-    Value,   // #VALUE!
-    Ref,     // #REF!
-    Div0,    // #DIV/0!
-    Name,    // #NAME?
-    Num,     // #NUM!
-    Na,      // #N/A
-    Null,    // #NULL!
-    Spill,   // #SPILL!
+    Value, // #VALUE!
+    Ref,   // #REF!
+    Div0,  // #DIV/0!
+    Name,  // #NAME?
+    Num,   // #NUM!
+    Na,    // #N/A
+    Null,  // #NULL!
+    Spill, // #SPILL!
 }
 
 impl std::fmt::Display for ErrorKind {
@@ -106,7 +106,9 @@ pub struct SimpleContext {
 
 impl SimpleContext {
     pub fn new(num_sheets: usize) -> Self {
-        Self { cells: vec![std::collections::HashMap::new(); num_sheets] }
+        Self {
+            cells: vec![std::collections::HashMap::new(); num_sheets],
+        }
     }
 
     pub fn set(&mut self, sheet: usize, row: u32, col: u16, val: Value) {
@@ -116,7 +118,8 @@ impl SimpleContext {
 
 impl CellContext for SimpleContext {
     fn get_cell(&self, sheet: usize, row: u32, col: u16) -> Value {
-        self.cells.get(sheet)
+        self.cells
+            .get(sheet)
             .and_then(|s| s.get(&(row, col)))
             .cloned()
             .unwrap_or(Value::Empty)
@@ -133,9 +136,7 @@ pub fn evaluate(node: &AstNode, ctx: &dyn CellContext, current_sheet: usize) -> 
         AstNode::Bool(b) => Value::Bool(*b),
         AstNode::Error(e) => Value::Error(parse_error_kind(e)),
 
-        AstNode::CellRef { col, row, .. } => {
-            ctx.get_cell(current_sheet, *row, *col)
-        }
+        AstNode::CellRef { col, row, .. } => ctx.get_cell(current_sheet, *row, *col),
 
         AstNode::SheetRef { inner, .. } => {
             // For now, evaluate in current sheet (full impl would resolve sheet name)
@@ -145,9 +146,14 @@ pub fn evaluate(node: &AstNode, ctx: &dyn CellContext, current_sheet: usize) -> 
         AstNode::Range { start, end } => {
             // Expand range to array of values
             if let (
-                AstNode::CellRef { col: c1, row: r1, .. },
-                AstNode::CellRef { col: c2, row: r2, .. },
-            ) = (start.as_ref(), end.as_ref()) {
+                AstNode::CellRef {
+                    col: c1, row: r1, ..
+                },
+                AstNode::CellRef {
+                    col: c2, row: r2, ..
+                },
+            ) = (start.as_ref(), end.as_ref())
+            {
                 let min_r = (*r1).min(*r2);
                 let max_r = (*r1).max(*r2);
                 let min_c = (*c1).min(*c2);
@@ -188,15 +194,21 @@ pub fn evaluate(node: &AstNode, ctx: &dyn CellContext, current_sheet: usize) -> 
         AstNode::FunctionCall { name, args } => {
             // Evaluate args and delegate to function registry
             // For now, just handle basic cases
-            let eval_args: Vec<Value> = args.iter()
+            let eval_args: Vec<Value> = args
+                .iter()
                 .map(|a| evaluate(a, ctx, current_sheet))
                 .collect();
             eval_function(name, &eval_args)
         }
 
         AstNode::Array { rows } => {
-            let eval_rows: Vec<Vec<Value>> = rows.iter()
-                .map(|row| row.iter().map(|cell| evaluate(cell, ctx, current_sheet)).collect())
+            let eval_rows: Vec<Vec<Value>> = rows
+                .iter()
+                .map(|row| {
+                    row.iter()
+                        .map(|cell| evaluate(cell, ctx, current_sheet))
+                        .collect()
+                })
                 .collect();
             Value::Array(eval_rows)
         }
@@ -205,24 +217,42 @@ pub fn evaluate(node: &AstNode, ctx: &dyn CellContext, current_sheet: usize) -> 
     }
 }
 
-fn eval_binary_op(op: Op, left: &AstNode, right: &AstNode, ctx: &dyn CellContext, sheet: usize) -> Value {
+fn eval_binary_op(
+    op: Op,
+    left: &AstNode,
+    right: &AstNode,
+    ctx: &dyn CellContext,
+    sheet: usize,
+) -> Value {
     let lval = evaluate(left, ctx, sheet);
     let rval = evaluate(right, ctx, sheet);
 
     // Propagate errors
-    if let Value::Error(e) = &lval { return Value::Error(*e); }
-    if let Value::Error(e) = &rval { return Value::Error(*e); }
+    if let Value::Error(e) = &lval {
+        return Value::Error(*e);
+    }
+    if let Value::Error(e) = &rval {
+        return Value::Error(*e);
+    }
 
     match op {
         Op::Add | Op::Sub | Op::Mul | Op::Div | Op::Pow => {
-            let l = match lval.to_number() { Ok(n) => n, Err(e) => return Value::Error(e) };
-            let r = match rval.to_number() { Ok(n) => n, Err(e) => return Value::Error(e) };
+            let l = match lval.to_number() {
+                Ok(n) => n,
+                Err(e) => return Value::Error(e),
+            };
+            let r = match rval.to_number() {
+                Ok(n) => n,
+                Err(e) => return Value::Error(e),
+            };
             let result = match op {
                 Op::Add => l + r,
                 Op::Sub => l - r,
                 Op::Mul => l * r,
                 Op::Div => {
-                    if r == 0.0 { return Value::Error(ErrorKind::Div0); }
+                    if r == 0.0 {
+                        return Value::Error(ErrorKind::Div0);
+                    }
                     l / r
                 }
                 Op::Pow => l.powf(r),
@@ -231,13 +261,17 @@ fn eval_binary_op(op: Op, left: &AstNode, right: &AstNode, ctx: &dyn CellContext
             Value::Number(result)
         }
         Op::Concat => {
-            let l = match lval.to_string_val() { Ok(s) => s, Err(e) => return Value::Error(e) };
-            let r = match rval.to_string_val() { Ok(s) => s, Err(e) => return Value::Error(e) };
+            let l = match lval.to_string_val() {
+                Ok(s) => s,
+                Err(e) => return Value::Error(e),
+            };
+            let r = match rval.to_string_val() {
+                Ok(s) => s,
+                Err(e) => return Value::Error(e),
+            };
             Value::String(format!("{l}{r}"))
         }
-        Op::Eq | Op::Ne | Op::Lt | Op::Gt | Op::Le | Op::Ge => {
-            eval_comparison(op, &lval, &rval)
-        }
+        Op::Eq | Op::Ne | Op::Lt | Op::Gt | Op::Le | Op::Ge => eval_comparison(op, &lval, &rval),
         Op::Percent => Value::Error(ErrorKind::Value), // shouldn't appear as binary
     }
 }
@@ -245,16 +279,12 @@ fn eval_binary_op(op: Op, left: &AstNode, right: &AstNode, ctx: &dyn CellContext
 fn eval_comparison(op: Op, lval: &Value, rval: &Value) -> Value {
     // Compare numbers to numbers, strings to strings (case-insensitive)
     match (lval, rval) {
-        (Value::Number(l), Value::Number(r)) => {
-            Value::Bool(compare_op(op, l.partial_cmp(r)))
-        }
+        (Value::Number(l), Value::Number(r)) => Value::Bool(compare_op(op, l.partial_cmp(r))),
         (Value::String(l), Value::String(r)) => {
             let cmp = l.to_lowercase().cmp(&r.to_lowercase());
             Value::Bool(compare_op(op, Some(cmp)))
         }
-        (Value::Bool(l), Value::Bool(r)) => {
-            Value::Bool(compare_op(op, l.cmp(r).into()))
-        }
+        (Value::Bool(l), Value::Bool(r)) => Value::Bool(compare_op(op, l.cmp(r).into())),
         // Mixed types: numbers < strings < booleans in Excel's comparison
         (Value::Number(_), Value::String(_)) => Value::Bool(matches!(op, Op::Lt | Op::Le | Op::Ne)),
         (Value::String(_), Value::Number(_)) => Value::Bool(matches!(op, Op::Gt | Op::Ge | Op::Ne)),
@@ -334,7 +364,8 @@ pub fn evaluate_array(
             for r in 0..target_rows {
                 let mut row = Vec::with_capacity(target_cols);
                 for c in 0..target_cols {
-                    let val = rows.get(r)
+                    let val = rows
+                        .get(r)
                         .and_then(|row| row.get(c))
                         .cloned()
                         .unwrap_or(Value::Error(ErrorKind::Na));
@@ -342,12 +373,20 @@ pub fn evaluate_array(
                 }
                 output.push(row);
             }
-            ArrayResult { values: output, rows: target_rows, cols: target_cols }
+            ArrayResult {
+                values: output,
+                rows: target_rows,
+                cols: target_cols,
+            }
         }
         scalar => {
             // Replicate scalar across the entire target range
             let output = vec![vec![scalar; target_cols]; target_rows];
-            ArrayResult { values: output, rows: target_rows, cols: target_cols }
+            ArrayResult {
+                values: output,
+                rows: target_rows,
+                cols: target_cols,
+            }
         }
     }
 }
@@ -395,7 +434,9 @@ pub fn evaluate_dynamic_array(
             // Check for spill conflicts (skip the origin cell itself)
             for r in 0..num_rows {
                 for c in 0..num_cols {
-                    if r == 0 && c == 0 { continue; } // origin cell is the formula cell
+                    if r == 0 && c == 0 {
+                        continue;
+                    } // origin cell is the formula cell
                     let cell_row = origin_row + r as u32;
                     let cell_col = origin_col + c as u16;
                     let existing = ctx.get_cell(current_sheet, cell_row, cell_col);
@@ -425,7 +466,7 @@ pub fn evaluate_dynamic_array(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::formula_engine::{tokenize, parse};
+    use crate::formula_engine::{parse, tokenize};
 
     fn eval(formula: &str) -> Value {
         let tokens = tokenize(formula).unwrap();
@@ -479,7 +520,10 @@ mod tests {
 
     #[test]
     fn test_string_concat() {
-        assert_eq!(eval(r#""Hello"&" World""#), Value::String("Hello World".into()));
+        assert_eq!(
+            eval(r#""Hello"&" World""#),
+            Value::String("Hello World".into())
+        );
     }
 
     #[test]

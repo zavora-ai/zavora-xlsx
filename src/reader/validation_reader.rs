@@ -146,10 +146,10 @@ fn parse_dv_children(
                 _ => {}
             },
             Ok(Event::Text(ref t)) => {
-                if in_formula1 || in_formula2 {
-                    if let Ok(s) = t.unescape() {
-                        text.push_str(&s);
-                    }
+                if (in_formula1 || in_formula2)
+                    && let Ok(s) = t.unescape()
+                {
+                    text.push_str(&s);
                 }
             }
             Ok(Event::End(ref child)) => match child.local_name().as_ref() {

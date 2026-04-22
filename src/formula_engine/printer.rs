@@ -22,29 +22,49 @@ fn write_node(node: &AstNode, out: &mut String) {
         AstNode::String(s) => {
             out.push('"');
             for ch in s.chars() {
-                if ch == '"' { out.push('"'); }
+                if ch == '"' {
+                    out.push('"');
+                }
                 out.push(ch);
             }
             out.push('"');
         }
         AstNode::Bool(b) => out.push_str(if *b { "TRUE" } else { "FALSE" }),
         AstNode::Error(e) => out.push_str(e),
-        AstNode::CellRef { col, row, abs_col, abs_row } => {
-            if *abs_col { out.push('$'); }
+        AstNode::CellRef {
+            col,
+            row,
+            abs_col,
+            abs_row,
+        } => {
+            if *abs_col {
+                out.push('$');
+            }
             out.push_str(&col_to_letters(*col));
-            if *abs_row { out.push('$'); }
+            if *abs_row {
+                out.push('$');
+            }
             out.push_str(&(row + 1).to_string());
         }
-        AstNode::R1C1Ref { row, col, row_relative, col_relative } => {
+        AstNode::R1C1Ref {
+            row,
+            col,
+            row_relative,
+            col_relative,
+        } => {
             out.push('R');
             if *row_relative {
-                if *row != 0 { out.push_str(&format!("[{row}]")); }
+                if *row != 0 {
+                    out.push_str(&format!("[{row}]"));
+                }
             } else {
                 out.push_str(&row.to_string());
             }
             out.push('C');
             if *col_relative {
-                if *col != 0 { out.push_str(&format!("[{col}]")); }
+                if *col != 0 {
+                    out.push_str(&format!("[{col}]"));
+                }
             } else {
                 out.push_str(&col.to_string());
             }
@@ -74,26 +94,40 @@ fn write_node(node: &AstNode, out: &mut String) {
         AstNode::BinaryOp { op, left, right } => {
             let needs_parens_left = needs_parens(left, *op, true);
             let needs_parens_right = needs_parens(right, *op, false);
-            if needs_parens_left { out.push('('); }
+            if needs_parens_left {
+                out.push('(');
+            }
             write_node(left, out);
-            if needs_parens_left { out.push(')'); }
+            if needs_parens_left {
+                out.push(')');
+            }
             out.push_str(&op.to_string());
-            if needs_parens_right { out.push('('); }
+            if needs_parens_right {
+                out.push('(');
+            }
             write_node(right, out);
-            if needs_parens_right { out.push(')'); }
+            if needs_parens_right {
+                out.push(')');
+            }
         }
         AstNode::UnaryOp { op, operand } => {
             out.push_str(&op.to_string());
             let needs = matches!(operand.as_ref(), AstNode::BinaryOp { .. });
-            if needs { out.push('('); }
+            if needs {
+                out.push('(');
+            }
             write_node(operand, out);
-            if needs { out.push(')'); }
+            if needs {
+                out.push(')');
+            }
         }
         AstNode::FunctionCall { name, args } => {
             out.push_str(name);
             out.push('(');
             for (i, arg) in args.iter().enumerate() {
-                if i > 0 { out.push(','); }
+                if i > 0 {
+                    out.push(',');
+                }
                 write_node(arg, out);
             }
             out.push(')');
@@ -101,9 +135,13 @@ fn write_node(node: &AstNode, out: &mut String) {
         AstNode::Array { rows } => {
             out.push('{');
             for (ri, row) in rows.iter().enumerate() {
-                if ri > 0 { out.push(';'); }
+                if ri > 0 {
+                    out.push(';');
+                }
                 for (ci, cell) in row.iter().enumerate() {
-                    if ci > 0 { out.push(','); }
+                    if ci > 0 {
+                        out.push(',');
+                    }
                     write_node(cell, out);
                 }
             }

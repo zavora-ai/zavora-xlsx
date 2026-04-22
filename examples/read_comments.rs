@@ -13,7 +13,12 @@ fn main() {
     ws.write(2, 1, 20000.0).unwrap();
 
     // Add comments with different authors
-    ws.add_comment_with_author(0, 1, "Q4 revenue figure, includes deferred income", "Finance Team");
+    ws.add_comment_with_author(
+        0,
+        1,
+        "Q4 revenue figure, includes deferred income",
+        "Finance Team",
+    );
     ws.add_comment_with_author(1, 1, "Excludes one-time restructuring costs", "Controller");
     ws.add_comment(2, 1, "Net profit before tax");
 

@@ -1,5 +1,5 @@
-use quick_xml::events::attributes::Attributes;
 use quick_xml::events::Event;
+use quick_xml::events::attributes::Attributes;
 use quick_xml::name::QName;
 use quick_xml::reader::Reader as XmlReaderInner;
 
@@ -19,7 +19,10 @@ impl<'a> XmlReader<'a> {
         config.trim_text(false);
         config.check_comments = false;
         config.expand_empty_elements = true;
-        Self { inner, buf: Vec::with_capacity(1024) }
+        Self {
+            inner,
+            buf: Vec::with_capacity(1024),
+        }
     }
 
     /// Read next event, reusing internal buffer.
@@ -37,10 +40,10 @@ impl<'a> XmlReader<'a> {
 /// Extract a single attribute value by QName from an attribute iterator.
 pub fn get_attr<'a>(attrs: Attributes<'a>, name: &[u8]) -> Option<&'a [u8]> {
     for attr in attrs.into_iter().flatten() {
-        if attr.key == QName(name) {
-            if let std::borrow::Cow::Borrowed(v) = attr.value {
-                return Some(v);
-            }
+        if attr.key == QName(name)
+            && let std::borrow::Cow::Borrowed(v) = attr.value
+        {
+            return Some(v);
         }
     }
     None

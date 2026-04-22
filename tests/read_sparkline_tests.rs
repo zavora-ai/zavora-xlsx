@@ -21,11 +21,19 @@ fn test_roundtrip_sparklines_line() {
     let ws2 = wb2.worksheet_ref(0).unwrap();
     let sparklines = ws2.sparklines();
 
-    assert_eq!(sparklines.len(), 1, "Expected 1 sparkline, got {}", sparklines.len());
+    assert_eq!(
+        sparklines.len(),
+        1,
+        "Expected 1 sparkline, got {}",
+        sparklines.len()
+    );
     assert_eq!(sparklines[0].data_range(), "Sheet1!A1:A5");
     assert_eq!(sparklines[0].row(), 0);
     assert_eq!(sparklines[0].col(), 1);
-    assert!(matches!(sparklines[0].sparkline_type(), SparklineType::Line));
+    assert!(matches!(
+        sparklines[0].sparkline_type(),
+        SparklineType::Line
+    ));
 }
 
 #[test]
@@ -47,7 +55,10 @@ fn test_roundtrip_sparklines_column() {
     let sparklines = ws2.sparklines();
 
     assert_eq!(sparklines.len(), 1);
-    assert!(matches!(sparklines[0].sparkline_type(), SparklineType::Column));
+    assert!(matches!(
+        sparklines[0].sparkline_type(),
+        SparklineType::Column
+    ));
     assert_eq!(sparklines[0].data_range(), "Sheet1!A1:A5");
     assert_eq!(sparklines[0].col(), 2);
 }
@@ -74,7 +85,10 @@ fn test_roundtrip_sparklines_winloss() {
     let sparklines = ws2.sparklines();
 
     assert_eq!(sparklines.len(), 1);
-    assert!(matches!(sparklines[0].sparkline_type(), SparklineType::WinLoss));
+    assert!(matches!(
+        sparklines[0].sparkline_type(),
+        SparklineType::WinLoss
+    ));
     assert_eq!(sparklines[0].data_range(), "Sheet1!A1:A5");
 }
 
@@ -102,14 +116,25 @@ fn test_roundtrip_sparklines_multiple() {
     let ws2 = wb2.worksheet_ref(0).unwrap();
     let sparklines = ws2.sparklines();
 
-    assert_eq!(sparklines.len(), 2, "Expected 2 sparklines, got {}", sparklines.len());
+    assert_eq!(
+        sparklines.len(),
+        2,
+        "Expected 2 sparklines, got {}",
+        sparklines.len()
+    );
 
     // Sparklines may be in any order, so find by location
-    let sp_line = sparklines.iter().find(|s| s.row() == 0 && s.col() == 2).expect("Line sparkline not found");
+    let sp_line = sparklines
+        .iter()
+        .find(|s| s.row() == 0 && s.col() == 2)
+        .expect("Line sparkline not found");
     assert!(matches!(sp_line.sparkline_type(), SparklineType::Line));
     assert_eq!(sp_line.data_range(), "Sheet1!A1:A5");
 
-    let sp_col = sparklines.iter().find(|s| s.row() == 1 && s.col() == 2).expect("Column sparkline not found");
+    let sp_col = sparklines
+        .iter()
+        .find(|s| s.row() == 1 && s.col() == 2)
+        .expect("Column sparkline not found");
     assert!(matches!(sp_col.sparkline_type(), SparklineType::Column));
     assert_eq!(sp_col.data_range(), "Sheet1!B1:B5");
 }
@@ -171,6 +196,9 @@ fn test_roundtrip_sparklines_edit_mode() {
     let sparklines = ws2.sparklines();
 
     assert_eq!(sparklines.len(), 1);
-    assert!(matches!(sparklines[0].sparkline_type(), SparklineType::Column));
+    assert!(matches!(
+        sparklines[0].sparkline_type(),
+        SparklineType::Column
+    ));
     assert_eq!(sparklines[0].data_range(), "Sheet1!A1:A5");
 }

@@ -1,0 +1,18 @@
+[package]
+name = "zavora-xlsx-derive"
+version = "0.1.0"
+edition = "2024"
+description = "Derive macro for zavora-xlsx ExcelRow"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = { version = "2", features = ["full"] }
+quote = "1"
+proc-macro2 = "1"
+
+[dev-dependencies]
+zavora-xlsx = { path = ".." }
+trybuild = "1"
+proptest = "1"

@@ -1,0 +1,5 @@
+error: unknown excel attribute: 'unknown_key'
+ --> tests/compile-fail/unknown_attr.rs:5:13
+  |
+5 |     #[excel(unknown_key = "x")]
+  |             ^^^^^^^^^^^

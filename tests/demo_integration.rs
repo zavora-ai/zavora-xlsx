@@ -1,5 +1,5 @@
-use zavora_xlsx::*;
 use std::path::Path;
+use zavora_xlsx::*;
 
 fn dir() -> std::path::PathBuf {
     let d = std::env::temp_dir().join("zavora_integration");
@@ -83,9 +83,17 @@ fn test_formatting(path: &Path) -> Result<()> {
         .font_color("#FFFFFF")
         .border(BorderStyle::Thin)
         .border_color("#000000");
-    let currency = Format::new().num_format("$#,##0.00").border(BorderStyle::Thin).border_color("#000000");
-    let percent = Format::new().num_format("0.0%").border(BorderStyle::Thin).border_color("#000000");
-    let border_fmt = Format::new().border(BorderStyle::Thin).border_color("#000000");
+    let currency = Format::new()
+        .num_format("$#,##0.00")
+        .border(BorderStyle::Thin)
+        .border_color("#000000");
+    let percent = Format::new()
+        .num_format("0.0%")
+        .border(BorderStyle::Thin)
+        .border_color("#000000");
+    let border_fmt = Format::new()
+        .border(BorderStyle::Thin)
+        .border_color("#000000");
 
     ws.write_with_format(0, 0, "Item", &header)?;
     ws.write_with_format(0, 1, "Revenue", &header)?;
@@ -116,7 +124,8 @@ fn test_multi_sheet(path: &Path) -> Result<()> {
     let mut wb = Workbook::new();
     wb.worksheet(0)?.set_name("Sales")?;
     wb.worksheet(0)?.write_row(0, 0, ["Region", "Q1", "Q2"])?;
-    wb.worksheet(0)?.write_row(1, 0, ["North", "East", "West"])?;
+    wb.worksheet(0)?
+        .write_row(1, 0, ["North", "East", "West"])?;
 
     let ws2 = wb.add_worksheet_with_name("Costs")?;
     ws2.write_row(0, 0, ["Category", "Amount"])?;
@@ -135,9 +144,15 @@ fn test_multi_sheet(path: &Path) -> Result<()> {
 fn test_read_multi_sheet(path: &Path) -> Result<()> {
     let mut wb = Workbook::open_readonly(path)?;
     assert_eq!(wb.sheet_names(), vec!["Sales", "Costs", "Notes"]);
-    assert_eq!(wb.worksheet(0)?.read_cell(0, 0), CellValue::String("Region".into()));
+    assert_eq!(
+        wb.worksheet(0)?.read_cell(0, 0),
+        CellValue::String("Region".into())
+    );
     assert_eq!(wb.worksheet(1)?.read_cell(1, 1), CellValue::Number(5000.0));
-    assert_eq!(wb.worksheet(2)?.read_cell(0, 0), CellValue::String("This is a note".into()));
+    assert_eq!(
+        wb.worksheet(2)?.read_cell(0, 0),
+        CellValue::String("This is a note".into())
+    );
     Ok(())
 }
 
@@ -255,7 +270,10 @@ fn test_sheet_mgmt(path: &Path) -> Result<()> {
 
     let mut wb2 = Workbook::open_readonly(path)?;
     assert_eq!(wb2.sheet_names(), vec!["Beta"]);
-    assert_eq!(wb2.worksheet(0)?.read_cell(0, 0), CellValue::String("Beta".into()));
+    assert_eq!(
+        wb2.worksheet(0)?.read_cell(0, 0),
+        CellValue::String("Beta".into())
+    );
     Ok(())
 }
 
@@ -299,7 +317,10 @@ fn test_layout(path: &Path) -> Result<()> {
 
     // Just verify it opens without error
     let mut wb2 = Workbook::open_readonly(path)?;
-    assert_eq!(wb2.worksheet(0)?.read_cell(0, 0), CellValue::String("Wide column".into()));
+    assert_eq!(
+        wb2.worksheet(0)?.read_cell(0, 0),
+        CellValue::String("Wide column".into())
+    );
     Ok(())
 }
 
@@ -312,7 +333,7 @@ fn test_properties(path: &Path) -> Result<()> {
                 .title("Quarterly Report")
                 .author("Finance Team")
                 .subject("Q4 2024 Results")
-                .company("Acme Corp")
+                .company("Acme Corp"),
         );
         wb.save(path)?;
     }
@@ -374,17 +395,23 @@ fn test_large(path: &Path) -> Result<()> {
         // Spot checks
         assert_eq!(ws.read_cell(0, 0), CellValue::String("Col_1".into()));
         assert_eq!(ws.read_cell(1, 0), CellValue::Number(100.0));
-        assert_eq!(ws.read_cell(rows, cols - 1), CellValue::Number(rows as f64 * 100.0 + (cols - 1) as f64));
+        assert_eq!(
+            ws.read_cell(rows, cols - 1),
+            CellValue::Number(rows as f64 * 100.0 + (cols - 1) as f64)
+        );
         assert_eq!(ws.read_cell(5000, 10), CellValue::Number(500010.0));
     }
     let read_time = start.elapsed();
 
     let size = std::fs::metadata(path)?.len();
-    println!("    📊 10K×20 = 200K cells | Write: {:?} | Read: {:?} | Size: {:.1} MB",
-        write_time, read_time, size as f64 / 1_048_576.0);
+    println!(
+        "    📊 10K×20 = 200K cells | Write: {:?} | Read: {:?} | Size: {:.1} MB",
+        write_time,
+        read_time,
+        size as f64 / 1_048_576.0
+    );
     Ok(())
 }
-
 
 // ═══════════════════════════════════════════════════════════════
 // Phase 3 feature tests
@@ -395,7 +422,10 @@ fn test_chart_column(path: &Path) -> Result<()> {
     let ws = wb.worksheet(0)?;
 
     // Sales data
-    let header = Format::new().bold().background_color("#4472C4").font_color("#FFFFFF");
+    let header = Format::new()
+        .bold()
+        .background_color("#4472C4")
+        .font_color("#FFFFFF");
     ws.write_with_format(0, 0, "Region", &header)?;
     ws.write_with_format(0, 1, "Q1", &header)?;
     ws.write_with_format(0, 2, "Q2", &header)?;
@@ -428,7 +458,8 @@ fn test_chart_column(path: &Path) -> Result<()> {
     for (i, region) in regions.iter().enumerate() {
         let row = i + 2;
         let values = format!("Sheet1!$B${row}:$E${row}");
-        chart.add_series()
+        chart
+            .add_series()
             .set_values(&values)
             .set_categories("Sheet1!$B$1:$E$1")
             .set_name(region);
@@ -456,16 +487,21 @@ fn test_chart_all_types(path: &Path) -> Result<()> {
     ws.write_row(2, 0, [25.0_f64, 15.0, 35.0, 20.0, 30.0])?;
 
     let types = [
-        (ChartType::Bar, "Bar"), (ChartType::Column, "Column"),
-        (ChartType::Line, "Line"), (ChartType::Pie, "Pie"),
-        (ChartType::Scatter, "Scatter"), (ChartType::Area, "Area"),
-        (ChartType::Doughnut, "Doughnut"), (ChartType::Radar, "Radar"),
+        (ChartType::Bar, "Bar"),
+        (ChartType::Column, "Column"),
+        (ChartType::Line, "Line"),
+        (ChartType::Pie, "Pie"),
+        (ChartType::Scatter, "Scatter"),
+        (ChartType::Area, "Area"),
+        (ChartType::Doughnut, "Doughnut"),
+        (ChartType::Radar, "Radar"),
     ];
 
     for (i, (ct, name)) in types.iter().enumerate() {
         let mut chart = Chart::new(*ct);
         chart.set_title(name);
-        chart.add_series()
+        chart
+            .add_series()
             .set_values("Sheet1!$A$2:$E$2")
             .set_categories("Sheet1!$A$1:$E$1")
             .set_name("Series 1");
@@ -478,7 +514,9 @@ fn test_chart_all_types(path: &Path) -> Result<()> {
     // Verify file structure
     let file = std::fs::File::open(path)?;
     let mut zip = zip::ZipArchive::new(std::io::BufReader::new(file))?;
-    let chart_count = (0..zip.len()).filter(|i| zip.by_index(*i).unwrap().name().starts_with("xl/charts/")).count();
+    let chart_count = (0..zip.len())
+        .filter(|i| zip.by_index(*i).unwrap().name().starts_with("xl/charts/"))
+        .count();
     assert_eq!(chart_count, 8, "Expected 8 chart XML files");
     Ok(())
 }
@@ -489,13 +527,27 @@ fn test_table(path: &Path) -> Result<()> {
 
     // Employee data
     ws.write_row(0, 0, ["Name", "Department", "Salary", "Start Date"])?;
-    ws.write(1, 0, "Alice")?; ws.write(1, 1, "Engineering")?; ws.write(1, 2, 95000.0)?; ws.write(1, 3, "2020-03-15")?;
-    ws.write(2, 0, "Bob")?; ws.write(2, 1, "Marketing")?; ws.write(2, 2, 78000.0)?; ws.write(2, 3, "2019-07-01")?;
-    ws.write(3, 0, "Charlie")?; ws.write(3, 1, "Engineering")?; ws.write(3, 2, 102000.0)?; ws.write(3, 3, "2018-11-20")?;
-    ws.write(4, 0, "Diana")?; ws.write(4, 1, "Sales")?; ws.write(4, 2, 85000.0)?; ws.write(4, 3, "2021-01-10")?;
+    ws.write(1, 0, "Alice")?;
+    ws.write(1, 1, "Engineering")?;
+    ws.write(1, 2, 95000.0)?;
+    ws.write(1, 3, "2020-03-15")?;
+    ws.write(2, 0, "Bob")?;
+    ws.write(2, 1, "Marketing")?;
+    ws.write(2, 2, 78000.0)?;
+    ws.write(2, 3, "2019-07-01")?;
+    ws.write(3, 0, "Charlie")?;
+    ws.write(3, 1, "Engineering")?;
+    ws.write(3, 2, 102000.0)?;
+    ws.write(3, 3, "2018-11-20")?;
+    ws.write(4, 0, "Diana")?;
+    ws.write(4, 1, "Sales")?;
+    ws.write(4, 2, 85000.0)?;
+    ws.write(4, 3, "2021-01-10")?;
 
     let salary_fmt = Format::new().num_format("$#,##0");
-    for r in 1..=4u32 { ws.set_cell_format(r, 2, &salary_fmt)?; }
+    for r in 1..=4u32 {
+        ws.set_cell_format(r, 2, &salary_fmt)?;
+    }
 
     let mut table = Table::new();
     table.set_columns(&[
@@ -518,11 +570,15 @@ fn test_table(path: &Path) -> Result<()> {
     // Verify
     let file = std::fs::File::open(path)?;
     let mut zip = zip::ZipArchive::new(std::io::BufReader::new(file))?;
-    let has_table = (0..zip.len()).any(|i| zip.by_index(i).unwrap().name().starts_with("xl/tables/"));
+    let has_table =
+        (0..zip.len()).any(|i| zip.by_index(i).unwrap().name().starts_with("xl/tables/"));
     assert!(has_table, "Expected table XML in zip");
 
     let mut wb2 = Workbook::open_readonly(path)?;
-    assert_eq!(wb2.worksheet(0)?.read_cell(3, 0), CellValue::String("Charlie".into()));
+    assert_eq!(
+        wb2.worksheet(0)?.read_cell(3, 0),
+        CellValue::String("Charlie".into())
+    );
     Ok(())
 }
 
@@ -549,15 +605,24 @@ fn test_image(path: &Path) -> Result<()> {
         .map(|i| zip.by_index(i).unwrap().name().to_string())
         .filter(|n: &String| n.starts_with("xl/media/"))
         .collect();
-    assert_eq!(media_files.len(), 1, "Expected 1 media file, got {:?}", media_files);
+    assert_eq!(
+        media_files.len(),
+        1,
+        "Expected 1 media file, got {:?}",
+        media_files
+    );
     assert!(media_files[0].ends_with(".png"), "Expected PNG extension");
 
-    let has_drawing = (0..zip.len()).any(|i| zip.by_index(i).unwrap().name().starts_with("xl/drawings/"));
+    let has_drawing =
+        (0..zip.len()).any(|i| zip.by_index(i).unwrap().name().starts_with("xl/drawings/"));
     assert!(has_drawing, "Expected drawing XML");
 
     // Verify data still readable
     let mut wb2 = Workbook::open_readonly(path)?;
-    assert_eq!(wb2.worksheet(0)?.read_cell(0, 0), CellValue::String("Company Logo".into()));
+    assert_eq!(
+        wb2.worksheet(0)?.read_cell(0, 0),
+        CellValue::String("Company Logo".into())
+    );
     Ok(())
 }
 
@@ -572,13 +637,29 @@ fn test_conditional_formatting(path: &Path) -> Result<()> {
     ws.write_with_format(0, 2, "Grade", &header)?;
     ws.write_with_format(0, 3, "Trend", &header)?;
 
-    let students = ["Alice", "Bob", "Charlie", "Diana", "Eve", "Frank", "Grace", "Hank"];
+    let students = [
+        "Alice", "Bob", "Charlie", "Diana", "Eve", "Frank", "Grace", "Hank",
+    ];
     let scores = [95.0, 72.0, 88.0, 45.0, 91.0, 63.0, 78.0, 55.0];
     for (i, (name, &score)) in students.iter().zip(scores.iter()).enumerate() {
         let r = (i + 1) as u32;
         ws.write(r, 0, *name)?;
         ws.write(r, 1, score)?;
-        ws.write(r, 2, if score >= 90.0 { "A" } else if score >= 80.0 { "B" } else if score >= 70.0 { "C" } else if score >= 60.0 { "D" } else { "F" })?;
+        ws.write(
+            r,
+            2,
+            if score >= 90.0 {
+                "A"
+            } else if score >= 80.0 {
+                "B"
+            } else if score >= 70.0 {
+                "C"
+            } else if score >= 60.0 {
+                "D"
+            } else {
+                "F"
+            },
+        )?;
         ws.write(r, 3, score / 100.0)?;
     }
 
@@ -623,7 +704,10 @@ fn test_conditional_formatting(path: &Path) -> Result<()> {
         std::io::Read::read_to_string(&mut entry, &mut s)?;
         s
     };
-    assert!(sheet_xml.contains("conditionalFormatting"), "Expected conditionalFormatting in sheet XML");
+    assert!(
+        sheet_xml.contains("conditionalFormatting"),
+        "Expected conditionalFormatting in sheet XML"
+    );
     assert!(sheet_xml.contains("colorScale"), "Expected colorScale rule");
     assert!(sheet_xml.contains("dataBar"), "Expected dataBar rule");
     assert!(sheet_xml.contains("iconSet"), "Expected iconSet rule");
@@ -641,24 +725,35 @@ fn test_data_validation(path: &Path) -> Result<()> {
     ws.write_with_format(0, 3, "Notes", &header)?;
 
     // 1. Dropdown list
-    let mut dv_list = DataValidation::new(ValidationRule::List(
-        vec!["Open".into(), "In Progress".into(), "Closed".into()]
-    ));
+    let mut dv_list = DataValidation::new(ValidationRule::List(vec![
+        "Open".into(),
+        "In Progress".into(),
+        "Closed".into(),
+    ]));
     dv_list.set_input_message("Status", "Select task status");
     dv_list.set_error_message(ErrorStyle::Stop, "Invalid", "Choose from the dropdown");
     ws.add_data_validation(1, 0, 20, 0, &dv_list)?;
 
     // 2. Whole number range
-    let mut dv_num = DataValidation::new(ValidationRule::WholeNumber { min: Some(1), max: Some(5) });
+    let mut dv_num = DataValidation::new(ValidationRule::WholeNumber {
+        min: Some(1),
+        max: Some(5),
+    });
     dv_num.set_input_message("Priority", "Enter 1-5");
     ws.add_data_validation(1, 1, 20, 1, &dv_num)?;
 
     // 3. Decimal range
-    let dv_dec = DataValidation::new(ValidationRule::Decimal { min: Some(0.0), max: Some(10000.0) });
+    let dv_dec = DataValidation::new(ValidationRule::Decimal {
+        min: Some(0.0),
+        max: Some(10000.0),
+    });
     ws.add_data_validation(1, 2, 20, 2, &dv_dec)?;
 
     // 4. Text length
-    let dv_len = DataValidation::new(ValidationRule::TextLength { min: Some(0), max: Some(200) });
+    let dv_len = DataValidation::new(ValidationRule::TextLength {
+        min: Some(0),
+        max: Some(200),
+    });
     ws.add_data_validation(1, 3, 20, 3, &dv_len)?;
 
     ws.set_column_width(0, 14.0)?;
@@ -666,8 +761,14 @@ fn test_data_validation(path: &Path) -> Result<()> {
     ws.set_column_width(3, 30.0)?;
 
     // Write some sample data
-    ws.write(1, 0, "Open")?; ws.write(1, 1, 3)?; ws.write(1, 2, 1500.0)?; ws.write(1, 3, "First task")?;
-    ws.write(2, 0, "Closed")?; ws.write(2, 1, 1)?; ws.write(2, 2, 750.0)?; ws.write(2, 3, "Done")?;
+    ws.write(1, 0, "Open")?;
+    ws.write(1, 1, 3)?;
+    ws.write(1, 2, 1500.0)?;
+    ws.write(1, 3, "First task")?;
+    ws.write(2, 0, "Closed")?;
+    ws.write(2, 1, 1)?;
+    ws.write(2, 2, 750.0)?;
+    ws.write(2, 3, "Done")?;
 
     wb.save(path)?;
 
@@ -680,8 +781,14 @@ fn test_data_validation(path: &Path) -> Result<()> {
         std::io::Read::read_to_string(&mut entry, &mut s)?;
         s
     };
-    assert!(sheet_xml.contains("dataValidation"), "Expected dataValidation in sheet XML");
-    assert!(sheet_xml.contains("Open,In Progress,Closed"), "Expected list values in DV");
+    assert!(
+        sheet_xml.contains("dataValidation"),
+        "Expected dataValidation in sheet XML"
+    );
+    assert!(
+        sheet_xml.contains("Open,In Progress,Closed"),
+        "Expected list values in DV"
+    );
     Ok(())
 }
 
@@ -691,7 +798,10 @@ fn test_sparklines(path: &Path) -> Result<()> {
 
     let header = Format::new().bold();
     ws.write_with_format(0, 0, "Month", &header)?;
-    for (i, m) in ["Jan", "Feb", "Mar", "Apr", "May", "Jun"].iter().enumerate() {
+    for (i, m) in ["Jan", "Feb", "Mar", "Apr", "May", "Jun"]
+        .iter()
+        .enumerate()
+    {
         ws.write(0, (i + 1) as u16, *m)?;
     }
     ws.write_with_format(0, 7, "Trend", &header)?;
@@ -731,7 +841,10 @@ fn test_sparklines(path: &Path) -> Result<()> {
         std::io::Read::read_to_string(&mut entry, &mut s)?;
         s
     };
-    assert!(sheet_xml.contains("sparkline"), "Expected sparkline in sheet XML");
+    assert!(
+        sheet_xml.contains("sparkline"),
+        "Expected sparkline in sheet XML"
+    );
     Ok(())
 }
 
@@ -746,7 +859,11 @@ fn test_dashboard(path: &Path) -> Result<()> {
     ws.merge_range(0, 0, 0, 6, "Sales Dashboard — Q4 2024", &title_fmt)?;
 
     // ── Data table ──
-    let hdr = Format::new().bold().background_color("#1F4E79").font_color("#FFFFFF").border(BorderStyle::Thin);
+    let hdr = Format::new()
+        .bold()
+        .background_color("#1F4E79")
+        .font_color("#FFFFFF")
+        .border(BorderStyle::Thin);
     let headers = ["Product", "Oct", "Nov", "Dec", "Total", "Avg", "Trend"];
     for (c, h) in headers.iter().enumerate() {
         ws.write_with_format(2, c as u16, *h, &hdr)?;
@@ -760,8 +877,13 @@ fn test_dashboard(path: &Path) -> Result<()> {
         [3200.0, 4100.0, 3800.0],
     ];
 
-    let money = Format::new().num_format("$#,##0").border(BorderStyle::Thin).border_color("#D9D9D9");
-    let border = Format::new().border(BorderStyle::Thin).border_color("#D9D9D9");
+    let money = Format::new()
+        .num_format("$#,##0")
+        .border(BorderStyle::Thin)
+        .border_color("#D9D9D9");
+    let border = Format::new()
+        .border(BorderStyle::Thin)
+        .border_color("#D9D9D9");
 
     for (i, (prod, vals)) in products.iter().zip(sales.iter()).enumerate() {
         let r = (i + 3) as u32;
@@ -776,7 +898,12 @@ fn test_dashboard(path: &Path) -> Result<()> {
 
     // Table
     let mut table = Table::new();
-    table.set_columns(&headers.iter().map(|h| TableColumn::new(h)).collect::<Vec<_>>());
+    table.set_columns(
+        &headers
+            .iter()
+            .map(|h| TableColumn::new(h))
+            .collect::<Vec<_>>(),
+    );
     table.set_style(TableStyle::Medium(2));
     ws.add_table(2, 0, 6, 6, &table)?;
 
@@ -804,7 +931,8 @@ fn test_dashboard(path: &Path) -> Result<()> {
     chart.set_legend_position(LegendPosition::Bottom);
     for (i, prod) in products.iter().enumerate() {
         let r = i + 4;
-        chart.add_series()
+        chart
+            .add_series()
             .set_values(&format!("Dashboard!$B${r}:$D${r}"))
             .set_categories("Dashboard!$B$3:$D$3")
             .set_name(prod);
@@ -814,13 +942,15 @@ fn test_dashboard(path: &Path) -> Result<()> {
     // Data validation on a separate input area
     ws.write(25, 0, "Filter by product:")?;
     let dv = DataValidation::new(ValidationRule::List(
-        products.iter().map(|s| s.to_string()).collect()
+        products.iter().map(|s| s.to_string()).collect(),
     ));
     ws.add_data_validation(25, 1, 25, 1, &dv)?;
 
     // Column widths
     ws.set_column_width(0, 16.0)?;
-    for c in 1..=5 { ws.set_column_width(c, 12.0)?; }
+    for c in 1..=5 {
+        ws.set_column_width(c, 12.0)?;
+    }
     ws.set_column_width(6, 14.0)?;
     ws.set_freeze_panes(3, 1)?;
 
@@ -834,10 +964,21 @@ fn test_dashboard(path: &Path) -> Result<()> {
 
     let file = std::fs::File::open(path)?;
     let mut zip = zip::ZipArchive::new(std::io::BufReader::new(file))?;
-    let names: Vec<String> = (0..zip.len()).map(|i| zip.by_index(i).unwrap().name().to_string()).collect();
-    assert!(names.iter().any(|n: &String| n.contains("chart")), "Expected chart");
-    assert!(names.iter().any(|n: &String| n.contains("table")), "Expected table");
-    assert!(names.iter().any(|n: &String| n.contains("drawing")), "Expected drawing");
+    let names: Vec<String> = (0..zip.len())
+        .map(|i| zip.by_index(i).unwrap().name().to_string())
+        .collect();
+    assert!(
+        names.iter().any(|n: &String| n.contains("chart")),
+        "Expected chart"
+    );
+    assert!(
+        names.iter().any(|n: &String| n.contains("table")),
+        "Expected table"
+    );
+    assert!(
+        names.iter().any(|n: &String| n.contains("drawing")),
+        "Expected drawing"
+    );
 
     let size = std::fs::metadata(path)?.len();
     println!("    📊 Dashboard file size: {:.1} KB", size as f64 / 1024.0);
@@ -849,8 +990,14 @@ fn test_dashboard(path: &Path) -> Result<()> {
 fn create_test_png() -> Vec<u8> {
     let mut png = Vec::new();
     png.extend_from_slice(b"\x89PNG\r\n\x1a\n");
-    write_png_chunk(&mut png, b"IHDR", &[0,0,0,1, 0,0,0,1, 8, 2, 0,0,0]);
-    write_png_chunk(&mut png, b"IDAT", &[0x78,0x01,0x62,0xF8,0xCF,0xC0,0x00,0x00,0x00,0x04,0x00,0x01]);
+    write_png_chunk(&mut png, b"IHDR", &[0, 0, 0, 1, 0, 0, 0, 1, 8, 2, 0, 0, 0]);
+    write_png_chunk(
+        &mut png,
+        b"IDAT",
+        &[
+            0x78, 0x01, 0x62, 0xF8, 0xCF, 0xC0, 0x00, 0x00, 0x00, 0x04, 0x00, 0x01,
+        ],
+    );
     write_png_chunk(&mut png, b"IEND", &[]);
     png
 }
@@ -865,7 +1012,13 @@ fn write_png_chunk(buf: &mut Vec<u8>, ct: &[u8; 4], data: &[u8]) {
     let mut crc: u32 = 0xFFFFFFFF;
     for &b in &crc_input {
         crc ^= b as u32;
-        for _ in 0..8 { if crc & 1 != 0 { crc = (crc >> 1) ^ 0xEDB88320; } else { crc >>= 1; } }
+        for _ in 0..8 {
+            if crc & 1 != 0 {
+                crc = (crc >> 1) ^ 0xEDB88320;
+            } else {
+                crc >>= 1;
+            }
+        }
     }
     buf.extend_from_slice(&(!crc).to_be_bytes());
 }
@@ -881,7 +1034,11 @@ fn test_autofit(path: &Path) -> Result<()> {
     ws.write(0, 3, "Price")?;
     ws.write(1, 0, 1)?;
     ws.write(1, 1, "Widget Pro Max Ultra")?;
-    ws.write(1, 2, "A very long description that should make the column wider than default")?;
+    ws.write(
+        1,
+        2,
+        "A very long description that should make the column wider than default",
+    )?;
     ws.write(1, 3, 1299.99)?;
     ws.write(2, 0, 2)?;
     ws.write(2, 1, "Gadget")?;
@@ -891,7 +1048,10 @@ fn test_autofit(path: &Path) -> Result<()> {
     wb.save(path)?;
     // Verify the file has cols with customWidth
     let xml = read_sheet_xml(path, 1);
-    assert!(xml.contains("customWidth"), "autofit should set customWidth");
+    assert!(
+        xml.contains("customWidth"),
+        "autofit should set customWidth"
+    );
     Ok(())
 }
 
@@ -904,10 +1064,16 @@ fn test_protection(path: &Path) -> Result<()> {
     wb.protect_with_password("admin");
     wb.save(path)?;
     let sheet_xml = read_sheet_xml(path, 1);
-    assert!(sheet_xml.contains("sheetProtection"), "should have sheetProtection");
+    assert!(
+        sheet_xml.contains("sheetProtection"),
+        "should have sheetProtection"
+    );
     assert!(sheet_xml.contains("password="), "should have password hash");
     let wb_xml = read_zip_entry(path, "xl/workbook.xml");
-    assert!(wb_xml.contains("workbookProtection"), "should have workbookProtection");
+    assert!(
+        wb_xml.contains("workbookProtection"),
+        "should have workbookProtection"
+    );
     Ok(())
 }
 
@@ -946,13 +1112,25 @@ fn test_rich_text(path: &Path) -> Result<()> {
         .add_run("Normal text, ")
         .add_bold("bold text, ")
         .add_italic("italic text, ")
-        .add_styled("red & big", RichTextRun::new().color("FF0000").font_size(18.0).bold());
+        .add_styled(
+            "red & big",
+            RichTextRun::new().color("FF0000").font_size(18.0).bold(),
+        );
     ws.write_rich_text(0, 0, &rt)?;
 
     let rt2 = RichText::new()
-        .add_styled("Calibri ", RichTextRun::new().font_name("Calibri").font_size(11.0))
-        .add_styled("Courier ", RichTextRun::new().font_name("Courier New").font_size(11.0))
-        .add_styled("Arial", RichTextRun::new().font_name("Arial").font_size(11.0));
+        .add_styled(
+            "Calibri ",
+            RichTextRun::new().font_name("Calibri").font_size(11.0),
+        )
+        .add_styled(
+            "Courier ",
+            RichTextRun::new().font_name("Courier New").font_size(11.0),
+        )
+        .add_styled(
+            "Arial",
+            RichTextRun::new().font_name("Arial").font_size(11.0),
+        );
     ws.write_rich_text(1, 0, &rt2)?;
 
     wb.save(path)?;
@@ -983,7 +1161,11 @@ fn test_streaming(path: &Path) -> Result<()> {
     }
     wb.save(path)?;
     let size = std::fs::metadata(path)?.len();
-    assert!(size > 100_000, "100K row file should be substantial: {} bytes", size);
+    assert!(
+        size > 100_000,
+        "100K row file should be substantial: {} bytes",
+        size
+    );
     // Verify it's a valid zip
     let file = std::fs::File::open(path)?;
     let archive = zip::ZipArchive::new(std::io::BufReader::new(file))?;
@@ -1029,10 +1211,16 @@ fn test_phase4_combined(path: &Path) -> Result<()> {
     assert!(s1.contains("<r>"), "sheet1 should have rich text");
     assert!(s1.contains("sheetProtection"), "sheet1 should be protected");
     let s2 = read_sheet_xml(path, 2);
-    assert!(s2.contains("pageSetup"), "sheet2 should have print settings");
+    assert!(
+        s2.contains("pageSetup"),
+        "sheet2 should have print settings"
+    );
     assert!(s2.contains("rowBreaks"), "sheet2 should have page breaks");
     let wbxml = read_zip_entry(path, "xl/workbook.xml");
-    assert!(wbxml.contains("workbookProtection"), "workbook should be protected");
+    assert!(
+        wbxml.contains("workbookProtection"),
+        "workbook should be protected"
+    );
     Ok(())
 }
 
@@ -1058,17 +1246,34 @@ fn test_acme_financial_model(path: &Path) -> Result<()> {
 
     // ── Formats ──
     let title_fmt = Format::new().bold().font_size(18.0).font_color("#1F4E79");
-    let header_fmt = Format::new().bold().font_size(11.0).background_color("#1F4E79").font_color("#FFFFFF")
-        .border(BorderStyle::Thin).border_color("#000000").text_wrap();
+    let header_fmt = Format::new()
+        .bold()
+        .font_size(11.0)
+        .background_color("#1F4E79")
+        .font_color("#FFFFFF")
+        .border(BorderStyle::Thin)
+        .border_color("#000000")
+        .text_wrap();
     let currency_fmt = Format::new().num_format("$#,##0").border(BorderStyle::Thin);
     let pct_fmt = Format::new().num_format("0.0%").border(BorderStyle::Thin);
-    let date_fmt = Format::new().num_format("yyyy-mm-dd").border(BorderStyle::Thin);
-    let total_fmt = Format::new().bold().num_format("$#,##0").border(BorderStyle::Medium)
+    let date_fmt = Format::new()
+        .num_format("yyyy-mm-dd")
+        .border(BorderStyle::Thin);
+    let total_fmt = Format::new()
+        .bold()
+        .num_format("$#,##0")
+        .border(BorderStyle::Medium)
         .background_color("#D6E4F0");
-    let input_fmt = Format::new().unlocked().background_color("#FFFFCC").border(BorderStyle::Thin);
+    let input_fmt = Format::new()
+        .unlocked()
+        .background_color("#FFFFCC")
+        .border(BorderStyle::Thin);
     let cell_fmt = Format::new().border(BorderStyle::Thin);
-    let indent_fmt = Format::new().border(BorderStyle::Thin).indent(1);  // Indented sub-items
-    let subtotal_fmt = Format::new().bold().num_format("$#,##0").border(BorderStyle::Thin)
+    let indent_fmt = Format::new().border(BorderStyle::Thin).indent(1); // Indented sub-items
+    let _subtotal_fmt = Format::new()
+        .bold()
+        .num_format("$#,##0")
+        .border(BorderStyle::Thin)
         .background_color("#E2EFDA");
 
     // ════════════════════════════════════════════════════════════
@@ -1076,13 +1281,19 @@ fn test_acme_financial_model(path: &Path) -> Result<()> {
     // ════════════════════════════════════════════════════════════
     let ws = wb.worksheet(0)?;
     ws.set_name("P&L")?;
-    ws.set_tab_color("#1F4E79");  // Blue tab for financials
-    ws.set_print_scale(85);       // Scale to 85% for printing
+    ws.set_tab_color("#1F4E79"); // Blue tab for financials
+    ws.set_print_scale(85); // Scale to 85% for printing
 
     // Title
     let rt = RichText::new()
-        .add_styled("Acme Corp ", RichTextRun::new().bold().font_size(16.0).color("1F4E79"))
-        .add_styled("— Q1 Income Statement", RichTextRun::new().font_size(14.0).color("4472C4"));
+        .add_styled(
+            "Acme Corp ",
+            RichTextRun::new().bold().font_size(16.0).color("1F4E79"),
+        )
+        .add_styled(
+            "— Q1 Income Statement",
+            RichTextRun::new().font_size(14.0).color("4472C4"),
+        );
     ws.write_rich_text(0, 0, &rt)?;
     ws.set_row_height(0, 28.0)?;
 
@@ -1092,7 +1303,9 @@ fn test_acme_financial_model(path: &Path) -> Result<()> {
         ws.write_with_format(2, c as u16, *h, &header_fmt)?;
     }
     ws.set_column_width(0, 22.0)?;
-    for c in 1..=5u16 { ws.set_column_width(c, 14.0)?; }
+    for c in 1..=5u16 {
+        ws.set_column_width(c, 14.0)?;
+    }
 
     // Revenue section
     let rev_items = [
@@ -1101,7 +1314,12 @@ fn test_acme_financial_model(path: &Path) -> Result<()> {
         ("Licensing", [15000.0, 15000.0, 18000.0]),
     ];
     let mut row = 3u32;
-    ws.write_with_format(row, 0, "Revenue", &Format::new().bold().border(BorderStyle::Thin))?;
+    ws.write_with_format(
+        row,
+        0,
+        "Revenue",
+        &Format::new().bold().border(BorderStyle::Thin),
+    )?;
     row += 1;
     for (name, months) in &rev_items {
         ws.write_with_format(row, 0, *name, &indent_fmt)?;
@@ -1127,7 +1345,15 @@ fn test_acme_financial_model(path: &Path) -> Result<()> {
         ws.set_cell_format(7, c, &total_fmt)?;
     }
     ws.write_formula(7, 5, "1")?;
-    ws.set_cell_format(7, 5, &Format::new().bold().num_format("0.0%").border(BorderStyle::Medium).background_color("#D6E4F0"))?;
+    ws.set_cell_format(
+        7,
+        5,
+        &Format::new()
+            .bold()
+            .num_format("0.0%")
+            .border(BorderStyle::Medium)
+            .background_color("#D6E4F0"),
+    )?;
 
     // Expenses section
     let exp_items = [
@@ -1138,7 +1364,12 @@ fn test_acme_financial_model(path: &Path) -> Result<()> {
         ("Other", [5000.0, 6000.0, 5500.0]),
     ];
     row = 9;
-    ws.write_with_format(row, 0, "Expenses", &Format::new().bold().border(BorderStyle::Thin))?;
+    ws.write_with_format(
+        row,
+        0,
+        "Expenses",
+        &Format::new().bold().border(BorderStyle::Thin),
+    )?;
     row += 1;
     for (name, months) in &exp_items {
         ws.write_with_format(row, 0, *name, &indent_fmt)?;
@@ -1161,17 +1392,50 @@ fn test_acme_financial_model(path: &Path) -> Result<()> {
         ws.set_cell_format(15, c, &total_fmt)?;
     }
     ws.write_formula(15, 5, "E16/E8")?;
-    ws.set_cell_format(15, 5, &Format::new().bold().num_format("0.0%").border(BorderStyle::Medium).background_color("#D6E4F0"))?;
+    ws.set_cell_format(
+        15,
+        5,
+        &Format::new()
+            .bold()
+            .num_format("0.0%")
+            .border(BorderStyle::Medium)
+            .background_color("#D6E4F0"),
+    )?;
 
     // Net Income
-    ws.write_with_format(17, 0, "Net Income", &Format::new().bold().font_size(12.0).border(BorderStyle::Double).background_color("#C6EFCE"))?;
+    ws.write_with_format(
+        17,
+        0,
+        "Net Income",
+        &Format::new()
+            .bold()
+            .font_size(12.0)
+            .border(BorderStyle::Double)
+            .background_color("#C6EFCE"),
+    )?;
     for c in 1..=4u16 {
         let cl = col_letter(c);
         ws.write_formula(17, c, &format!("{cl}8-{cl}16"))?;
-        ws.set_cell_format(17, c, &Format::new().bold().num_format("$#,##0").border(BorderStyle::Double).background_color("#C6EFCE"))?;
+        ws.set_cell_format(
+            17,
+            c,
+            &Format::new()
+                .bold()
+                .num_format("$#,##0")
+                .border(BorderStyle::Double)
+                .background_color("#C6EFCE"),
+        )?;
     }
     ws.write_formula(17, 5, "E18/E8")?;
-    ws.set_cell_format(17, 5, &Format::new().bold().num_format("0.0%").border(BorderStyle::Double).background_color("#C6EFCE"))?;
+    ws.set_cell_format(
+        17,
+        5,
+        &Format::new()
+            .bold()
+            .num_format("0.0%")
+            .border(BorderStyle::Double)
+            .background_color("#C6EFCE"),
+    )?;
 
     // Conditional formatting: red for negative net income
     ws.add_conditional_format(17, 1, 17, 4, {
@@ -1182,12 +1446,21 @@ fn test_acme_financial_model(path: &Path) -> Result<()> {
 
     // Sprint 2: Formula-based CF — highlight expense items where Q1 total > $200K
     let mut cf_formula = ConditionalFormatFormula::new("$E11>200000");
-    cf_formula.set_format(&Format::new().background_color("#FFC7CE").font_color("#9C0006"));
+    cf_formula.set_format(
+        &Format::new()
+            .background_color("#FFC7CE")
+            .font_color("#9C0006"),
+    );
     ws.add_conditional_format(10, 0, 14, 5, cf_formula)?;
 
     // Sprint 2: Above-average CF — highlight above-average expense line items
     let mut cf_avg = ConditionalFormatAverage::new(AverageType::Above);
-    cf_avg.set_format(&Format::new().bold().background_color("#FFEB9C").font_color("#9C5700"));
+    cf_avg.set_format(
+        &Format::new()
+            .bold()
+            .background_color("#FFEB9C")
+            .font_color("#9C5700"),
+    );
     ws.add_conditional_format(10, 4, 14, 4, cf_avg)?;
 
     // Freeze header row
@@ -1196,196 +1469,266 @@ fn test_acme_financial_model(path: &Path) -> Result<()> {
     ws.set_repeat_rows(2, 2);
 
     // Comment on an estimated value
-    ws.add_comment(6, 1, "Licensing revenue estimated based on contract pipeline");
+    ws.add_comment(
+        6,
+        1,
+        "Licensing revenue estimated based on contract pipeline",
+    );
 
     // ════════════════════════════════════════════════════════════
     // Sheet 2: Dashboard
     // ════════════════════════════════════════════════════════════
     {
-    let ws2 = wb.add_worksheet_with_name("Dashboard")?;
-    ws2.set_tab_color("#4472C4");  // Blue tab
-    ws2.hide_gridlines();          // Clean dashboard look
-    ws2.set_zoom(90);              // Slightly zoomed out
+        let ws2 = wb.add_worksheet_with_name("Dashboard")?;
+        ws2.set_tab_color("#4472C4"); // Blue tab
+        ws2.hide_gridlines(); // Clean dashboard look
+        ws2.set_zoom(90); // Slightly zoomed out
 
-    ws2.write_with_format(0, 0, "Acme Corp — Q1 Dashboard", &title_fmt)?;
-    ws2.set_row_height(0, 28.0)?;
+        ws2.write_with_format(0, 0, "Acme Corp — Q1 Dashboard", &title_fmt)?;
+        ws2.set_row_height(0, 28.0)?;
 
-    // Monthly revenue data for chart
-    ws2.write_with_format(2, 0, "Month", &header_fmt)?;
-    ws2.write_with_format(2, 1, "Revenue", &header_fmt)?;
-    ws2.write_with_format(2, 2, "Expenses", &header_fmt)?;
-    ws2.write_with_format(2, 3, "Profit", &header_fmt)?;
-    let months = ["Jan", "Feb", "Mar"];
-    let revenues = [180000.0, 198000.0, 212000.0];
-    let expenses = [164000.0, 174750.0, 182400.0];
-    for i in 0..3u32 {
-        ws2.write_with_format(3 + i, 0, months[i as usize], &cell_fmt)?;
-        ws2.write_with_format(3 + i, 1, revenues[i as usize], &currency_fmt)?;
-        ws2.write_with_format(3 + i, 2, expenses[i as usize], &currency_fmt)?;
-        ws2.write_with_format(3 + i, 3, revenues[i as usize] - expenses[i as usize], &currency_fmt)?;
-    }
-    ws2.set_column_width(0, 10.0)?;
-    for c in 1..=3u16 { ws2.set_column_width(c, 14.0)?; }
+        // Monthly revenue data for chart
+        ws2.write_with_format(2, 0, "Month", &header_fmt)?;
+        ws2.write_with_format(2, 1, "Revenue", &header_fmt)?;
+        ws2.write_with_format(2, 2, "Expenses", &header_fmt)?;
+        ws2.write_with_format(2, 3, "Profit", &header_fmt)?;
+        let months = ["Jan", "Feb", "Mar"];
+        let revenues = [180000.0, 198000.0, 212000.0];
+        let expenses = [164000.0, 174750.0, 182400.0];
+        for i in 0..3u32 {
+            ws2.write_with_format(3 + i, 0, months[i as usize], &cell_fmt)?;
+            ws2.write_with_format(3 + i, 1, revenues[i as usize], &currency_fmt)?;
+            ws2.write_with_format(3 + i, 2, expenses[i as usize], &currency_fmt)?;
+            ws2.write_with_format(
+                3 + i,
+                3,
+                revenues[i as usize] - expenses[i as usize],
+                &currency_fmt,
+            )?;
+        }
+        ws2.set_column_width(0, 10.0)?;
+        for c in 1..=3u16 {
+            ws2.set_column_width(c, 14.0)?;
+        }
 
-    // Revenue trend chart
-    let mut chart = Chart::new(ChartType::Column);
-    chart.add_series()
-        .set_categories("Dashboard!$A$4:$A$6")
-        .set_values("Dashboard!$B$4:$B$6")
-        .set_name("Revenue")
-        .set_data_labels(true);
-    chart.add_series()
-        .set_categories("Dashboard!$A$4:$A$6")
-        .set_values("Dashboard!$C$4:$C$6")
-        .set_name("Expenses")
-        .set_data_labels(true);
-    chart.set_title("Q1 Revenue vs Expenses");
-    ws2.insert_chart(7, 0, &chart)?;
+        // Revenue trend chart
+        let mut chart = Chart::new(ChartType::Column);
+        chart
+            .add_series()
+            .set_categories("Dashboard!$A$4:$A$6")
+            .set_values("Dashboard!$B$4:$B$6")
+            .set_name("Revenue")
+            .set_data_labels(true);
+        chart
+            .add_series()
+            .set_categories("Dashboard!$A$4:$A$6")
+            .set_values("Dashboard!$C$4:$C$6")
+            .set_name("Expenses")
+            .set_data_labels(true);
+        chart.set_title("Q1 Revenue vs Expenses");
+        ws2.insert_chart(7, 0, &chart)?;
 
-    // Sprint 3: Combo chart — revenue bars + profit margin line on secondary axis
-    ws2.write_with_format(2, 5, "Margin %", &header_fmt)?;
-    ws2.set_column_width(5, 12.0)?;
-    let margins = [8.9, 11.7, 13.9]; // profit margin %
-    for i in 0..3u32 {
-        ws2.write_with_format(3 + i, 5, margins[i as usize] / 100.0, &pct_fmt)?;
-    }
+        // Sprint 3: Combo chart — revenue bars + profit margin line on secondary axis
+        ws2.write_with_format(2, 5, "Margin %", &header_fmt)?;
+        ws2.set_column_width(5, 12.0)?;
+        let margins = [8.9, 11.7, 13.9]; // profit margin %
+        for i in 0..3u32 {
+            ws2.write_with_format(3 + i, 5, margins[i as usize] / 100.0, &pct_fmt)?;
+        }
 
-    let mut combo = Chart::new(ChartType::Column);
-    combo.set_title("Revenue & Profit Margin");
-    combo.set_y_axis_name("Revenue ($)");
-    combo.set_y2_axis_name("Margin %");
-    combo.set_width(640);
-    combo.set_height(360);
-    combo.add_series()
-        .set_categories("Dashboard!$A$4:$A$6")
-        .set_values("Dashboard!$B$4:$B$6")
-        .set_name("Revenue")
-        .set_data_labels(true)
-        .set_trendline(TrendlineType::Linear);
-    combo.add_series()
-        .set_categories("Dashboard!$A$4:$A$6")
-        .set_values("Dashboard!$F$4:$F$6")
-        .set_name("Margin %")
-        .set_chart_type(ChartType::Line)
-        .set_secondary_axis(true)
-        .set_data_labels(true);
-    ws2.insert_chart(22, 0, &combo)?;
+        let mut combo = Chart::new(ChartType::Column);
+        combo.set_title("Revenue & Profit Margin");
+        combo.set_y_axis_name("Revenue ($)");
+        combo.set_y2_axis_name("Margin %");
+        combo.set_width(640);
+        combo.set_height(360);
+        combo
+            .add_series()
+            .set_categories("Dashboard!$A$4:$A$6")
+            .set_values("Dashboard!$B$4:$B$6")
+            .set_name("Revenue")
+            .set_data_labels(true)
+            .set_trendline(TrendlineType::Linear);
+        combo
+            .add_series()
+            .set_categories("Dashboard!$A$4:$A$6")
+            .set_values("Dashboard!$F$4:$F$6")
+            .set_name("Margin %")
+            .set_chart_type(ChartType::Line)
+            .set_secondary_axis(true)
+            .set_data_labels(true);
+        ws2.insert_chart(22, 0, &combo)?;
 
-    // Sparklines for monthly trends
-    ws2.add_sparkline(3, 4, &Sparkline::new("Dashboard!$B$4:$B$6", SparklineType::Line))?;
-    ws2.add_sparkline(4, 4, &Sparkline::new("Dashboard!$C$4:$C$6", SparklineType::Line))?;
-    ws2.add_sparkline(5, 4, &Sparkline::new("Dashboard!$D$4:$D$6", SparklineType::Column))?;
-    ws2.write_with_format(2, 4, "Trend", &Format::new().bold().rotation(90).align(Align::Center))?;
+        // Sparklines for monthly trends
+        ws2.add_sparkline(
+            3,
+            4,
+            &Sparkline::new("Dashboard!$B$4:$B$6", SparklineType::Line),
+        )?;
+        ws2.add_sparkline(
+            4,
+            4,
+            &Sparkline::new("Dashboard!$C$4:$C$6", SparklineType::Line),
+        )?;
+        ws2.add_sparkline(
+            5,
+            4,
+            &Sparkline::new("Dashboard!$D$4:$D$6", SparklineType::Column),
+        )?;
+        ws2.write_with_format(
+            2,
+            4,
+            "Trend",
+            &Format::new().bold().rotation(90).align(Align::Center),
+        )?;
 
-    // Conditional formatting: color scale on profit
-    ws2.add_conditional_format(3, 3, 5, 3, ConditionalFormat2ColorScale::new("#FF0000", "#00FF00"))?;
+        // Conditional formatting: color scale on profit
+        ws2.add_conditional_format(
+            3,
+            3,
+            5,
+            3,
+            ConditionalFormat2ColorScale::new("#FF0000", "#00FF00"),
+        )?;
 
-    // Sprint 2: Top 1 profit month — bold green highlight
-    let mut cf_top = ConditionalFormatTopBottom::new(TopBottomType::Top, 1);
-    cf_top.set_format(&Format::new().bold().font_color("#006100").background_color("#C6EFCE"));
-    ws2.add_conditional_format(3, 3, 5, 3, cf_top)?;
+        // Sprint 2: Top 1 profit month — bold green highlight
+        let mut cf_top = ConditionalFormatTopBottom::new(TopBottomType::Top, 1);
+        cf_top.set_format(
+            &Format::new()
+                .bold()
+                .font_color("#006100")
+                .background_color("#C6EFCE"),
+        );
+        ws2.add_conditional_format(3, 3, 5, 3, cf_top)?;
     }
 
     // ════════════════════════════════════════════════════════════
     // Sheet 3: Assumptions (protected with unlocked input cells)
     // ════════════════════════════════════════════════════════════
     {
-    let ws3 = wb.add_worksheet_with_name("Assumptions")?;
-    ws3.set_tab_color("#FFC000");  // Gold tab for inputs
+        let ws3 = wb.add_worksheet_with_name("Assumptions")?;
+        ws3.set_tab_color("#FFC000"); // Gold tab for inputs
 
-    ws3.write_with_format(0, 0, "Model Assumptions", &title_fmt)?;
-    ws3.set_row_height(0, 28.0)?;
-    ws3.set_column_width(0, 25.0)?;
-    ws3.set_column_width(1, 18.0)?;
+        ws3.write_with_format(0, 0, "Model Assumptions", &title_fmt)?;
+        ws3.set_row_height(0, 28.0)?;
+        ws3.set_column_width(0, 25.0)?;
+        ws3.set_column_width(1, 18.0)?;
 
-    let assumptions = [
-        ("Growth Rate", "8%"),
-        ("Tax Rate", "21%"),
-        ("Discount Rate", "10%"),
-        ("Headcount", "45"),
-        ("Avg Salary", "$85,000"),
-    ];
-    ws3.write_with_format(2, 0, "Parameter", &header_fmt)?;
-    ws3.write_with_format(2, 1, "Value", &header_fmt)?;
-    for (i, (name, val)) in assumptions.iter().enumerate() {
-        let r = 3 + i as u32;
-        ws3.write_with_format(r, 0, *name, &cell_fmt)?;
-        ws3.write_with_format(r, 1, *val, &input_fmt)?;
-        ws3.add_comment(r, 1, &format!("Input: {name} — editable when sheet is protected"));
-    }
+        let assumptions = [
+            ("Growth Rate", "8%"),
+            ("Tax Rate", "21%"),
+            ("Discount Rate", "10%"),
+            ("Headcount", "45"),
+            ("Avg Salary", "$85,000"),
+        ];
+        ws3.write_with_format(2, 0, "Parameter", &header_fmt)?;
+        ws3.write_with_format(2, 1, "Value", &header_fmt)?;
+        for (i, (name, val)) in assumptions.iter().enumerate() {
+            let r = 3 + i as u32;
+            ws3.write_with_format(r, 0, *name, &cell_fmt)?;
+            ws3.write_with_format(r, 1, *val, &input_fmt)?;
+            ws3.add_comment(
+                r,
+                1,
+                &format!("Input: {name} — editable when sheet is protected"),
+            );
+        }
 
-    // Data validation on Growth Rate
-    let mut dv = DataValidation::new(ValidationRule::Decimal { min: Some(0.0), max: Some(0.5) });
-    dv.set_input_message("Growth Rate", "Enter 0-50%");
-    ws3.add_data_validation(3, 1, 3, 1, &dv)?;
+        // Data validation on Growth Rate
+        let mut dv = DataValidation::new(ValidationRule::Decimal {
+            min: Some(0.0),
+            max: Some(0.5),
+        });
+        dv.set_input_message("Growth Rate", "Enter 0-50%");
+        ws3.add_data_validation(3, 1, 3, 1, &dv)?;
 
-    // Deprecated assumption (strikethrough)
-    let strike_fmt = Format::new().strikethrough().font_color("#999999").border(BorderStyle::Thin);
-    let r = 3 + assumptions.len() as u32;
-    ws3.write_with_format(r, 0, "Old Tax Rate (deprecated)", &strike_fmt)?;
-    ws3.write_with_format(r, 1, "25%", &strike_fmt)?;
+        // Deprecated assumption (strikethrough)
+        let strike_fmt = Format::new()
+            .strikethrough()
+            .font_color("#999999")
+            .border(BorderStyle::Thin);
+        let r = 3 + assumptions.len() as u32;
+        ws3.write_with_format(r, 0, "Old Tax Rate (deprecated)", &strike_fmt)?;
+        ws3.write_with_format(r, 1, "25%", &strike_fmt)?;
 
-    ws3.protect_with_password("acme2024");
+        ws3.protect_with_password("acme2024");
     }
 
     // ════════════════════════════════════════════════════════════
     // Sheet 4: Transaction Data (auto-filter, hidden cols)
     // ════════════════════════════════════════════════════════════
     {
-    let ws4 = wb.add_worksheet_with_name("Data")?;
-    ws4.set_tab_color("#70AD47");  // Green tab for data
-    ws4.set_repeat_columns(0, 0); // Repeat Date column when printing
+        let ws4 = wb.add_worksheet_with_name("Data")?;
+        ws4.set_tab_color("#70AD47"); // Green tab for data
+        ws4.set_repeat_columns(0, 0); // Repeat Date column when printing
 
-    let data_headers = ["Date", "Description", "Category", "Amount", "Helper"];
-    for (c, h) in data_headers.iter().enumerate() {
-        ws4.write_with_format(0, c as u16, *h, &header_fmt)?;
-    }
-    ws4.set_column_width(0, 12.0)?;
-    ws4.set_column_width(1, 25.0)?;
-    ws4.set_column_width(2, 15.0)?;
-    ws4.set_column_width(3, 14.0)?;
+        let data_headers = ["Date", "Description", "Category", "Amount", "Helper"];
+        for (c, h) in data_headers.iter().enumerate() {
+            ws4.write_with_format(0, c as u16, *h, &header_fmt)?;
+        }
+        ws4.set_column_width(0, 12.0)?;
+        ws4.set_column_width(1, 25.0)?;
+        ws4.set_column_width(2, 15.0)?;
+        ws4.set_column_width(3, 14.0)?;
 
-    let categories = ["Sales", "Marketing", "Operations", "HR", "IT"];
-    let descs = ["Client payment", "Ad campaign", "Office supplies", "Recruiting fee", "Software license",
-                 "Consulting revenue", "Trade show", "Equipment", "Training", "Cloud hosting"];
-    for r in 1..=500u32 {
-        let dt = ExcelDateTime::from_ymd(2026, 1 + ((r - 1) % 3) as u32, 1 + ((r - 1) % 28) as u32).unwrap();
-        ws4.write_with_format(r, 0, dt, &date_fmt)?;
-        ws4.write_with_format(r, 1, descs[((r - 1) % 10) as usize], &cell_fmt)?;
-        ws4.write_with_format(r, 2, categories[((r - 1) % 5) as usize], &cell_fmt)?;
-        let amount = 1000.0 + (r as f64 * 73.0) % 50000.0;
-        ws4.write_with_format(r, 3, amount, &currency_fmt)?;
-        // Hidden helper column
-        ws4.write_formula(r, 4, &format!("D{r}*1.1", r = r + 1))?;
-    }
+        let categories = ["Sales", "Marketing", "Operations", "HR", "IT"];
+        let descs = [
+            "Client payment",
+            "Ad campaign",
+            "Office supplies",
+            "Recruiting fee",
+            "Software license",
+            "Consulting revenue",
+            "Trade show",
+            "Equipment",
+            "Training",
+            "Cloud hosting",
+        ];
+        for r in 1..=500u32 {
+            let dt =
+                ExcelDateTime::from_ymd(2026, 1 + ((r - 1) % 3) as u32, 1 + ((r - 1) % 28) as u32)
+                    .unwrap();
+            ws4.write_with_format(r, 0, dt, &date_fmt)?;
+            ws4.write_with_format(r, 1, descs[((r - 1) % 10) as usize], &cell_fmt)?;
+            ws4.write_with_format(r, 2, categories[((r - 1) % 5) as usize], &cell_fmt)?;
+            let amount = 1000.0 + (r as f64 * 73.0) % 50000.0;
+            ws4.write_with_format(r, 3, amount, &currency_fmt)?;
+            // Hidden helper column
+            ws4.write_formula(r, 4, &format!("D{r}*1.1", r = r + 1))?;
+        }
 
-    // Auto-filter on data range
-    ws4.set_autofilter(0, 0, 500, 3);
-    // Hide helper column
-    ws4.set_column_hidden(4, true);
-    // Freeze header
-    ws4.set_freeze_panes(1, 0)?;
+        // Auto-filter on data range
+        ws4.set_autofilter(0, 0, 500, 3);
+        // Hide helper column
+        ws4.set_column_hidden(4, true);
+        // Freeze header
+        ws4.set_freeze_panes(1, 0)?;
 
-    // ── Sprint 2: New CF types on Data sheet ──
+        // ── Sprint 2: New CF types on Data sheet ──
 
-    // Text contains: highlight "Sales" category in gold (first 20 rows — visible on open)
-    let mut cf_text = ConditionalFormatText::new(TextOperator::Contains, "Sales");
-    cf_text.set_format(&Format::new().background_color("#FFF2CC"));
-    ws4.add_conditional_format(1, 2, 20, 2, cf_text)?;
+        // Text contains: highlight "Sales" category in gold (first 20 rows — visible on open)
+        let mut cf_text = ConditionalFormatText::new(TextOperator::Contains, "Sales");
+        cf_text.set_format(&Format::new().background_color("#FFF2CC"));
+        ws4.add_conditional_format(1, 2, 20, 2, cf_text)?;
 
-    // Duplicate values: highlight duplicate descriptions (first 20 rows)
-    let mut cf_dup = ConditionalFormatDuplicate::new();
-    cf_dup.set_format(&Format::new().font_color("#9C5700").background_color("#FFEB9C"));
-    ws4.add_conditional_format(1, 1, 20, 1, cf_dup)?;
+        // Duplicate values: highlight duplicate descriptions (first 20 rows)
+        let mut cf_dup = ConditionalFormatDuplicate::new();
+        cf_dup.set_format(
+            &Format::new()
+                .font_color("#9C5700")
+                .background_color("#FFEB9C"),
+        );
+        ws4.add_conditional_format(1, 1, 20, 1, cf_dup)?;
 
-    // Date occurring: highlight "this month" dates (first 20 rows)
-    let mut cf_date = ConditionalFormatDate::new(DateOccurring::ThisMonth);
-    cf_date.set_format(&Format::new().bold().font_color("#1F4E79"));
-    ws4.add_conditional_format(1, 0, 20, 0, cf_date)?;
+        // Date occurring: highlight "this month" dates (first 20 rows)
+        let mut cf_date = ConditionalFormatDate::new(DateOccurring::ThisMonth);
+        cf_date.set_format(&Format::new().bold().font_color("#1F4E79"));
+        ws4.add_conditional_format(1, 0, 20, 0, cf_date)?;
     }
 
     // Hyperlink back to P&L from Dashboard
-    wb.worksheet(1)?.write_internal_link(20, 0, "'P&L'!A1", "← Back to P&L")?;
+    wb.worksheet(1)?
+        .write_internal_link(20, 0, "'P&L'!A1", "← Back to P&L")?;
 
     // Workbook protection
     wb.protect_with_password("acme");
@@ -1400,64 +1743,141 @@ fn test_acme_financial_model(path: &Path) -> Result<()> {
     let s1 = read_sheet_xml(path, 1);
     assert!(s1.contains("dimension"), "P&L should have dimension");
     assert!(s1.contains("sheetViews"), "P&L should have sheetViews");
-    assert!(s1.contains("sheetFormatPr"), "P&L should have sheetFormatPr");
+    assert!(
+        s1.contains("sheetFormatPr"),
+        "P&L should have sheetFormatPr"
+    );
     assert!(s1.contains("<f>"), "P&L should have formulas");
     assert!(s1.contains("conditionalFormatting"), "P&L should have CF");
     assert!(s1.contains("outlineLevel"), "P&L should have row grouping");
 
     let s3 = read_sheet_xml(path, 3);
-    assert!(s3.contains("sheetProtection"), "Assumptions should be protected");
+    assert!(
+        s3.contains("sheetProtection"),
+        "Assumptions should be protected"
+    );
     assert!(s3.contains("dataValidation"), "Assumptions should have DV");
 
     let s4 = read_sheet_xml(path, 4);
     assert!(s4.contains("autoFilter"), "Data should have autoFilter");
-    assert!(s4.contains("hidden=\"1\""), "Data should have hidden column");
+    assert!(
+        s4.contains("hidden=\"1\""),
+        "Data should have hidden column"
+    );
 
     let wb_xml = read_zip_entry(path, "xl/workbook.xml");
-    assert!(wb_xml.contains("workbookProtection"), "Workbook should be protected");
+    assert!(
+        wb_xml.contains("workbookProtection"),
+        "Workbook should be protected"
+    );
     assert!(wb_xml.contains("Q1_Revenue"), "Should have named range");
     assert!(wb_xml.contains("calcPr"), "Should have calcPr");
 
     // Phase 6 Sprint 1 validations
     let s2 = read_sheet_xml(path, 2);
-    assert!(s2.contains("showGridLines=\"0\""), "Dashboard should hide gridlines");
-    assert!(s2.contains("zoomScale=\"90\""), "Dashboard should have zoom 90");
+    assert!(
+        s2.contains("showGridLines=\"0\""),
+        "Dashboard should hide gridlines"
+    );
+    assert!(
+        s2.contains("zoomScale=\"90\""),
+        "Dashboard should have zoom 90"
+    );
     assert!(s2.contains("tabColor"), "Dashboard should have tab color");
     assert!(s1.contains("tabColor"), "P&L should have tab color");
     assert!(s3.contains("tabColor"), "Assumptions should have tab color");
 
     // Sprint 2: new CF types
-    assert!(s1.contains("type=\"expression\""), "P&L should have formula-based CF");
-    assert!(s1.contains("type=\"aboveAverage\""), "P&L should have above-average CF");
-    assert!(s2.contains("type=\"top10\""), "Dashboard should have top/bottom CF");
-    assert!(s4.contains("type=\"containsText\""), "Data should have text-contains CF");
-    assert!(s4.contains("type=\"duplicateValues\""), "Data should have duplicate CF");
-    assert!(s4.contains("type=\"timePeriod\""), "Data should have date CF");
+    assert!(
+        s1.contains("type=\"expression\""),
+        "P&L should have formula-based CF"
+    );
+    assert!(
+        s1.contains("type=\"aboveAverage\""),
+        "P&L should have above-average CF"
+    );
+    assert!(
+        s2.contains("type=\"top10\""),
+        "Dashboard should have top/bottom CF"
+    );
+    assert!(
+        s4.contains("type=\"containsText\""),
+        "Data should have text-contains CF"
+    );
+    assert!(
+        s4.contains("type=\"duplicateValues\""),
+        "Data should have duplicate CF"
+    );
+    assert!(
+        s4.contains("type=\"timePeriod\""),
+        "Data should have date CF"
+    );
 
     let styles_xml = read_zip_entry(path, "xl/styles.xml");
-    assert!(styles_xml.contains("indent"), "Styles should have indented alignment");
-    assert!(styles_xml.contains("strike"), "Styles should have strikethrough font");
+    assert!(
+        styles_xml.contains("indent"),
+        "Styles should have indented alignment"
+    );
+    assert!(
+        styles_xml.contains("strike"),
+        "Styles should have strikethrough font"
+    );
     // Sprint 2: dxf support
-    assert!(styles_xml.contains("<dxfs"), "Styles should have dxfs section");
-    assert!(styles_xml.contains("<dxf>"), "Styles should have dxf entries");
+    assert!(
+        styles_xml.contains("<dxfs"),
+        "Styles should have dxfs section"
+    );
+    assert!(
+        styles_xml.contains("<dxf>"),
+        "Styles should have dxf entries"
+    );
 
     // Check comments exist
     let entries = list_zip_entries(path);
-    assert!(entries.iter().any(|e| e.contains("comments")), "Should have comments file");
+    assert!(
+        entries.iter().any(|e| e.contains("comments")),
+        "Should have comments file"
+    );
 
     // Sprint 3: chart enhancements — verify combo chart XML
-    let chart_entries: Vec<String> = entries.iter().filter(|e| e.starts_with("xl/charts/")).cloned().collect();
-    assert!(chart_entries.len() >= 2, "Should have at least 2 charts (original + combo)");
+    let chart_entries: Vec<String> = entries
+        .iter()
+        .filter(|e| e.starts_with("xl/charts/"))
+        .cloned()
+        .collect();
+    assert!(
+        chart_entries.len() >= 2,
+        "Should have at least 2 charts (original + combo)"
+    );
     let combo_xml = read_zip_entry(path, chart_entries.last().unwrap());
-    assert!(combo_xml.contains("c:lineChart"), "Combo chart should have lineChart block");
-    assert!(combo_xml.contains("c:barChart"), "Combo chart should have barChart block");
-    assert!(combo_xml.contains("c:dLbls"), "Combo chart should have data labels");
-    assert!(combo_xml.contains("c:trendline"), "Combo chart should have trendline");
-    assert!(combo_xml.contains("axId") && combo_xml.contains("val=\"444444444\""), "Combo chart should have secondary axis");
+    assert!(
+        combo_xml.contains("c:lineChart"),
+        "Combo chart should have lineChart block"
+    );
+    assert!(
+        combo_xml.contains("c:barChart"),
+        "Combo chart should have barChart block"
+    );
+    assert!(
+        combo_xml.contains("c:dLbls"),
+        "Combo chart should have data labels"
+    );
+    assert!(
+        combo_xml.contains("c:trendline"),
+        "Combo chart should have trendline"
+    );
+    assert!(
+        combo_xml.contains("axId") && combo_xml.contains("val=\"444444444\""),
+        "Combo chart should have secondary axis"
+    );
 
     let size = std::fs::metadata(path)?.len();
-    println!("    📊 Acme Financial Model: {:.1} KB, {} sheets, {} features validated",
-        size as f64 / 1024.0, 4, 35);
+    println!(
+        "    📊 Acme Financial Model: {:.1} KB, {} sheets, {} features validated",
+        size as f64 / 1024.0,
+        4,
+        35
+    );
 
     Ok(())
 }
@@ -1468,7 +1888,11 @@ fn test_phase6_showcase(path: &Path) -> Result<()> {
     let mut wb = Workbook::new();
 
     let title = Format::new().bold().font_size(14.0).font_color("#1F4E79");
-    let hdr = Format::new().bold().background_color("#4472C4").font_color("#FFFFFF").border(BorderStyle::Thin);
+    let hdr = Format::new()
+        .bold()
+        .background_color("#4472C4")
+        .font_color("#FFFFFF")
+        .border(BorderStyle::Thin);
     let cell = Format::new().border(BorderStyle::Thin);
     let money = Format::new().num_format("$#,##0").border(BorderStyle::Thin);
     let pct = Format::new().num_format("0.0%").border(BorderStyle::Thin);
@@ -1477,237 +1901,313 @@ fn test_phase6_showcase(path: &Path) -> Result<()> {
     // Sheet 1: Formula-Based CF — alternating row shading
     // ═══════════════════════════════════════════════════════════
     {
-    let ws = wb.worksheet(0)?;
-    ws.set_name("Formula CF")?;
-    ws.set_tab_color("#4472C4");
-    ws.write_with_format(0, 0, "Formula-Based CF: Alternating Row Shading", &title)?;
-    for (c, h) in ["Employee", "Department", "Salary"].iter().enumerate() {
-        ws.write_with_format(2, c as u16, *h, &hdr)?;
-    }
-    let data = [
-        ("Alice", "Engineering", 95000.0), ("Bob", "Marketing", 78000.0),
-        ("Charlie", "Engineering", 102000.0), ("Diana", "Sales", 85000.0),
-        ("Eve", "Finance", 91000.0), ("Frank", "Marketing", 63000.0),
-        ("Grace", "Engineering", 88000.0), ("Hank", "Sales", 72000.0),
-    ];
-    for (i, (name, dept, sal)) in data.iter().enumerate() {
-        let r = 3 + i as u32;
-        ws.write_with_format(r, 0, *name, &cell)?;
-        ws.write_with_format(r, 1, *dept, &cell)?;
-        ws.write_with_format(r, 2, *sal, &money)?;
-    }
-    // Formula CF: even rows get light blue
-    let mut cf = ConditionalFormatFormula::new("MOD(ROW(),2)=0");
-    cf.set_format(&Format::new().background_color("#D6E4F0"));
-    ws.add_conditional_format(3, 0, 10, 2, cf)?;
-    ws.set_column_width(0, 14.0)?;
-    ws.set_column_width(1, 14.0)?;
-    ws.set_column_width(2, 12.0)?;
+        let ws = wb.worksheet(0)?;
+        ws.set_name("Formula CF")?;
+        ws.set_tab_color("#4472C4");
+        ws.write_with_format(0, 0, "Formula-Based CF: Alternating Row Shading", &title)?;
+        for (c, h) in ["Employee", "Department", "Salary"].iter().enumerate() {
+            ws.write_with_format(2, c as u16, *h, &hdr)?;
+        }
+        let data = [
+            ("Alice", "Engineering", 95000.0),
+            ("Bob", "Marketing", 78000.0),
+            ("Charlie", "Engineering", 102000.0),
+            ("Diana", "Sales", 85000.0),
+            ("Eve", "Finance", 91000.0),
+            ("Frank", "Marketing", 63000.0),
+            ("Grace", "Engineering", 88000.0),
+            ("Hank", "Sales", 72000.0),
+        ];
+        for (i, (name, dept, sal)) in data.iter().enumerate() {
+            let r = 3 + i as u32;
+            ws.write_with_format(r, 0, *name, &cell)?;
+            ws.write_with_format(r, 1, *dept, &cell)?;
+            ws.write_with_format(r, 2, *sal, &money)?;
+        }
+        // Formula CF: even rows get light blue
+        let mut cf = ConditionalFormatFormula::new("MOD(ROW(),2)=0");
+        cf.set_format(&Format::new().background_color("#D6E4F0"));
+        ws.add_conditional_format(3, 0, 10, 2, cf)?;
+        ws.set_column_width(0, 14.0)?;
+        ws.set_column_width(1, 14.0)?;
+        ws.set_column_width(2, 12.0)?;
     }
 
     // ═══════════════════════════════════════════════════════════
     // Sheet 2: Above/Below Average CF
     // ═══════════════════════════════════════════════════════════
     {
-    let ws = wb.add_worksheet_with_name("Average CF")?;
-    ws.set_tab_color("#70AD47");
-    ws.write_with_format(0, 0, "Above/Below Average CF: Sales Performance", &title)?;
-    for (c, h) in ["Rep", "Q1 Sales"].iter().enumerate() {
-        ws.write_with_format(2, c as u16, *h, &hdr)?;
-    }
-    let reps = [("Alice", 45000.0), ("Bob", 32000.0), ("Charlie", 58000.0),
-        ("Diana", 27000.0), ("Eve", 51000.0), ("Frank", 39000.0)];
-    for (i, (name, val)) in reps.iter().enumerate() {
-        let r = 3 + i as u32;
-        ws.write_with_format(r, 0, *name, &cell)?;
-        ws.write_with_format(r, 1, *val, &money)?;
-    }
-    // Above average = green
-    let mut cf_above = ConditionalFormatAverage::new(AverageType::Above);
-    cf_above.set_format(&Format::new().font_color("#006100").background_color("#C6EFCE"));
-    ws.add_conditional_format(3, 1, 8, 1, cf_above)?;
-    // Below average = red
-    let mut cf_below = ConditionalFormatAverage::new(AverageType::Below);
-    cf_below.set_format(&Format::new().font_color("#9C0006").background_color("#FFC7CE"));
-    ws.add_conditional_format(3, 1, 8, 1, cf_below)?;
-    ws.set_column_width(0, 12.0)?;
-    ws.set_column_width(1, 14.0)?;
+        let ws = wb.add_worksheet_with_name("Average CF")?;
+        ws.set_tab_color("#70AD47");
+        ws.write_with_format(0, 0, "Above/Below Average CF: Sales Performance", &title)?;
+        for (c, h) in ["Rep", "Q1 Sales"].iter().enumerate() {
+            ws.write_with_format(2, c as u16, *h, &hdr)?;
+        }
+        let reps = [
+            ("Alice", 45000.0),
+            ("Bob", 32000.0),
+            ("Charlie", 58000.0),
+            ("Diana", 27000.0),
+            ("Eve", 51000.0),
+            ("Frank", 39000.0),
+        ];
+        for (i, (name, val)) in reps.iter().enumerate() {
+            let r = 3 + i as u32;
+            ws.write_with_format(r, 0, *name, &cell)?;
+            ws.write_with_format(r, 1, *val, &money)?;
+        }
+        // Above average = green
+        let mut cf_above = ConditionalFormatAverage::new(AverageType::Above);
+        cf_above.set_format(
+            &Format::new()
+                .font_color("#006100")
+                .background_color("#C6EFCE"),
+        );
+        ws.add_conditional_format(3, 1, 8, 1, cf_above)?;
+        // Below average = red
+        let mut cf_below = ConditionalFormatAverage::new(AverageType::Below);
+        cf_below.set_format(
+            &Format::new()
+                .font_color("#9C0006")
+                .background_color("#FFC7CE"),
+        );
+        ws.add_conditional_format(3, 1, 8, 1, cf_below)?;
+        ws.set_column_width(0, 12.0)?;
+        ws.set_column_width(1, 14.0)?;
     }
 
     // ═══════════════════════════════════════════════════════════
     // Sheet 3: Top/Bottom N CF
     // ═══════════════════════════════════════════════════════════
     {
-    let ws = wb.add_worksheet_with_name("Top Bottom CF")?;
-    ws.set_tab_color("#FFC000");
-    ws.write_with_format(0, 0, "Top/Bottom CF: Top 3 & Bottom 2 Scores", &title)?;
-    for (c, h) in ["Student", "Score"].iter().enumerate() {
-        ws.write_with_format(2, c as u16, *h, &hdr)?;
-    }
-    let students = [("Alice", 95.0), ("Bob", 72.0), ("Charlie", 88.0), ("Diana", 45.0),
-        ("Eve", 91.0), ("Frank", 63.0), ("Grace", 78.0), ("Hank", 55.0)];
-    for (i, (name, score)) in students.iter().enumerate() {
-        let r = 3 + i as u32;
-        ws.write_with_format(r, 0, *name, &cell)?;
-        ws.write_with_format(r, 1, *score, &cell)?;
-    }
-    // Top 3 = bold green
-    let mut cf_top = ConditionalFormatTopBottom::new(TopBottomType::Top, 3);
-    cf_top.set_format(&Format::new().bold().font_color("#006100").background_color("#C6EFCE"));
-    ws.add_conditional_format(3, 1, 10, 1, cf_top)?;
-    // Bottom 2 = bold red
-    let mut cf_bot = ConditionalFormatTopBottom::new(TopBottomType::Bottom, 2);
-    cf_bot.set_format(&Format::new().bold().font_color("#9C0006").background_color("#FFC7CE"));
-    ws.add_conditional_format(3, 1, 10, 1, cf_bot)?;
-    ws.set_column_width(0, 12.0)?;
-    ws.set_column_width(1, 10.0)?;
+        let ws = wb.add_worksheet_with_name("Top Bottom CF")?;
+        ws.set_tab_color("#FFC000");
+        ws.write_with_format(0, 0, "Top/Bottom CF: Top 3 & Bottom 2 Scores", &title)?;
+        for (c, h) in ["Student", "Score"].iter().enumerate() {
+            ws.write_with_format(2, c as u16, *h, &hdr)?;
+        }
+        let students = [
+            ("Alice", 95.0),
+            ("Bob", 72.0),
+            ("Charlie", 88.0),
+            ("Diana", 45.0),
+            ("Eve", 91.0),
+            ("Frank", 63.0),
+            ("Grace", 78.0),
+            ("Hank", 55.0),
+        ];
+        for (i, (name, score)) in students.iter().enumerate() {
+            let r = 3 + i as u32;
+            ws.write_with_format(r, 0, *name, &cell)?;
+            ws.write_with_format(r, 1, *score, &cell)?;
+        }
+        // Top 3 = bold green
+        let mut cf_top = ConditionalFormatTopBottom::new(TopBottomType::Top, 3);
+        cf_top.set_format(
+            &Format::new()
+                .bold()
+                .font_color("#006100")
+                .background_color("#C6EFCE"),
+        );
+        ws.add_conditional_format(3, 1, 10, 1, cf_top)?;
+        // Bottom 2 = bold red
+        let mut cf_bot = ConditionalFormatTopBottom::new(TopBottomType::Bottom, 2);
+        cf_bot.set_format(
+            &Format::new()
+                .bold()
+                .font_color("#9C0006")
+                .background_color("#FFC7CE"),
+        );
+        ws.add_conditional_format(3, 1, 10, 1, cf_bot)?;
+        ws.set_column_width(0, 12.0)?;
+        ws.set_column_width(1, 10.0)?;
     }
 
     // ═══════════════════════════════════════════════════════════
     // Sheet 4: Text Contains CF
     // ═══════════════════════════════════════════════════════════
     {
-    let ws = wb.add_worksheet_with_name("Text CF")?;
-    ws.set_tab_color("#ED7D31");
-    ws.write_with_format(0, 0, "Text Contains CF: Highlight 'Engineering' rows", &title)?;
-    for (c, h) in ["Name", "Department", "Status"].iter().enumerate() {
-        ws.write_with_format(2, c as u16, *h, &hdr)?;
-    }
-    let rows = [
-        ("Alice", "Engineering", "Active"), ("Bob", "Marketing", "Active"),
-        ("Charlie", "Engineering", "On Leave"), ("Diana", "Sales", "Active"),
-        ("Eve", "Engineering", "Active"), ("Frank", "HR", "Active"),
-    ];
-    for (i, (n, d, s)) in rows.iter().enumerate() {
-        let r = 3 + i as u32;
-        ws.write_with_format(r, 0, *n, &cell)?;
-        ws.write_with_format(r, 1, *d, &cell)?;
-        ws.write_with_format(r, 2, *s, &cell)?;
-    }
-    let mut cf = ConditionalFormatText::new(TextOperator::Contains, "Engineering");
-    cf.set_format(&Format::new().background_color("#D6E4F0").bold());
-    ws.add_conditional_format(3, 1, 8, 1, cf)?;
-    ws.set_column_width(0, 12.0)?;
-    ws.set_column_width(1, 14.0)?;
-    ws.set_column_width(2, 10.0)?;
+        let ws = wb.add_worksheet_with_name("Text CF")?;
+        ws.set_tab_color("#ED7D31");
+        ws.write_with_format(
+            0,
+            0,
+            "Text Contains CF: Highlight 'Engineering' rows",
+            &title,
+        )?;
+        for (c, h) in ["Name", "Department", "Status"].iter().enumerate() {
+            ws.write_with_format(2, c as u16, *h, &hdr)?;
+        }
+        let rows = [
+            ("Alice", "Engineering", "Active"),
+            ("Bob", "Marketing", "Active"),
+            ("Charlie", "Engineering", "On Leave"),
+            ("Diana", "Sales", "Active"),
+            ("Eve", "Engineering", "Active"),
+            ("Frank", "HR", "Active"),
+        ];
+        for (i, (n, d, s)) in rows.iter().enumerate() {
+            let r = 3 + i as u32;
+            ws.write_with_format(r, 0, *n, &cell)?;
+            ws.write_with_format(r, 1, *d, &cell)?;
+            ws.write_with_format(r, 2, *s, &cell)?;
+        }
+        let mut cf = ConditionalFormatText::new(TextOperator::Contains, "Engineering");
+        cf.set_format(&Format::new().background_color("#D6E4F0").bold());
+        ws.add_conditional_format(3, 1, 8, 1, cf)?;
+        ws.set_column_width(0, 12.0)?;
+        ws.set_column_width(1, 14.0)?;
+        ws.set_column_width(2, 10.0)?;
     }
 
     // ═══════════════════════════════════════════════════════════
     // Sheet 5: Duplicate Values CF
     // ═══════════════════════════════════════════════════════════
     {
-    let ws = wb.add_worksheet_with_name("Duplicates CF")?;
-    ws.set_tab_color("#A5A5A5");
-    ws.write_with_format(0, 0, "Duplicate Values CF: Spot repeated entries", &title)?;
-    ws.write_with_format(2, 0, "Invoice #", &hdr)?;
-    let invoices = ["INV-001", "INV-002", "INV-003", "INV-001", "INV-004", "INV-002", "INV-005", "INV-003"];
-    for (i, inv) in invoices.iter().enumerate() {
-        ws.write_with_format(3 + i as u32, 0, *inv, &cell)?;
-    }
-    let mut cf = ConditionalFormatDuplicate::new();
-    cf.set_format(&Format::new().font_color("#9C5700").background_color("#FFEB9C").bold());
-    ws.add_conditional_format(3, 0, 10, 0, cf)?;
-    ws.set_column_width(0, 14.0)?;
+        let ws = wb.add_worksheet_with_name("Duplicates CF")?;
+        ws.set_tab_color("#A5A5A5");
+        ws.write_with_format(0, 0, "Duplicate Values CF: Spot repeated entries", &title)?;
+        ws.write_with_format(2, 0, "Invoice #", &hdr)?;
+        let invoices = [
+            "INV-001", "INV-002", "INV-003", "INV-001", "INV-004", "INV-002", "INV-005", "INV-003",
+        ];
+        for (i, inv) in invoices.iter().enumerate() {
+            ws.write_with_format(3 + i as u32, 0, *inv, &cell)?;
+        }
+        let mut cf = ConditionalFormatDuplicate::new();
+        cf.set_format(
+            &Format::new()
+                .font_color("#9C5700")
+                .background_color("#FFEB9C")
+                .bold(),
+        );
+        ws.add_conditional_format(3, 0, 10, 0, cf)?;
+        ws.set_column_width(0, 14.0)?;
     }
 
     // ═══════════════════════════════════════════════════════════
     // Sheet 6: Date Occurring CF
     // ═══════════════════════════════════════════════════════════
     {
-    let ws = wb.add_worksheet_with_name("Date CF")?;
-    ws.set_tab_color("#5B9BD5");
-    ws.write_with_format(0, 0, "Date Occurring CF: Highlights 'Today' dates", &title)?;
-    let date_fmt = Format::new().num_format("yyyy-mm-dd").border(BorderStyle::Thin);
-    ws.write_with_format(2, 0, "Due Date", &hdr)?;
-    // Write a range of dates around today
-    for i in 0..10u32 {
-        let day = 1 + i;
-        let dt = ExcelDateTime::from_ymd(2026, 4, day).unwrap();
-        ws.write_with_format(3 + i, 0, dt, &date_fmt)?;
-    }
-    let mut cf = ConditionalFormatDate::new(DateOccurring::Today);
-    cf.set_format(&Format::new().bold().font_color("#FFFFFF").background_color("#4472C4"));
-    ws.add_conditional_format(3, 0, 12, 0, cf)?;
-    ws.set_column_width(0, 14.0)?;
+        let ws = wb.add_worksheet_with_name("Date CF")?;
+        ws.set_tab_color("#5B9BD5");
+        ws.write_with_format(0, 0, "Date Occurring CF: Highlights 'Today' dates", &title)?;
+        let date_fmt = Format::new()
+            .num_format("yyyy-mm-dd")
+            .border(BorderStyle::Thin);
+        ws.write_with_format(2, 0, "Due Date", &hdr)?;
+        // Write a range of dates around today
+        for i in 0..10u32 {
+            let day = 1 + i;
+            let dt = ExcelDateTime::from_ymd(2026, 4, day).unwrap();
+            ws.write_with_format(3 + i, 0, dt, &date_fmt)?;
+        }
+        let mut cf = ConditionalFormatDate::new(DateOccurring::Today);
+        cf.set_format(
+            &Format::new()
+                .bold()
+                .font_color("#FFFFFF")
+                .background_color("#4472C4"),
+        );
+        ws.add_conditional_format(3, 0, 12, 0, cf)?;
+        ws.set_column_width(0, 14.0)?;
     }
 
     // ═══════════════════════════════════════════════════════════
     // Sheet 7: Combo Chart — Revenue bars + Margin % line
     // ═══════════════════════════════════════════════════════════
     {
-    let ws = wb.add_worksheet_with_name("Combo Chart")?;
-    ws.set_tab_color("#1F4E79");
-    ws.write_with_format(0, 0, "Combo Chart: Revenue (bars) + Margin % (line, secondary axis)", &title)?;
+        let ws = wb.add_worksheet_with_name("Combo Chart")?;
+        ws.set_tab_color("#1F4E79");
+        ws.write_with_format(
+            0,
+            0,
+            "Combo Chart: Revenue (bars) + Margin % (line, secondary axis)",
+            &title,
+        )?;
 
-    for (c, h) in ["Quarter", "Revenue", "Margin %"].iter().enumerate() {
-        ws.write_with_format(2, c as u16, *h, &hdr)?;
-    }
-    let quarters = [("Q1", 180000.0, 0.089), ("Q2", 210000.0, 0.117),
-        ("Q3", 245000.0, 0.139), ("Q4", 270000.0, 0.155)];
-    for (i, (q, rev, margin)) in quarters.iter().enumerate() {
-        let r = 3 + i as u32;
-        ws.write_with_format(r, 0, *q, &cell)?;
-        ws.write_with_format(r, 1, *rev, &money)?;
-        ws.write_with_format(r, 2, *margin, &pct)?;
-    }
-    ws.set_column_width(0, 10.0)?;
-    ws.set_column_width(1, 14.0)?;
-    ws.set_column_width(2, 12.0)?;
+        for (c, h) in ["Quarter", "Revenue", "Margin %"].iter().enumerate() {
+            ws.write_with_format(2, c as u16, *h, &hdr)?;
+        }
+        let quarters = [
+            ("Q1", 180000.0, 0.089),
+            ("Q2", 210000.0, 0.117),
+            ("Q3", 245000.0, 0.139),
+            ("Q4", 270000.0, 0.155),
+        ];
+        for (i, (q, rev, margin)) in quarters.iter().enumerate() {
+            let r = 3 + i as u32;
+            ws.write_with_format(r, 0, *q, &cell)?;
+            ws.write_with_format(r, 1, *rev, &money)?;
+            ws.write_with_format(r, 2, *margin, &pct)?;
+        }
+        ws.set_column_width(0, 10.0)?;
+        ws.set_column_width(1, 14.0)?;
+        ws.set_column_width(2, 12.0)?;
 
-    let mut chart = Chart::new(ChartType::Column);
-    chart.set_title("Revenue & Profit Margin");
-    chart.set_y_axis_name("Revenue ($)");
-    chart.set_y2_axis_name("Margin %");
-    chart.set_width(640);
-    chart.set_height(400);
-    chart.add_series()
-        .set_categories("'Combo Chart'!$A$4:$A$7")
-        .set_values("'Combo Chart'!$B$4:$B$7")
-        .set_name("Revenue")
-        .set_data_labels(true)
-        .set_trendline(TrendlineType::Linear);
-    chart.add_series()
-        .set_categories("'Combo Chart'!$A$4:$A$7")
-        .set_values("'Combo Chart'!$C$4:$C$7")
-        .set_name("Margin %")
-        .set_chart_type(ChartType::Line)
-        .set_secondary_axis(true)
-        .set_data_labels(true);
-    ws.insert_chart(8, 0, &chart)?;
+        let mut chart = Chart::new(ChartType::Column);
+        chart.set_title("Revenue & Profit Margin");
+        chart.set_y_axis_name("Revenue ($)");
+        chart.set_y2_axis_name("Margin %");
+        chart.set_width(640);
+        chart.set_height(400);
+        chart
+            .add_series()
+            .set_categories("'Combo Chart'!$A$4:$A$7")
+            .set_values("'Combo Chart'!$B$4:$B$7")
+            .set_name("Revenue")
+            .set_data_labels(true)
+            .set_trendline(TrendlineType::Linear);
+        chart
+            .add_series()
+            .set_categories("'Combo Chart'!$A$4:$A$7")
+            .set_values("'Combo Chart'!$C$4:$C$7")
+            .set_name("Margin %")
+            .set_chart_type(ChartType::Line)
+            .set_secondary_axis(true)
+            .set_data_labels(true);
+        ws.insert_chart(8, 0, &chart)?;
     }
 
     // ═══════════════════════════════════════════════════════════
     // Sheet 8: Data Labels + Trendline
     // ═══════════════════════════════════════════════════════════
     {
-    let ws = wb.add_worksheet_with_name("Trendline")?;
-    ws.set_tab_color("#70AD47");
-    ws.write_with_format(0, 0, "Chart with Data Labels + Linear Trendline", &title)?;
+        let ws = wb.add_worksheet_with_name("Trendline")?;
+        ws.set_tab_color("#70AD47");
+        ws.write_with_format(0, 0, "Chart with Data Labels + Linear Trendline", &title)?;
 
-    for (c, h) in ["Month", "Users"].iter().enumerate() {
-        ws.write_with_format(2, c as u16, *h, &hdr)?;
-    }
-    let months = [("Jan", 1200.0), ("Feb", 1450.0), ("Mar", 1380.0), ("Apr", 1620.0),
-        ("May", 1800.0), ("Jun", 2100.0)];
-    for (i, (m, v)) in months.iter().enumerate() {
-        let r = 3 + i as u32;
-        ws.write_with_format(r, 0, *m, &cell)?;
-        ws.write_with_format(r, 1, *v, &cell)?;
-    }
-    ws.set_column_width(0, 10.0)?;
-    ws.set_column_width(1, 10.0)?;
+        for (c, h) in ["Month", "Users"].iter().enumerate() {
+            ws.write_with_format(2, c as u16, *h, &hdr)?;
+        }
+        let months = [
+            ("Jan", 1200.0),
+            ("Feb", 1450.0),
+            ("Mar", 1380.0),
+            ("Apr", 1620.0),
+            ("May", 1800.0),
+            ("Jun", 2100.0),
+        ];
+        for (i, (m, v)) in months.iter().enumerate() {
+            let r = 3 + i as u32;
+            ws.write_with_format(r, 0, *m, &cell)?;
+            ws.write_with_format(r, 1, *v, &cell)?;
+        }
+        ws.set_column_width(0, 10.0)?;
+        ws.set_column_width(1, 10.0)?;
 
-    let mut chart = Chart::new(ChartType::Line);
-    chart.set_title("Monthly Active Users");
-    chart.set_width(640);
-    chart.set_height(400);
-    chart.add_series()
-        .set_categories("Trendline!$A$4:$A$9")
-        .set_values("Trendline!$B$4:$B$9")
-        .set_name("Users")
-        .set_data_labels(true)
-        .set_trendline(TrendlineType::Linear);
-    ws.insert_chart(10, 0, &chart)?;
+        let mut chart = Chart::new(ChartType::Line);
+        chart.set_title("Monthly Active Users");
+        chart.set_width(640);
+        chart.set_height(400);
+        chart
+            .add_series()
+            .set_categories("Trendline!$A$4:$A$9")
+            .set_values("Trendline!$B$4:$B$9")
+            .set_name("Users")
+            .set_data_labels(true)
+            .set_trendline(TrendlineType::Linear);
+        ws.insert_chart(10, 0, &chart)?;
     }
 
     wb.save(path)?;
@@ -1716,21 +2216,33 @@ fn test_phase6_showcase(path: &Path) -> Result<()> {
     let s1 = read_sheet_xml(path, 1);
     assert!(s1.contains("type=\"expression\""), "Sheet 1: formula CF");
     let s2 = read_sheet_xml(path, 2);
-    assert!(s2.contains("type=\"aboveAverage\""), "Sheet 2: above-average CF");
+    assert!(
+        s2.contains("type=\"aboveAverage\""),
+        "Sheet 2: above-average CF"
+    );
     let s3 = read_sheet_xml(path, 3);
     assert!(s3.contains("type=\"top10\""), "Sheet 3: top/bottom CF");
     let s4 = read_sheet_xml(path, 4);
     assert!(s4.contains("type=\"containsText\""), "Sheet 4: text CF");
     let s5 = read_sheet_xml(path, 5);
-    assert!(s5.contains("type=\"duplicateValues\""), "Sheet 5: duplicate CF");
+    assert!(
+        s5.contains("type=\"duplicateValues\""),
+        "Sheet 5: duplicate CF"
+    );
     let s6 = read_sheet_xml(path, 6);
     assert!(s6.contains("type=\"timePeriod\""), "Sheet 6: date CF");
 
     let entries = list_zip_entries(path);
-    let charts: Vec<&String> = entries.iter().filter(|e| e.starts_with("xl/charts/")).collect();
+    let charts: Vec<&String> = entries
+        .iter()
+        .filter(|e| e.starts_with("xl/charts/"))
+        .collect();
     assert!(charts.len() >= 2, "Should have 2+ charts");
     let combo_xml = read_zip_entry(path, charts[0]);
-    assert!(combo_xml.contains("c:lineChart") && combo_xml.contains("c:barChart"), "Combo chart");
+    assert!(
+        combo_xml.contains("c:lineChart") && combo_xml.contains("c:barChart"),
+        "Combo chart"
+    );
     assert!(combo_xml.contains("c:dLbls"), "Data labels");
     assert!(combo_xml.contains("c:trendline"), "Trendline");
 
@@ -1738,8 +2250,10 @@ fn test_phase6_showcase(path: &Path) -> Result<()> {
     assert!(styles.contains("<dxfs"), "dxf support");
 
     let size = std::fs::metadata(path)?.len();
-    println!("    📊 Phase 6 Showcase: {:.1} KB, 8 sheets, 6 CF types + combo chart + trendline",
-        size as f64 / 1024.0);
+    println!(
+        "    📊 Phase 6 Showcase: {:.1} KB, 8 sheets, 6 CF types + combo chart + trendline",
+        size as f64 / 1024.0
+    );
     Ok(())
 }
 
@@ -1748,7 +2262,9 @@ fn col_letter(col: u16) -> String {
     let mut c = col;
     loop {
         result.insert(0, (b'A' + (c % 26) as u8) as char);
-        if c < 26 { break; }
+        if c < 26 {
+            break;
+        }
         c = c / 26 - 1;
     }
     result
@@ -1757,7 +2273,9 @@ fn col_letter(col: u16) -> String {
 fn list_zip_entries(path: &Path) -> Vec<String> {
     let file = std::fs::File::open(path).unwrap();
     let archive = zip::ZipArchive::new(std::io::BufReader::new(file)).unwrap();
-    (0..archive.len()).map(|i| archive.name_for_index(i).unwrap().to_string()).collect()
+    (0..archive.len())
+        .map(|i| archive.name_for_index(i).unwrap().to_string())
+        .collect()
 }
 
 fn test_sprint7_showcase(path: &Path) -> Result<()> {
@@ -1776,7 +2294,9 @@ fn test_sprint7_showcase(path: &Path) -> Result<()> {
     // Sheet 2: Write Blank + Clear Cell
     let ws2 = wb.add_worksheet_with_name("Blank & Clear")?;
     ws2.write(0, 0, "Header")?;
-    let border_fmt = Format::new().border(BorderStyle::Thin).background_color("#E2EFDA");
+    let border_fmt = Format::new()
+        .border(BorderStyle::Thin)
+        .background_color("#E2EFDA");
     ws2.write_blank(1, 0, &border_fmt)?;
     ws2.write_blank(1, 1, &border_fmt)?;
     ws2.write_blank(1, 2, &border_fmt)?;
@@ -1788,7 +2308,10 @@ fn test_sprint7_showcase(path: &Path) -> Result<()> {
     // Sheet 3: Column & Row Format
     let ws3 = wb.add_worksheet_with_name("Col & Row Fmt")?;
     let currency_fmt = Format::new().num_format("$#,##0.00");
-    let header_fmt = Format::new().bold().background_color("#4472C4").font_color("#FFFFFF");
+    let header_fmt = Format::new()
+        .bold()
+        .background_color("#4472C4")
+        .font_color("#FFFFFF");
     ws3.set_column_format(1, &currency_fmt);
     ws3.set_row_format(0, &header_fmt);
     ws3.write(0, 0, "Item")?;
@@ -1830,8 +2353,15 @@ fn test_sprint7_showcase(path: &Path) -> Result<()> {
     ws8.write(0, 0, "Name")?;
     ws8.write(0, 1, "Status")?;
     ws8.write(0, 2, "Amount")?;
-    for (i, (name, status, amt)) in [("Alice", "Active", 100.0), ("Bob", "Pending", 200.0),
-        ("Carol", "Active", 150.0), ("Dave", "Closed", 300.0)].iter().enumerate() {
+    for (i, (name, status, amt)) in [
+        ("Alice", "Active", 100.0),
+        ("Bob", "Pending", 200.0),
+        ("Carol", "Active", 150.0),
+        ("Dave", "Closed", 300.0),
+    ]
+    .iter()
+    .enumerate()
+    {
         ws8.write(i as u32 + 1, 0, *name)?;
         ws8.write(i as u32 + 1, 1, *status)?;
         ws8.write(i as u32 + 1, 2, *amt)?;
@@ -1862,11 +2392,15 @@ fn test_sprint8_showcase(path: &Path) -> Result<()> {
     let ws = wb.worksheet(0)?;
     ws.set_name("Array Formulas")?;
     ws.write(0, 0, "Matrix A")?;
-    ws.write(1, 0, 1.0)?; ws.write(1, 1, 2.0)?;
-    ws.write(2, 0, 3.0)?; ws.write(2, 1, 4.0)?;
+    ws.write(1, 0, 1.0)?;
+    ws.write(1, 1, 2.0)?;
+    ws.write(2, 0, 3.0)?;
+    ws.write(2, 1, 4.0)?;
     ws.write(0, 3, "Matrix B")?;
-    ws.write(1, 3, 5.0)?; ws.write(1, 4, 6.0)?;
-    ws.write(2, 3, 7.0)?; ws.write(2, 4, 8.0)?;
+    ws.write(1, 3, 5.0)?;
+    ws.write(1, 4, 6.0)?;
+    ws.write(2, 3, 7.0)?;
+    ws.write(2, 4, 8.0)?;
     ws.write(0, 6, "A × B (array formula)")?;
     ws.write_array_formula(1, 6, 2, 7, "MMULT(A2:B3,D2:E3)")?;
     ws.set_column_width(0, 10.0)?;
@@ -1875,7 +2409,10 @@ fn test_sprint8_showcase(path: &Path) -> Result<()> {
     // Sheet 2: Dynamic Formulas
     let ws2 = wb.add_worksheet_with_name("Dynamic Formulas")?;
     ws2.write(0, 0, "Name")?;
-    for (i, name) in ["Alice", "Bob", "Alice", "Carol", "Bob", "Alice"].iter().enumerate() {
+    for (i, name) in ["Alice", "Bob", "Alice", "Carol", "Bob", "Alice"]
+        .iter()
+        .enumerate()
+    {
         ws2.write(i as u32 + 1, 0, *name)?;
     }
     ws2.write(0, 2, "Unique Names (spill)")?;
@@ -1887,7 +2424,9 @@ fn test_sprint8_showcase(path: &Path) -> Result<()> {
 
     // Sheet 3: Formula with Cached Result
     let ws3 = wb.add_worksheet_with_name("Cached Results")?;
-    ws3.write(0, 0, "Value")?; ws3.write(0, 1, "Formula")?; ws3.write(0, 2, "Result")?;
+    ws3.write(0, 0, "Value")?;
+    ws3.write(0, 1, "Formula")?;
+    ws3.write(0, 2, "Result")?;
     ws3.write(1, 0, 100.0)?;
     ws3.write(2, 0, 200.0)?;
     ws3.write(3, 0, 300.0)?;
@@ -1898,7 +2437,11 @@ fn test_sprint8_showcase(path: &Path) -> Result<()> {
 
     // Sheet 4: Print Options
     let ws4 = wb.add_worksheet_with_name("Print Options")?;
-    ws4.write(0, 0, "This sheet has print gridlines, headings, and centering")?;
+    ws4.write(
+        0,
+        0,
+        "This sheet has print gridlines, headings, and centering",
+    )?;
     for r in 1..20u32 {
         ws4.write(r, 0, format!("Row {r}"))?;
         ws4.write(r, 1, r as f64 * 10.0)?;
@@ -1914,10 +2457,14 @@ fn test_sprint8_showcase(path: &Path) -> Result<()> {
     // Sheet 5: Unprotect Range
     let ws5 = wb.add_worksheet_with_name("Protected + Input")?;
     ws5.write(0, 0, "This sheet is protected but B2:B5 is editable")?;
-    ws5.write(1, 0, "Name")?; ws5.write(1, 1, "Enter here →")?;
-    ws5.write(2, 0, "Email")?; ws5.write(2, 1, "")?;
-    ws5.write(3, 0, "Phone")?; ws5.write(3, 1, "")?;
-    ws5.write(4, 0, "Notes")?; ws5.write(4, 1, "")?;
+    ws5.write(1, 0, "Name")?;
+    ws5.write(1, 1, "Enter here →")?;
+    ws5.write(2, 0, "Email")?;
+    ws5.write(2, 1, "")?;
+    ws5.write(3, 0, "Phone")?;
+    ws5.write(3, 1, "")?;
+    ws5.write(4, 0, "Notes")?;
+    ws5.write(4, 1, "")?;
     ws5.protect_with_password("test");
     ws5.unprotect_range("Inputs", "B2:B5");
     ws5.set_column_width(0, 12.0)?;
@@ -1949,9 +2496,15 @@ fn test_sprint9_showcase(path: &Path) -> Result<()> {
     ws.write(0, 0, "Up diagonal")?;
     ws.write(0, 1, "Down diagonal")?;
     ws.write(0, 2, "Both")?;
-    let fmt_up = Format::new().diagonal_border(BorderStyle::Thin, DiagonalType::Up).border(BorderStyle::Thin);
-    let fmt_down = Format::new().diagonal_border(BorderStyle::Medium, DiagonalType::Down).border(BorderStyle::Thin);
-    let fmt_both = Format::new().diagonal_border(BorderStyle::Thick, DiagonalType::Both).border(BorderStyle::Thin);
+    let fmt_up = Format::new()
+        .diagonal_border(BorderStyle::Thin, DiagonalType::Up)
+        .border(BorderStyle::Thin);
+    let fmt_down = Format::new()
+        .diagonal_border(BorderStyle::Medium, DiagonalType::Down)
+        .border(BorderStyle::Thin);
+    let fmt_both = Format::new()
+        .diagonal_border(BorderStyle::Thick, DiagonalType::Both)
+        .border(BorderStyle::Thin);
     ws.write_blank(1, 0, &fmt_up)?;
     ws.write_blank(1, 1, &fmt_down)?;
     ws.write_blank(1, 2, &fmt_both)?;
@@ -1962,18 +2515,26 @@ fn test_sprint9_showcase(path: &Path) -> Result<()> {
     // Sheet 2: Pattern Fills
     let ws2 = wb.add_worksheet_with_name("Pattern Fills")?;
     let patterns = [
-        ("Solid", Pattern::Solid), ("MediumGray", Pattern::MediumGray),
-        ("DarkGray", Pattern::DarkGray), ("LightGray", Pattern::LightGray),
-        ("DarkHorizontal", Pattern::DarkHorizontal), ("DarkVertical", Pattern::DarkVertical),
-        ("DarkDown", Pattern::DarkDown), ("DarkUp", Pattern::DarkUp),
-        ("LightHorizontal", Pattern::LightHorizontal), ("LightVertical", Pattern::LightVertical),
+        ("Solid", Pattern::Solid),
+        ("MediumGray", Pattern::MediumGray),
+        ("DarkGray", Pattern::DarkGray),
+        ("LightGray", Pattern::LightGray),
+        ("DarkHorizontal", Pattern::DarkHorizontal),
+        ("DarkVertical", Pattern::DarkVertical),
+        ("DarkDown", Pattern::DarkDown),
+        ("DarkUp", Pattern::DarkUp),
+        ("LightHorizontal", Pattern::LightHorizontal),
+        ("LightVertical", Pattern::LightVertical),
     ];
     ws2.write(0, 0, "Pattern")?;
     ws2.write(0, 1, "Sample")?;
     for (i, (name, pat)) in patterns.iter().enumerate() {
         let r = i as u32 + 1;
         ws2.write(r, 0, *name)?;
-        let fmt = Format::new().pattern_fill(*pat).foreground_color("#4472C4").background_color("#D9E2F3");
+        let fmt = Format::new()
+            .pattern_fill(*pat)
+            .foreground_color("#4472C4")
+            .background_color("#D9E2F3");
         ws2.write_blank(r, 1, &fmt)?;
     }
     ws2.set_column_width(0, 20.0)?;
@@ -2059,12 +2620,20 @@ fn test_sprint10_showcase(path: &Path) -> Result<()> {
     // Verify column width read back
     let w = ws.column_width(0);
     assert!(w.is_some(), "Column width should be read back");
-    assert!((w.unwrap() - 25.0).abs() < 0.5, "Column width should be ~25, got {:?}", w);
+    assert!(
+        (w.unwrap() - 25.0).abs() < 0.5,
+        "Column width should be ~25, got {:?}",
+        w
+    );
 
     // Verify row height read back
     let h = ws.row_height(0);
     assert!(h.is_some(), "Row height should be read back");
-    assert!((h.unwrap() - 30.0).abs() < 0.5, "Row height should be ~30, got {:?}", h);
+    assert!(
+        (h.unwrap() - 30.0).abs() < 0.5,
+        "Row height should be ~30, got {:?}",
+        h
+    );
 
     // Verify visibility
     let ws2 = wb.worksheet(1)?;
@@ -2093,15 +2662,30 @@ fn test_sprint11_showcase(path: &Path) -> Result<()> {
     ws.write(0, 0, "Quarter")?;
     ws.write(0, 1, "Revenue")?;
     ws.write(0, 2, "Profit")?;
-    for (i, (q, r, p)) in [("Q1", 100.0, 20.0), ("Q2", 150.0, 35.0), ("Q3", 130.0, 28.0), ("Q4", 180.0, 45.0)].iter().enumerate() {
+    for (i, (q, r, p)) in [
+        ("Q1", 100.0, 20.0),
+        ("Q2", 150.0, 35.0),
+        ("Q3", 130.0, 28.0),
+        ("Q4", 180.0, 45.0),
+    ]
+    .iter()
+    .enumerate()
+    {
         ws.write(i as u32 + 1, 0, *q)?;
         ws.write(i as u32 + 1, 1, *r)?;
         ws.write(i as u32 + 1, 2, *p)?;
     }
     let mut chart = Chart::new(ChartType::Column);
     chart.set_title("Revenue & Profit");
-    chart.add_series().set_values("'Chart Offset + Table'!$B$2:$B$5").set_categories("'Chart Offset + Table'!$A$2:$A$5").set_name("Revenue");
-    chart.add_series().set_values("'Chart Offset + Table'!$C$2:$C$5").set_name("Profit");
+    chart
+        .add_series()
+        .set_values("'Chart Offset + Table'!$B$2:$B$5")
+        .set_categories("'Chart Offset + Table'!$A$2:$A$5")
+        .set_name("Revenue");
+    chart
+        .add_series()
+        .set_values("'Chart Offset + Table'!$C$2:$C$5")
+        .set_name("Profit");
     chart.show_data_table(true);
     chart.set_width(600);
     chart.set_height(400);
@@ -2126,8 +2710,11 @@ fn test_sprint11_showcase(path: &Path) -> Result<()> {
     ws3.write(0, 2, "Low")?;
     ws3.write(0, 3, "Close")?;
     let stock_data = [
-        ("Mon", 45.0, 38.0, 42.0), ("Tue", 48.0, 40.0, 44.0),
-        ("Wed", 46.0, 39.0, 41.0), ("Thu", 50.0, 42.0, 48.0), ("Fri", 52.0, 44.0, 50.0),
+        ("Mon", 45.0, 38.0, 42.0),
+        ("Tue", 48.0, 40.0, 44.0),
+        ("Wed", 46.0, 39.0, 41.0),
+        ("Thu", 50.0, 42.0, 48.0),
+        ("Fri", 52.0, 44.0, 50.0),
     ];
     for (i, (d, h, l, c)) in stock_data.iter().enumerate() {
         let r = i as u32 + 1;
@@ -2138,9 +2725,19 @@ fn test_sprint11_showcase(path: &Path) -> Result<()> {
     }
     let mut stock = Chart::new(ChartType::Stock);
     stock.set_title("Stock Price (HLC)");
-    stock.add_series().set_values("'Stock Chart'!$B$2:$B$6").set_categories("'Stock Chart'!$A$2:$A$6").set_name("High");
-    stock.add_series().set_values("'Stock Chart'!$C$2:$C$6").set_name("Low");
-    stock.add_series().set_values("'Stock Chart'!$D$2:$D$6").set_name("Close");
+    stock
+        .add_series()
+        .set_values("'Stock Chart'!$B$2:$B$6")
+        .set_categories("'Stock Chart'!$A$2:$A$6")
+        .set_name("High");
+    stock
+        .add_series()
+        .set_values("'Stock Chart'!$C$2:$C$6")
+        .set_name("Low");
+    stock
+        .add_series()
+        .set_values("'Stock Chart'!$D$2:$D$6")
+        .set_name("Close");
     ws3.insert_chart(7, 0, &stock)?;
 
     wb.save(path)?;
@@ -2149,7 +2746,6 @@ fn test_sprint11_showcase(path: &Path) -> Result<()> {
     assert_eq!(wb2.sheet_count(), 3);
     Ok(())
 }
-
 
 fn test_sprint12_showcase(path: &Path) -> Result<()> {
     use zavora_xlsx::*;
@@ -2163,9 +2759,12 @@ fn test_sprint12_showcase(path: &Path) -> Result<()> {
         ws.set_name("Data")?;
         ws.write(0, 0, "Quarter")?;
         ws.write(0, 1, "Revenue")?;
-        ws.write(1, 0, "Q1")?; ws.write(1, 1, 100.0)?;
-        ws.write(2, 0, "Q2")?; ws.write(2, 1, 150.0)?;
-        ws.write(3, 0, "Q3")?; ws.write(3, 1, 130.0)?;
+        ws.write(1, 0, "Q1")?;
+        ws.write(1, 1, 100.0)?;
+        ws.write(2, 0, "Q2")?;
+        ws.write(2, 1, 150.0)?;
+        ws.write(3, 0, "Q3")?;
+        ws.write(3, 1, 130.0)?;
         ws.set_column_width(0, 20.0)?;
         ws.set_column_width(1, 15.0)?;
         ws.set_row_height(0, 25.0)?;
@@ -2175,7 +2774,11 @@ fn test_sprint12_showcase(path: &Path) -> Result<()> {
 
         let mut chart = Chart::new(ChartType::Column);
         chart.set_title("Revenue");
-        chart.add_series().set_values("Data!$B$2:$B$4").set_categories("Data!$A$2:$A$4").set_name("Rev");
+        chart
+            .add_series()
+            .set_values("Data!$B$2:$B$4")
+            .set_categories("Data!$A$2:$A$4")
+            .set_name("Rev");
         ws.insert_chart(7, 0, &chart)?;
 
         wb.save(&tmp)?;
@@ -2188,7 +2791,10 @@ fn test_sprint12_showcase(path: &Path) -> Result<()> {
 
         // Verify metadata was read back
         assert_eq!(ws.merge_ranges().len(), 1, "Merge should be read back");
-        assert!(ws.column_width(0).is_some(), "Col width should be read back");
+        assert!(
+            ws.column_width(0).is_some(),
+            "Col width should be read back"
+        );
 
         // Modify a cell (makes sheet dirty)
         ws.write(1, 1, 999.0)?;
@@ -2204,11 +2810,17 @@ fn test_sprint12_showcase(path: &Path) -> Result<()> {
     // Cell data preserved
     assert_eq!(ws.read_cell(1, 1), CellValue::Number(999.0));
     assert_eq!(ws.read_cell(2, 0), CellValue::String("Q2".into()));
-    assert_eq!(ws.read_cell(4, 0), CellValue::String("Added in edit mode".into()));
+    assert_eq!(
+        ws.read_cell(4, 0),
+        CellValue::String("Added in edit mode".into())
+    );
 
     // Metadata preserved on dirty sheet
     assert_eq!(ws.merge_ranges().len(), 1, "Merge should survive edit");
-    assert!(ws.column_width(0).is_some(), "Col width should survive edit");
+    assert!(
+        ws.column_width(0).is_some(),
+        "Col width should survive edit"
+    );
 
     // Clean up temp
     let _ = std::fs::remove_file(&tmp);
@@ -2267,7 +2879,8 @@ fn test_chart_advanced(path: &Path) -> Result<()> {
     // Sheet 1: Axis control + markers
     let ws = wb.worksheet(0)?;
     ws.set_name("Axis & Markers")?;
-    ws.write(0, 0, "X")?; ws.write(0, 1, "Y")?;
+    ws.write(0, 0, "X")?;
+    ws.write(0, 1, "Y")?;
     for i in 1..=8u32 {
         ws.write(i, 0, format!("P{i}"))?;
         ws.write(i, 1, (i as f64) * (i as f64))?;
@@ -2275,7 +2888,8 @@ fn test_chart_advanced(path: &Path) -> Result<()> {
 
     let mut chart = Chart::new(ChartType::Line);
     chart.set_title("Axis Control: min=0, max=80");
-    chart.add_series()
+    chart
+        .add_series()
         .set_values("'Axis & Markers'!$B$2:$B$9")
         .set_categories("'Axis & Markers'!$A$2:$A$9")
         .set_name("Squared")
@@ -2289,8 +2903,15 @@ fn test_chart_advanced(path: &Path) -> Result<()> {
 
     // Sheet 2: Point colors + trendline R²
     let ws2 = wb.add_worksheet_with_name("Colors & R²")?;
-    ws2.write(0, 0, "Category")?; ws2.write(0, 1, "Value")?;
-    let data = [("A", 10.0), ("B", 25.0), ("C", 18.0), ("D", 40.0), ("E", 35.0)];
+    ws2.write(0, 0, "Category")?;
+    ws2.write(0, 1, "Value")?;
+    let data = [
+        ("A", 10.0),
+        ("B", 25.0),
+        ("C", 18.0),
+        ("D", 40.0),
+        ("E", 35.0),
+    ];
     for (i, (cat, val)) in data.iter().enumerate() {
         ws2.write(i as u32 + 1, 0, *cat)?;
         ws2.write(i as u32 + 1, 1, *val)?;
@@ -2298,7 +2919,8 @@ fn test_chart_advanced(path: &Path) -> Result<()> {
 
     let mut chart2 = Chart::new(ChartType::Column);
     chart2.set_title("Point Colors + Trendline R²");
-    chart2.add_series()
+    chart2
+        .add_series()
         .set_values("'Colors & R²'!$B$2:$B$6")
         .set_categories("'Colors & R²'!$A$2:$A$6")
         .set_name("Sales")
@@ -2314,14 +2936,24 @@ fn test_chart_advanced(path: &Path) -> Result<()> {
 
     // Sheet 3: Reversed axis
     let ws3 = wb.add_worksheet_with_name("Reversed Axis")?;
-    ws3.write(0, 0, "Item")?; ws3.write(0, 1, "Score")?;
-    for (i, (item, score)) in [("Alpha", 90.0), ("Beta", 75.0), ("Gamma", 60.0), ("Delta", 85.0)].iter().enumerate() {
+    ws3.write(0, 0, "Item")?;
+    ws3.write(0, 1, "Score")?;
+    for (i, (item, score)) in [
+        ("Alpha", 90.0),
+        ("Beta", 75.0),
+        ("Gamma", 60.0),
+        ("Delta", 85.0),
+    ]
+    .iter()
+    .enumerate()
+    {
         ws3.write(i as u32 + 1, 0, *item)?;
         ws3.write(i as u32 + 1, 1, *score)?;
     }
     let mut chart3 = Chart::new(ChartType::Bar);
     chart3.set_title("Reversed Y Axis");
-    chart3.add_series()
+    chart3
+        .add_series()
         .set_values("'Reversed Axis'!$B$2:$B$5")
         .set_categories("'Reversed Axis'!$A$2:$A$5")
         .set_name("Score");
@@ -2345,14 +2977,22 @@ fn test_all_patterns(path: &Path) -> Result<()> {
 
     // All 18 patterns
     let patterns: Vec<(&str, Pattern)> = vec![
-        ("Solid", Pattern::Solid), ("MediumGray", Pattern::MediumGray),
-        ("DarkGray", Pattern::DarkGray), ("LightGray", Pattern::LightGray),
-        ("DarkHorizontal", Pattern::DarkHorizontal), ("DarkVertical", Pattern::DarkVertical),
-        ("DarkDown", Pattern::DarkDown), ("DarkUp", Pattern::DarkUp),
-        ("DarkGrid", Pattern::DarkGrid), ("DarkTrellis", Pattern::DarkTrellis),
-        ("LightHorizontal", Pattern::LightHorizontal), ("LightVertical", Pattern::LightVertical),
-        ("LightDown", Pattern::LightDown), ("LightUp", Pattern::LightUp),
-        ("LightGrid", Pattern::LightGrid), ("LightTrellis", Pattern::LightTrellis),
+        ("Solid", Pattern::Solid),
+        ("MediumGray", Pattern::MediumGray),
+        ("DarkGray", Pattern::DarkGray),
+        ("LightGray", Pattern::LightGray),
+        ("DarkHorizontal", Pattern::DarkHorizontal),
+        ("DarkVertical", Pattern::DarkVertical),
+        ("DarkDown", Pattern::DarkDown),
+        ("DarkUp", Pattern::DarkUp),
+        ("DarkGrid", Pattern::DarkGrid),
+        ("DarkTrellis", Pattern::DarkTrellis),
+        ("LightHorizontal", Pattern::LightHorizontal),
+        ("LightVertical", Pattern::LightVertical),
+        ("LightDown", Pattern::LightDown),
+        ("LightUp", Pattern::LightUp),
+        ("LightGrid", Pattern::LightGrid),
+        ("LightTrellis", Pattern::LightTrellis),
         ("Gray125", Pattern::Gray125),
     ];
 
@@ -2367,9 +3007,15 @@ fn test_all_patterns(path: &Path) -> Result<()> {
     for (i, (name, pat)) in patterns.iter().enumerate() {
         let r = i as u32 + 1;
         ws.write(r, 0, *name)?;
-        let f1 = Format::new().pattern_fill(*pat).foreground_color("#4472C4").background_color("#FFFFFF");
+        let f1 = Format::new()
+            .pattern_fill(*pat)
+            .foreground_color("#4472C4")
+            .background_color("#FFFFFF");
         ws.write_blank(r, 1, &f1)?;
-        let f2 = Format::new().pattern_fill(*pat).foreground_color("#FF0000").background_color("#FFFF00");
+        let f2 = Format::new()
+            .pattern_fill(*pat)
+            .foreground_color("#FF0000")
+            .background_color("#FFFF00");
         ws.write_blank(r, 2, &f2)?;
         ws.set_row_height(r, 22.0)?;
     }
@@ -2379,9 +3025,15 @@ fn test_all_patterns(path: &Path) -> Result<()> {
     ws.write(r, 0, "Diagonal Up")?;
     ws.write(r, 1, "Diagonal Down")?;
     ws.write(r, 2, "Diagonal Both")?;
-    let d1 = Format::new().diagonal_border(BorderStyle::Thin, DiagonalType::Up).border(BorderStyle::Thin);
-    let d2 = Format::new().diagonal_border(BorderStyle::Medium, DiagonalType::Down).border(BorderStyle::Thin);
-    let d3 = Format::new().diagonal_border(BorderStyle::Thick, DiagonalType::Both).border(BorderStyle::Thin);
+    let d1 = Format::new()
+        .diagonal_border(BorderStyle::Thin, DiagonalType::Up)
+        .border(BorderStyle::Thin);
+    let d2 = Format::new()
+        .diagonal_border(BorderStyle::Medium, DiagonalType::Down)
+        .border(BorderStyle::Thin);
+    let d3 = Format::new()
+        .diagonal_border(BorderStyle::Thick, DiagonalType::Both)
+        .border(BorderStyle::Thin);
     ws.write_blank(r + 1, 0, &d1)?;
     ws.write_blank(r + 1, 1, &d2)?;
     ws.write_blank(r + 1, 2, &d3)?;
@@ -2418,8 +3070,10 @@ fn test_formulas_complete(path: &Path) -> Result<()> {
 
     // Array formula
     ws.write(4, 0, "Matrix A")?;
-    ws.write(5, 0, 1.0)?; ws.write(5, 1, 2.0)?;
-    ws.write(6, 0, 3.0)?; ws.write(6, 1, 4.0)?;
+    ws.write(5, 0, 1.0)?;
+    ws.write(5, 1, 2.0)?;
+    ws.write(6, 0, 3.0)?;
+    ws.write(6, 1, 4.0)?;
     ws.write(4, 3, "A×A (array)")?;
     ws.write_array_formula(5, 3, 6, 4, "MMULT(A6:B7,A6:B7)")?;
 
@@ -2433,7 +3087,9 @@ fn test_formulas_complete(path: &Path) -> Result<()> {
 
     // Blank cells with formatting
     ws.write(14, 0, "Formatted blanks →")?;
-    let border_fmt = Format::new().border(BorderStyle::Thin).background_color("#E2EFDA");
+    let border_fmt = Format::new()
+        .border(BorderStyle::Thin)
+        .background_color("#E2EFDA");
     ws.write_blank(14, 1, &border_fmt)?;
     ws.write_blank(14, 2, &border_fmt)?;
 
@@ -2449,7 +3105,13 @@ fn test_formulas_complete(path: &Path) -> Result<()> {
     wb.save(path)?;
     let mut wb2 = Workbook::open_readonly(path)?;
     let ws2 = wb2.worksheet(0)?;
-    assert_eq!(ws2.read_cell(2, 1), CellValue::Formula { formula: "100*2.5".into(), cached_value: Box::new(CellValue::Number(250.0)) });
+    assert_eq!(
+        ws2.read_cell(2, 1),
+        CellValue::Formula {
+            formula: "100*2.5".into(),
+            cached_value: Box::new(CellValue::Number(250.0))
+        }
+    );
     Ok(())
 }
 
@@ -2488,7 +3150,10 @@ fn test_column_range(path: &Path) -> Result<()> {
     ws.set_column_range_hidden(5, 6);
 
     // Row format: header row bold
-    let bold_fmt = Format::new().bold().background_color("#4472C4").font_color("#FFFFFF");
+    let bold_fmt = Format::new()
+        .bold()
+        .background_color("#4472C4")
+        .font_color("#FFFFFF");
     ws.set_row_format(0, &bold_fmt);
 
     // Column format: currency on E
@@ -2562,7 +3227,8 @@ fn test_pivot_table(path: &Path) -> Result<()> {
     chart.set_width(720);
     chart.set_height(400);
     // Series reference the pivot table output range (Excel rebuilds on refresh)
-    chart.add_series()
+    chart
+        .add_series()
         .set_name("Sum of Revenue")
         .set_values("'Pivot Analysis'!$C$2:$C$4")
         .set_categories("'Pivot Analysis'!$A$2:$A$4");
@@ -2591,18 +3257,48 @@ fn test_feature_parity(path: &Path) -> Result<()> {
     ws.write(0, 2, "Revenue")?;
     ws.write(0, 3, "Region")?;
 
-    ws.write_with_format(1, 0, ExcelDateTime::from_ymd(2024, 1, 15).unwrap(), &date_fmt)?;
-    ws.write_with_format(1, 1, ExcelDateTime::from_ymd_hms(2024, 1, 15, 9, 30, 0).unwrap(), &datetime_fmt)?;
+    ws.write_with_format(
+        1,
+        0,
+        ExcelDateTime::from_ymd(2024, 1, 15).unwrap(),
+        &date_fmt,
+    )?;
+    ws.write_with_format(
+        1,
+        1,
+        ExcelDateTime::from_ymd_hms(2024, 1, 15, 9, 30, 0).unwrap(),
+        &datetime_fmt,
+    )?;
     ws.write(1, 2, 45000.0)?;
     ws.write(1, 3, "East")?;
 
-    ws.write_with_format(2, 0, ExcelDateTime::from_ymd(2024, 2, 20).unwrap(), &date_fmt)?;
-    ws.write_with_format(2, 1, ExcelDateTime::from_ymd_hms(2024, 2, 20, 14, 0, 0).unwrap(), &datetime_fmt)?;
+    ws.write_with_format(
+        2,
+        0,
+        ExcelDateTime::from_ymd(2024, 2, 20).unwrap(),
+        &date_fmt,
+    )?;
+    ws.write_with_format(
+        2,
+        1,
+        ExcelDateTime::from_ymd_hms(2024, 2, 20, 14, 0, 0).unwrap(),
+        &datetime_fmt,
+    )?;
     ws.write(2, 2, 52000.0)?;
     ws.write(2, 3, "West")?;
 
-    ws.write_with_format(3, 0, ExcelDateTime::from_ymd(2024, 3, 10).unwrap(), &date_fmt)?;
-    ws.write_with_format(3, 1, ExcelDateTime::from_ymd_hms(2024, 3, 10, 16, 45, 0).unwrap(), &datetime_fmt)?;
+    ws.write_with_format(
+        3,
+        0,
+        ExcelDateTime::from_ymd(2024, 3, 10).unwrap(),
+        &date_fmt,
+    )?;
+    ws.write_with_format(
+        3,
+        1,
+        ExcelDateTime::from_ymd_hms(2024, 3, 10, 16, 45, 0).unwrap(),
+        &datetime_fmt,
+    )?;
     ws.write(3, 2, 38000.0)?;
     ws.write(3, 3, "North")?;
 
@@ -2657,7 +3353,10 @@ fn test_feature_parity(path: &Path) -> Result<()> {
 
     // Verify defined names (print area, repeat rows)
     let names = wb2.defined_names();
-    assert!(names.iter().any(|(n, _)| n == "_xlnm.Print_Area"), "Print area defined name missing");
+    assert!(
+        names.iter().any(|(n, _)| n == "_xlnm.Print_Area"),
+        "Print area defined name missing"
+    );
 
     // CSV export
     let mut csv_buf = Vec::new();
@@ -2983,4 +3682,3 @@ fn test_feature_parity_integration() {
     let p = d.join("test_feature_parity.xlsx");
     test_feature_parity(&p).unwrap();
 }
-

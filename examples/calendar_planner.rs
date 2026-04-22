@@ -32,63 +32,133 @@ fn main() -> Result<()> {
         (10, 15, 0, "Q3 Report Due", "event"),
     ];
 
-    let months = ["January", "February", "March", "April", "May", "June",
-                   "July", "August", "September", "October", "November", "December"];
+    let months = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+    ];
     let days_in_month = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]; // 2025 not leap
 
     // ── Styles ──
     let title_fmt = Format::new()
-        .bold().font_size(20.0).font_color(NamedColor::White)
-        .background_color("#2B579A").align(Align::Center).align(Align::VerticalCenter);
+        .bold()
+        .font_size(20.0)
+        .font_color(NamedColor::White)
+        .background_color("#2B579A")
+        .align(Align::Center)
+        .align(Align::VerticalCenter);
     let month_fmt = Format::new()
-        .bold().font_size(16.0).font_color(NamedColor::White)
-        .background_color("#2B579A").align(Align::Center).align(Align::VerticalCenter);
+        .bold()
+        .font_size(16.0)
+        .font_color(NamedColor::White)
+        .background_color("#2B579A")
+        .align(Align::Center)
+        .align(Align::VerticalCenter);
     let day_header_fmt = Format::new()
-        .bold().font_size(11.0).font_color(NamedColor::White)
-        .background_color("#4472C4").align(Align::Center)
-        .border(BorderStyle::Thin).border_color("#2B579A");
+        .bold()
+        .font_size(11.0)
+        .font_color(NamedColor::White)
+        .background_color("#4472C4")
+        .align(Align::Center)
+        .border(BorderStyle::Thin)
+        .border_color("#2B579A");
     let day_cell_fmt = Format::new()
-        .font_size(10.0).align(Align::Right).align(Align::Top)
-        .border(BorderStyle::Thin).border_color("#D6DCE4");
+        .font_size(10.0)
+        .align(Align::Right)
+        .align(Align::Top)
+        .border(BorderStyle::Thin)
+        .border_color("#D6DCE4");
     let _today_fmt = Format::new()
-        .font_size(10.0).bold().align(Align::Right).align(Align::Top)
+        .font_size(10.0)
+        .bold()
+        .align(Align::Right)
+        .align(Align::Top)
         .background_color("#E2EFDA")
-        .border(BorderStyle::Thin).border_color("#A9D18E");
+        .border(BorderStyle::Thin)
+        .border_color("#A9D18E");
     let weekend_fmt = Format::new()
-        .font_size(10.0).align(Align::Right).align(Align::Top)
+        .font_size(10.0)
+        .align(Align::Right)
+        .align(Align::Top)
         .background_color("#F2F2F2")
-        .border(BorderStyle::Thin).border_color("#D6DCE4");
+        .border(BorderStyle::Thin)
+        .border_color("#D6DCE4");
     let empty_cell_fmt = Format::new()
         .background_color("#F8F8F8")
-        .border(BorderStyle::Thin).border_color("#E8E8E8");
+        .border(BorderStyle::Thin)
+        .border_color("#E8E8E8");
     let event_fmt = Format::new()
-        .font_size(8.0).font_color("#2B579A").italic()
-        .align(Align::Left).align(Align::Top)
-        .border(BorderStyle::Thin).border_color("#D6DCE4");
+        .font_size(8.0)
+        .font_color("#2B579A")
+        .italic()
+        .align(Align::Left)
+        .align(Align::Top)
+        .border(BorderStyle::Thin)
+        .border_color("#D6DCE4");
     let holiday_fmt = Format::new()
-        .font_size(10.0).bold().font_color("#C00000").align(Align::Right).align(Align::Top)
+        .font_size(10.0)
+        .bold()
+        .font_color("#C00000")
+        .align(Align::Right)
+        .align(Align::Top)
         .background_color("#FCE4EC")
-        .border(BorderStyle::Thin).border_color("#E57373");
+        .border(BorderStyle::Thin)
+        .border_color("#E57373");
     let anniversary_fmt = Format::new()
-        .font_size(10.0).bold().font_color("#7B1FA2").align(Align::Right).align(Align::Top)
+        .font_size(10.0)
+        .bold()
+        .font_color("#7B1FA2")
+        .align(Align::Right)
+        .align(Align::Top)
         .background_color("#F3E5F5")
-        .border(BorderStyle::Thin).border_color("#CE93D8");
+        .border(BorderStyle::Thin)
+        .border_color("#CE93D8");
 
     // Planner styles
     let planner_header_fmt = Format::new()
-        .bold().font_size(11.0).font_color(NamedColor::White)
-        .background_color("#2B579A").align(Align::Center)
+        .bold()
+        .font_size(11.0)
+        .font_color(NamedColor::White)
+        .background_color("#2B579A")
+        .align(Align::Center)
         .border(BorderStyle::Thin);
     let time_fmt = Format::new()
-        .font_size(10.0).bold().align(Align::Center).align(Align::VerticalCenter)
-        .background_color("#D9E2F3").border(BorderStyle::Thin).border_color("#B4C6E7");
+        .font_size(10.0)
+        .bold()
+        .align(Align::Center)
+        .align(Align::VerticalCenter)
+        .background_color("#D9E2F3")
+        .border(BorderStyle::Thin)
+        .border_color("#B4C6E7");
     let slot_fmt = Format::new()
-        .font_size(10.0).align(Align::Left).align(Align::VerticalCenter)
-        .border(BorderStyle::Thin).border_color("#D6DCE4");
+        .font_size(10.0)
+        .align(Align::Left)
+        .align(Align::VerticalCenter)
+        .border(BorderStyle::Thin)
+        .border_color("#D6DCE4");
     let legend_label = Format::new().font_size(9.0).bold().align(Align::Left);
-    let legend_holiday = Format::new().font_size(9.0).background_color("#FCE4EC").border(BorderStyle::Thin);
-    let legend_anniv = Format::new().font_size(9.0).background_color("#F3E5F5").border(BorderStyle::Thin);
-    let legend_event = Format::new().font_size(9.0).font_color("#2B579A").italic().border(BorderStyle::Thin);
+    let legend_holiday = Format::new()
+        .font_size(9.0)
+        .background_color("#FCE4EC")
+        .border(BorderStyle::Thin);
+    let legend_anniv = Format::new()
+        .font_size(9.0)
+        .background_color("#F3E5F5")
+        .border(BorderStyle::Thin);
+    let legend_event = Format::new()
+        .font_size(9.0)
+        .font_color("#2B579A")
+        .italic()
+        .border(BorderStyle::Thin);
 
     // ── Sheet 1: Year-at-a-Glance Calendar ──
     let ws = wb.worksheet(0)?;
@@ -106,7 +176,9 @@ fn main() -> Result<()> {
     ws.set_row_height(1, 20.0)?;
 
     // Column widths for calendar grid
-    for c in 0..7u16 { ws.set_column_width(c, 16.0)?; }
+    for c in 0..7u16 {
+        ws.set_column_width(c, 16.0)?;
+    }
 
     let day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
     let mut row = 3u32;
@@ -132,17 +204,23 @@ fn main() -> Result<()> {
         let mut col = first_dow as u16;
 
         // Fill empty cells before first day
-        for c in 0..col { ws.write_with_format(row, c, "", &empty_cell_fmt)?; }
+        for c in 0..col {
+            ws.write_with_format(row, c, "", &empty_cell_fmt)?;
+        }
 
         while day <= num_days {
-            if col == 0 && day > 1 { row += 1; }
+            if col == 0 && day > 1 {
+                row += 1;
+            }
 
             // Check for events on this day
-            let month_events: Vec<&str> = events.iter()
+            let month_events: Vec<&str> = events
+                .iter()
                 .filter(|e| e.0 == (m as u32 + 1) && e.1 == day)
                 .map(|e| e.3)
                 .collect();
-            let event_type = events.iter()
+            let event_type = events
+                .iter()
                 .find(|e| e.0 == (m as u32 + 1) && e.1 == day)
                 .map(|e| e.4);
 
@@ -166,7 +244,9 @@ fn main() -> Result<()> {
 
             day += 1;
             col += 1;
-            if col > 6 { col = 0; }
+            if col > 6 {
+                col = 0;
+            }
         }
 
         // Fill remaining cells in last week
@@ -189,7 +269,9 @@ fn main() -> Result<()> {
     // ── Sheet 2: Daily Planner ──
     let ws2 = wb.add_worksheet_with_name("Daily Planner")?;
 
-    for c in 0..8u16 { ws2.set_column_width(c, if c == 0 { 12.0 } else { 18.0 })?; }
+    for c in 0..8u16 {
+        ws2.set_column_width(c, if c == 0 { 12.0 } else { 18.0 })?;
+    }
 
     // Title
     ws2.merge_range(0, 0, 0, 7, "DAILY PLANNER — 2025", &title_fmt)?;
@@ -204,9 +286,8 @@ fn main() -> Result<()> {
 
     // Time slots: 6:00 AM to 9:00 PM
     let times = [
-        "6:00 AM", "7:00 AM", "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM",
-        "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM",
-        "6:00 PM", "7:00 PM", "8:00 PM", "9:00 PM",
+        "6:00 AM", "7:00 AM", "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM",
+        "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM", "7:00 PM", "8:00 PM", "9:00 PM",
     ];
 
     for (i, time) in times.iter().enumerate() {
@@ -250,18 +331,39 @@ fn main() -> Result<()> {
         ws3.write_with_format(1, c as u16, *h, &planner_header_fmt)?;
     }
 
-    let date_fmt_cell = Format::new().num_format("mmmm d, yyyy").align(Align::Left)
-        .border(BorderStyle::Thin).border_color("#D6DCE4");
-    let event_name_fmt = Format::new().font_size(10.0).align(Align::Left)
-        .border(BorderStyle::Thin).border_color("#D6DCE4");
-    let type_holiday = Format::new().font_size(10.0).bold().font_color("#C00000")
-        .background_color("#FCE4EC").align(Align::Center)
-        .border(BorderStyle::Thin).border_color("#D6DCE4");
-    let type_anniv = Format::new().font_size(10.0).bold().font_color("#7B1FA2")
-        .background_color("#F3E5F5").align(Align::Center)
-        .border(BorderStyle::Thin).border_color("#D6DCE4");
-    let type_event = Format::new().font_size(10.0).italic().font_color("#2B579A")
-        .align(Align::Center).border(BorderStyle::Thin).border_color("#D6DCE4");
+    let date_fmt_cell = Format::new()
+        .num_format("mmmm d, yyyy")
+        .align(Align::Left)
+        .border(BorderStyle::Thin)
+        .border_color("#D6DCE4");
+    let event_name_fmt = Format::new()
+        .font_size(10.0)
+        .align(Align::Left)
+        .border(BorderStyle::Thin)
+        .border_color("#D6DCE4");
+    let type_holiday = Format::new()
+        .font_size(10.0)
+        .bold()
+        .font_color("#C00000")
+        .background_color("#FCE4EC")
+        .align(Align::Center)
+        .border(BorderStyle::Thin)
+        .border_color("#D6DCE4");
+    let type_anniv = Format::new()
+        .font_size(10.0)
+        .bold()
+        .font_color("#7B1FA2")
+        .background_color("#F3E5F5")
+        .align(Align::Center)
+        .border(BorderStyle::Thin)
+        .border_color("#D6DCE4");
+    let type_event = Format::new()
+        .font_size(10.0)
+        .italic()
+        .font_color("#2B579A")
+        .align(Align::Center)
+        .border(BorderStyle::Thin)
+        .border_color("#D6DCE4");
 
     let mut sorted_events = events.clone();
     sorted_events.sort_by_key(|e| (e.0, e.1));
@@ -281,9 +383,17 @@ fn main() -> Result<()> {
 
     // Table for the dates list
     let last_row = sorted_events.len() as u32 + 1;
-    ws3.add_table(1, 0, last_row, 2, &Table::new()
-        .set_style(TableStyle::Medium(2))
-        .set_columns(&[TableColumn::new("Date"), TableColumn::new("Event"), TableColumn::new("Type")]))?;
+    ws3.add_table(
+        1,
+        0,
+        last_row,
+        2,
+        &Table::new().set_style(TableStyle::Medium(2)).set_columns(&[
+            TableColumn::new("Date"),
+            TableColumn::new("Event"),
+            TableColumn::new("Type"),
+        ]),
+    )?;
 
     ws3.set_landscape();
     ws3.set_fit_to_page(1, 1);
@@ -292,27 +402,17 @@ fn main() -> Result<()> {
 
     // ── Save ──
     wb.set_active_sheet(0);
-    let path = std::env::temp_dir().join("2025_calendar_planner.xlsx");
+    let path = std::path::PathBuf::from("output/2025_calendar_planner.xlsx");
     wb.save(&path)?;
     println!("✅ Calendar saved to {}", path.display());
-
-    // Copy to Downloads
-    let dest = dirs_or_home().join("2025_calendar_planner.xlsx");
-    std::fs::copy(&path, &dest).ok();
-    println!("📋 Copied to {}", dest.display());
 
     Ok(())
 }
 
-/// Day of week for a given date (0=Monday, 6=Sunday). Tomohiko Sakamoto's algorithm.
 fn day_of_week(year: i32, month: u32, day: u32) -> u32 {
     let t = [0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4];
     let y = if month < 3 { year - 1 } else { year };
     let dow = (y + y / 4 - y / 100 + y / 400 + t[(month - 1) as usize] + day as i32) % 7;
     // Convert: 0=Sun → 6, 1=Mon → 0, etc.
     ((dow + 6) % 7) as u32
-}
-
-fn dirs_or_home() -> std::path::PathBuf {
-    std::path::PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| "/tmp".into())).join("Downloads")
 }

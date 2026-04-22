@@ -7,11 +7,14 @@ pub struct XmlWriter {
 
 impl XmlWriter {
     pub fn new() -> Self {
-        Self { buf: String::with_capacity(4096) }
+        Self {
+            buf: String::with_capacity(4096),
+        }
     }
 
     pub fn declaration(&mut self) {
-        self.buf.push_str("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n");
+        self.buf
+            .push_str("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n");
     }
 
     pub fn start_tag(&mut self, name: &str, attrs: &[(&str, &str)]) {

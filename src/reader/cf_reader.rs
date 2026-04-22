@@ -10,7 +10,7 @@ use quick_xml::reader::Reader;
 use crate::features::conditional::*;
 use crate::format::Format;
 use crate::reader::style_parser::DxfRecord;
-use crate::utility::{parse_range, ColNum, RowNum};
+use crate::utility::{ColNum, RowNum, parse_range};
 use crate::xml::xml_reader::get_attr;
 
 /// Parse all `<conditionalFormatting>` elements from sheet XML into
@@ -21,10 +21,7 @@ use crate::xml::xml_reader::get_attr;
 /// resolve `dxfId` attributes on `<cfRule>` elements.
 ///
 /// Returns an empty `Vec` when no conditional formatting is present.
-pub fn parse_conditional_formats(
-    data: &[u8],
-    dxf_records: &[DxfRecord],
-) -> Vec<StoredCf> {
+pub fn parse_conditional_formats(data: &[u8], dxf_records: &[DxfRecord]) -> Vec<StoredCf> {
     let mut reader = Reader::from_reader(data);
     reader.config_mut().check_end_names = false;
     reader.config_mut().expand_empty_elements = false;
@@ -79,16 +76,19 @@ impl CfRuleAttrs {
         Self {
             rule_type: get_attr(e.attributes(), b"type")
                 .and_then(|v| std::str::from_utf8(v).ok())
-                .unwrap_or("").to_string(),
+                .unwrap_or("")
+                .to_string(),
             dxf_id: get_attr(e.attributes(), b"dxfId")
                 .and_then(|v| std::str::from_utf8(v).ok())
                 .and_then(|v| v.parse().ok()),
             operator: get_attr(e.attributes(), b"operator")
                 .and_then(|v| std::str::from_utf8(v).ok())
-                .unwrap_or("").to_string(),
+                .unwrap_or("")
+                .to_string(),
             text: get_attr(e.attributes(), b"text")
                 .and_then(|v| std::str::from_utf8(v).ok())
-                .unwrap_or("").to_string(),
+                .unwrap_or("")
+                .to_string(),
             rank: get_attr(e.attributes(), b"rank")
                 .and_then(|v| std::str::from_utf8(v).ok())
                 .and_then(|v| v.parse().ok())
@@ -111,7 +111,8 @@ impl CfRuleAttrs {
                 .unwrap_or(false),
             time_period: get_attr(e.attributes(), b"timePeriod")
                 .and_then(|v| std::str::from_utf8(v).ok())
-                .unwrap_or("").to_string(),
+                .unwrap_or("")
+                .to_string(),
         }
     }
 }
@@ -141,7 +142,11 @@ fn parse_cf_block(
                 let children = parse_cf_rule_children(reader, buf);
                 let fmt = attrs.dxf_id.and_then(|id| resolve_dxf(id, dxf_records));
                 if let Some(rule) = build_rule(&attrs, &children, fmt.as_ref()) {
-                    results.push(StoredCf { range, rule, dxf_id: attrs.dxf_id });
+                    results.push(StoredCf {
+                        range,
+                        rule,
+                        dxf_id: attrs.dxf_id,
+                    });
                 }
             }
             Ok(Event::Empty(ref e)) if e.local_name().as_ref() == b"cfRule" => {
@@ -149,7 +154,11 @@ fn parse_cf_block(
                 let children = CfRuleChildren::default();
                 let fmt = attrs.dxf_id.and_then(|id| resolve_dxf(id, dxf_records));
                 if let Some(rule) = build_rule(&attrs, &children, fmt.as_ref()) {
-                    results.push(StoredCf { range, rule, dxf_id: attrs.dxf_id });
+                    results.push(StoredCf {
+                        range,
+                        rule,
+                        dxf_id: attrs.dxf_id,
+                    });
                 }
             }
             Ok(Event::End(ref e)) if e.local_name().as_ref() == b"conditionalFormatting" => break,
@@ -200,10 +209,8 @@ fn parse_cf_rule_children(reader: &mut Reader<&[u8]>, buf: &mut Vec<u8>) -> CfRu
                 _ => {}
             },
             Ok(Event::Text(ref t)) => {
-                if in_formula {
-                    if let Ok(s) = t.unescape() {
-                        formula_text.push_str(&s);
-                    }
+                if in_formula && let Ok(s) = t.unescape() {
+                    formula_text.push_str(&s);
                 }
             }
             Ok(Event::End(ref e)) => match e.local_name().as_ref() {
@@ -240,12 +247,14 @@ fn build_rule(
             let op = parse_operator(&attrs.operator)?;
             let value: f64 = children.formulas.first()?.parse().ok()?;
             let mut rule = ConditionalFormatCell::new(op, value);
-            if let Some(v2_str) = children.formulas.get(1) {
-                if let Ok(v2) = v2_str.parse::<f64>() {
-                    rule.set_value2(v2);
-                }
+            if let Some(v2_str) = children.formulas.get(1)
+                && let Ok(v2) = v2_str.parse::<f64>()
+            {
+                rule.set_value2(v2);
             }
-            if let Some(f) = fmt { rule.set_format(f); }
+            if let Some(f) = fmt {
+                rule.set_format(f);
+            }
             Some(Box::new(rule))
         }
         "colorScale" => match children.color_scale_colors.len() {
@@ -262,12 +271,21 @@ fn build_rule(
         },
         "dataBar" => {
             let c = children.data_bar_color.unwrap_or([99, 142, 198]);
-            Some(Box::new(ConditionalFormatDataBar { color: c }))
+            Some(Box::new(ConditionalFormatDataBar {
+                color: c,
+                gradient: false,
+            }))
         }
         "iconSet" => {
-            let ist = match children.icon_set_type.as_deref().unwrap_or("3TrafficLights") {
+            let ist = match children
+                .icon_set_type
+                .as_deref()
+                .unwrap_or("3TrafficLights")
+            {
                 "3Arrows" | "3ArrowsGray" => IconSetType::ThreeArrows,
-                "3TrafficLights" | "3TrafficLights1" | "3TrafficLights2" => IconSetType::ThreeTrafficLights,
+                "3TrafficLights" | "3TrafficLights1" | "3TrafficLights2" => {
+                    IconSetType::ThreeTrafficLights
+                }
                 "3Symbols" | "3Symbols2" => IconSetType::ThreeSymbols,
                 "4Arrows" | "4ArrowsGray" => IconSetType::FourArrows,
                 "5Arrows" | "5ArrowsGray" => IconSetType::FiveArrows,
@@ -277,9 +295,13 @@ fn build_rule(
         }
         "expression" => {
             let f = children.formulas.first()?;
-            if f.is_empty() { return None; }
+            if f.is_empty() {
+                return None;
+            }
             let mut rule = ConditionalFormatFormula::new(f);
-            if let Some(fm) = fmt { rule.set_format(fm); }
+            if let Some(fm) = fmt {
+                rule.set_format(fm);
+            }
             Some(Box::new(rule))
         }
         "top10" => {
@@ -290,7 +312,9 @@ fn build_rule(
                 (true, true) => TopBottomType::BottomPercent,
             };
             let mut rule = ConditionalFormatTopBottom::new(kind, attrs.rank);
-            if let Some(f) = fmt { rule.set_format(f); }
+            if let Some(f) = fmt {
+                rule.set_format(f);
+            }
             Some(Box::new(rule))
         }
         "containsText" | "notContainsText" | "beginsWith" | "endsWith" => {
@@ -302,17 +326,23 @@ fn build_rule(
                 _ => return None,
             };
             let mut rule = ConditionalFormatText::new(op, &attrs.text);
-            if let Some(f) = fmt { rule.set_format(f); }
+            if let Some(f) = fmt {
+                rule.set_format(f);
+            }
             Some(Box::new(rule))
         }
         "duplicateValues" => {
             let mut rule = ConditionalFormatDuplicate::new();
-            if let Some(f) = fmt { rule.set_format(f); }
+            if let Some(f) = fmt {
+                rule.set_format(f);
+            }
             Some(Box::new(rule))
         }
         "uniqueValues" => {
             let mut rule = ConditionalFormatUnique::new();
-            if let Some(f) = fmt { rule.set_format(f); }
+            if let Some(f) = fmt {
+                rule.set_format(f);
+            }
             Some(Box::new(rule))
         }
         "aboveAverage" => {
@@ -323,7 +353,9 @@ fn build_rule(
                 (false, true) => AverageType::BelowOrEqual,
             };
             let mut rule = ConditionalFormatAverage::new(kind);
-            if let Some(f) = fmt { rule.set_format(f); }
+            if let Some(f) = fmt {
+                rule.set_format(f);
+            }
             Some(Box::new(rule))
         }
         "timePeriod" => {
@@ -341,7 +373,9 @@ fn build_rule(
                 _ => return None,
             };
             let mut rule = ConditionalFormatDate::new(period);
-            if let Some(f) = fmt { rule.set_format(f); }
+            if let Some(f) = fmt {
+                rule.set_format(f);
+            }
             Some(Box::new(rule))
         }
         _ => None, // skip unknown types gracefully
@@ -402,7 +436,13 @@ fn resolve_dxf(dxf_id: u32, dxf_records: &[DxfRecord]) -> Option<Format> {
 fn parse_rgb_attr(attrs: quick_xml::events::attributes::Attributes<'_>) -> Option<[u8; 3]> {
     let val = get_attr(attrs, b"rgb")?;
     let s = std::str::from_utf8(val).ok()?;
-    let hex = if s.len() >= 8 { &s[2..8] } else if s.len() >= 6 { &s[0..6] } else { return None };
+    let hex = if s.len() >= 8 {
+        &s[2..8]
+    } else if s.len() >= 6 {
+        &s[0..6]
+    } else {
+        return None;
+    };
     let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
     let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
     let b = u8::from_str_radix(&hex[4..6], 16).ok()?;

@@ -6,7 +6,7 @@
 use zavora_xlsx::*;
 
 fn main() -> Result<()> {
-    let path = std::env::temp_dir().join("read_cell_format_example.xlsx");
+    let path = std::path::PathBuf::from("output/read_cell_format_example.xlsx");
 
     // ── Step 1: Create a workbook with formatted cells ──
     println!("📝 Creating workbook with formatted cells...\n");
@@ -101,14 +101,21 @@ fn main() -> Result<()> {
                 // Font properties
                 if fmt.is_bold() || fmt.is_italic() {
                     print!("  Font: ");
-                    if fmt.is_bold() { print!("bold "); }
-                    if fmt.is_italic() { print!("italic "); }
+                    if fmt.is_bold() {
+                        print!("bold ");
+                    }
+                    if fmt.is_italic() {
+                        print!("italic ");
+                    }
                     println!("size={}", fmt.get_font_size());
                 }
 
                 // Font color
                 if let Some(color) = fmt.get_font_color() {
-                    println!("  Font color: rgb({}, {}, {})", color[0], color[1], color[2]);
+                    println!(
+                        "  Font color: rgb({}, {}, {})",
+                        color[0], color[1], color[2]
+                    );
                 }
 
                 // Fill
@@ -124,10 +131,15 @@ fn main() -> Result<()> {
                 let br = fmt.get_border_right();
                 let bt = fmt.get_border_top();
                 let bb = fmt.get_border_bottom();
-                if bl != BorderStyle::None || br != BorderStyle::None
-                    || bt != BorderStyle::None || bb != BorderStyle::None
+                if bl != BorderStyle::None
+                    || br != BorderStyle::None
+                    || bt != BorderStyle::None
+                    || bb != BorderStyle::None
                 {
-                    println!("  Borders: left={:?} right={:?} top={:?} bottom={:?}", bl, br, bt, bb);
+                    println!(
+                        "  Borders: left={:?} right={:?} top={:?} bottom={:?}",
+                        bl, br, bt, bb
+                    );
                 }
 
                 // Number format
@@ -140,10 +152,22 @@ fn main() -> Result<()> {
                 let ha = fmt.get_h_align();
                 let va = fmt.get_v_align();
                 if ha != 0 || va != 0 || fmt.is_wrap_text() {
-                    let h_name = match ha { 1 => "left", 2 => "center", 3 => "right", _ => "general" };
-                    let v_name = match va { 1 => "top", 2 => "center", 3 => "bottom", _ => "default" };
+                    let h_name = match ha {
+                        1 => "left",
+                        2 => "center",
+                        3 => "right",
+                        _ => "general",
+                    };
+                    let v_name = match va {
+                        1 => "top",
+                        2 => "center",
+                        3 => "bottom",
+                        _ => "default",
+                    };
                     print!("  Alignment: h={} v={}", h_name, v_name);
-                    if fmt.is_wrap_text() { print!(" wrap=true"); }
+                    if fmt.is_wrap_text() {
+                        print!(" wrap=true");
+                    }
                     println!();
                 }
             }

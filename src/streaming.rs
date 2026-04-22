@@ -4,14 +4,17 @@
 use std::fmt::Write;
 
 use crate::cell::CellType;
+use crate::features::chart::Chart;
+use crate::features::conditional::StoredCf;
+use crate::features::image::Image;
 use crate::format::Format;
 use crate::model::shared_strings::SharedStringTable;
 use crate::model::style_registry::StyleRegistry;
-use crate::utility::{col_to_letter, ColNum, RowNum};
+use crate::properties::{self, DocProperties};
+use crate::utility::{ColNum, RowNum, col_to_letter};
+use crate::writer::{rel_writer, sst_writer, style_writer};
 use crate::xml::xml_writer::XmlWriter;
 use crate::zip::zip_writer::ZipOutput;
-use crate::writer::{sst_writer, style_writer, rel_writer};
-use crate::properties::{self, DocProperties};
 
 /// A workbook that writes rows in streaming mode for minimal memory usage.
 /// Rows must be written in ascending order per sheet.
@@ -31,6 +34,9 @@ struct StreamingSheet {
     header_written: bool,
     col_widths: Vec<(ColNum, f64)>,
     merge_ranges: Vec<(RowNum, ColNum, RowNum, ColNum)>,
+    charts: Vec<Chart>,
+    images: Vec<Image>,
+    conditional_formats: Vec<StoredCf>,
 }
 
 impl StreamingWorkbook {
@@ -56,11 +62,15 @@ impl StreamingWorkbook {
     }
 
     pub fn set_column_width(&mut self, col: ColNum, width: f64) {
-        self.sheets[self.current_sheet].col_widths.push((col, width));
+        self.sheets[self.current_sheet]
+            .col_widths
+            .push((col, width));
     }
 
     pub fn merge_range(&mut self, r1: RowNum, c1: ColNum, r2: RowNum, c2: ColNum) {
-        self.sheets[self.current_sheet].merge_ranges.push((r1, c1, r2, c2));
+        self.sheets[self.current_sheet]
+            .merge_ranges
+            .push((r1, c1, r2, c2));
     }
 
     /// Write a string to a cell. Rows must be written in ascending order.
@@ -68,11 +78,23 @@ impl StreamingWorkbook {
         self.write_string_fmt(row, col, s, None)
     }
 
-    pub fn write_string_with_format(&mut self, row: RowNum, col: ColNum, s: &str, fmt: &Format) -> crate::Result<()> {
+    pub fn write_string_with_format(
+        &mut self,
+        row: RowNum,
+        col: ColNum,
+        s: &str,
+        fmt: &Format,
+    ) -> crate::Result<()> {
         self.write_string_fmt(row, col, s, Some(fmt))
     }
 
-    fn write_string_fmt(&mut self, row: RowNum, col: ColNum, s: &str, fmt: Option<&Format>) -> crate::Result<()> {
+    fn write_string_fmt(
+        &mut self,
+        row: RowNum,
+        col: ColNum,
+        s: &str,
+        fmt: Option<&Format>,
+    ) -> crate::Result<()> {
         let idx = self.sst.intern(s);
         let xf = fmt.map(|f| self.styles.register_format(f)).unwrap_or(0);
         let sheet = &mut self.sheets[self.current_sheet];
@@ -87,11 +109,23 @@ impl StreamingWorkbook {
         self.write_number_fmt(row, col, n, None)
     }
 
-    pub fn write_number_with_format(&mut self, row: RowNum, col: ColNum, n: f64, fmt: &Format) -> crate::Result<()> {
+    pub fn write_number_with_format(
+        &mut self,
+        row: RowNum,
+        col: ColNum,
+        n: f64,
+        fmt: &Format,
+    ) -> crate::Result<()> {
         self.write_number_fmt(row, col, n, Some(fmt))
     }
 
-    fn write_number_fmt(&mut self, row: RowNum, col: ColNum, n: f64, fmt: Option<&Format>) -> crate::Result<()> {
+    fn write_number_fmt(
+        &mut self,
+        row: RowNum,
+        col: ColNum,
+        n: f64,
+        fmt: Option<&Format>,
+    ) -> crate::Result<()> {
         let xf = fmt.map(|f| self.styles.register_format(f)).unwrap_or(0);
         let sheet = &mut self.sheets[self.current_sheet];
         sheet.ensure_header();
@@ -115,12 +149,52 @@ impl StreamingWorkbook {
         sheet.ensure_header();
         sheet.ensure_row(row)?;
         let text = formula.strip_prefix('=').unwrap_or(formula);
-        sheet.write_cell_xml(row, col, &CellType::Formula { text: text.to_string(), cached_number: None }, 0);
+        sheet.write_cell_xml(
+            row,
+            col,
+            &CellType::Formula {
+                text: text.to_string(),
+                cached_number: None,
+            },
+            0,
+        );
         Ok(())
     }
 
     pub fn set_properties(&mut self, props: DocProperties) {
         self.properties = props;
+    }
+
+    /// Insert a chart at the given position on the current sheet.
+    pub fn insert_chart(&mut self, row: RowNum, col: ColNum, mut chart: Chart) {
+        chart.row = row;
+        chart.col = col;
+        self.sheets[self.current_sheet].charts.push(chart);
+    }
+
+    /// Insert an image at the given position on the current sheet.
+    pub fn insert_image(&mut self, row: RowNum, col: ColNum, mut image: Image) {
+        image.row = row;
+        image.col = col;
+        self.sheets[self.current_sheet].images.push(image);
+    }
+
+    /// Add a conditional formatting rule to the current sheet.
+    pub fn add_conditional_format(
+        &mut self,
+        r1: RowNum,
+        c1: ColNum,
+        r2: RowNum,
+        c2: ColNum,
+        rule: Box<dyn crate::features::conditional::ConditionalFormat>,
+    ) {
+        self.sheets[self.current_sheet]
+            .conditional_formats
+            .push(StoredCf {
+                range: (r1, c1, r2, c2),
+                rule,
+                dxf_id: None,
+            });
     }
 
     /// Save to file.
@@ -132,6 +206,16 @@ impl StreamingWorkbook {
 
     /// Save to buffer.
     pub fn save_to_buffer(&mut self) -> crate::Result<Vec<u8>> {
+        // Register DXF formats for conditional formatting
+        for sheet in &mut self.sheets {
+            for cf in &mut sheet.conditional_formats {
+                if let Some(fmt) = cf.rule.dxf_format() {
+                    let fmt_clone = fmt.clone();
+                    cf.dxf_id = Some(self.styles.register_dxf(&fmt_clone));
+                }
+            }
+        }
+
         // Finalize all sheets
         for sheet in &mut self.sheets {
             sheet.finalize();
@@ -141,23 +225,135 @@ impl StreamingWorkbook {
         let sheet_count = self.sheets.len();
         let has_props = self.properties.title.is_some() || self.properties.author.is_some();
 
-        zip.add_file("[Content_Types].xml", &write_streaming_content_types(sheet_count, has_props))?;
+        // Count charts and images for content types
+        let mut total_charts = 0usize;
+        let mut sheets_with_drawings: Vec<usize> = Vec::new();
+        let mut image_extensions: Vec<String> = Vec::new();
+
+        for (i, sheet) in self.sheets.iter().enumerate() {
+            if !sheet.charts.is_empty() || !sheet.images.is_empty() {
+                sheets_with_drawings.push(i);
+            }
+            total_charts += sheet.charts.len();
+            for img in &sheet.images {
+                image_extensions.push(img.image_type.extension().to_string());
+            }
+        }
+
+        zip.add_file(
+            "[Content_Types].xml",
+            &write_streaming_content_types_ext(
+                sheet_count,
+                has_props,
+                total_charts,
+                &sheets_with_drawings,
+                &image_extensions,
+            ),
+        )?;
         zip.add_file("_rels/.rels", &write_streaming_root_rels(has_props))?;
-        zip.add_file("xl/_rels/workbook.xml.rels", &rel_writer::write_workbook_rels(sheet_count, false, 0))?;
+        zip.add_file(
+            "xl/_rels/workbook.xml.rels",
+            &rel_writer::write_workbook_rels(sheet_count, false, 0),
+        )?;
         zip.add_file("xl/workbook.xml", &write_streaming_workbook(&self.sheets))?;
+
+        let mut global_chart_idx = 0usize;
+        let mut global_image_idx = 0usize;
 
         for (i, sheet) in self.sheets.iter().enumerate() {
             let path = format!("xl/worksheets/sheet{}.xml", i + 1);
             zip.add_file(&path, &sheet.xml_buf)?;
+
+            let has_drawing = !sheet.charts.is_empty() || !sheet.images.is_empty();
+
+            // Sheet rels
+            if has_drawing {
+                let rels_path = format!("xl/worksheets/_rels/sheet{}.xml.rels", i + 1);
+                let rels = [(
+                    "rId1".to_string(),
+                    "http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing"
+                        .to_string(),
+                    format!("../drawings/drawing{}.xml", i + 1),
+                )];
+                let refs: Vec<(&str, &str, &str)> = rels
+                    .iter()
+                    .map(|(a, b, c)| (a.as_str(), b.as_str(), c.as_str()))
+                    .collect();
+                zip.add_file(&rels_path, &rel_writer::write_rels(&refs))?;
+            }
+
+            // Drawing parts
+            if has_drawing {
+                let drawing_path = format!("xl/drawings/drawing{}.xml", i + 1);
+                zip.add_file(
+                    &drawing_path,
+                    &crate::writer::drawing_writer::write_drawing_xml(
+                        &sheet.charts,
+                        &[],
+                        &[],
+                        &sheet.images,
+                        i,
+                    ),
+                )?;
+
+                let img_types: Vec<&str> = sheet
+                    .images
+                    .iter()
+                    .map(|img| img.image_type.extension())
+                    .collect();
+                let drawing_rels_path = format!("xl/drawings/_rels/drawing{}.xml.rels", i + 1);
+                zip.add_file(
+                    &drawing_rels_path,
+                    &crate::writer::drawing_writer::write_drawing_rels(
+                        sheet.charts.len(),
+                        0,
+                        sheet.images.len(),
+                        &img_types,
+                        global_chart_idx,
+                        0,
+                        global_image_idx,
+                    ),
+                )?;
+            }
+
+            // Chart parts
+            for (ci, chart) in sheet.charts.iter().enumerate() {
+                let idx = global_chart_idx + ci + 1;
+                zip.add_file(
+                    &format!("xl/charts/chart{idx}.xml"),
+                    &crate::writer::chart_writer::write_chart_xml(chart, idx),
+                )?;
+            }
+
+            // Image parts
+            for (ii, img) in sheet.images.iter().enumerate() {
+                let idx = global_image_idx + ii + 1;
+                zip.add_file(
+                    &format!("xl/media/image{}.{}", idx, img.image_type.extension()),
+                    &img.data,
+                )?;
+            }
+
+            global_chart_idx += sheet.charts.len();
+            global_image_idx += sheet.images.len();
         }
 
         zip.add_file("xl/styles.xml", &style_writer::write_styles(&self.styles))?;
         zip.add_file("xl/sharedStrings.xml", &sst_writer::write_sst(&self.sst))?;
-        zip.add_file("xl/theme/theme1.xml", &crate::writer::theme_writer::write_theme())?;
+        zip.add_file(
+            "xl/theme/theme1.xml",
+            &crate::writer::theme_writer::write_theme(),
+        )?;
 
         if has_props {
-            zip.add_file("docProps/core.xml", &properties::write_core_xml(&self.properties))?;
-            zip.add_file("docProps/app.xml", &properties::write_app_xml(&self.properties))?;
+            zip.add_file(
+                "docProps/core.xml",
+                &properties::write_core_xml(&self.properties),
+            )?;
+            zip.add_file(
+                "docProps/app.xml",
+                &properties::write_app_xml(&self.properties),
+            )?;
         }
 
         zip.finish()
@@ -165,7 +361,9 @@ impl StreamingWorkbook {
 }
 
 impl Default for StreamingWorkbook {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl StreamingSheet {
@@ -178,24 +376,46 @@ impl StreamingSheet {
             header_written: false,
             col_widths: Vec::new(),
             merge_ranges: Vec::new(),
+            charts: Vec::new(),
+            images: Vec::new(),
+            conditional_formats: Vec::new(),
         }
     }
 
     fn ensure_header(&mut self) {
-        if self.header_written { return; }
+        if self.header_written {
+            return;
+        }
         self.header_written = true;
         let mut w = XmlWriter::new();
         w.declaration();
-        w.start_tag("worksheet", &[
-            ("xmlns", "http://schemas.openxmlformats.org/spreadsheetml/2006/main"),
-            ("xmlns:r", "http://schemas.openxmlformats.org/officeDocument/2006/relationships"),
-        ]);
+        w.start_tag(
+            "worksheet",
+            &[
+                (
+                    "xmlns",
+                    "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
+                ),
+                (
+                    "xmlns:r",
+                    "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+                ),
+            ],
+        );
         if !self.col_widths.is_empty() {
             w.start_tag("cols", &[]);
             for &(col, width) in &self.col_widths {
                 let c = (col + 1).to_string();
                 let ws = format!("{width:.2}");
-                w.empty_tag("col", &[("min", &c), ("max", &c), ("width", &ws), ("customWidth", "1")]);
+                w.empty_tag(
+                    "col",
+                    &[
+                        ("min", &c),
+                        ("max", &c),
+                        ("width", &ws),
+                        ("customWidth", "1"),
+                    ],
+                );
             }
             w.end_tag("cols");
         }
@@ -206,9 +426,10 @@ impl StreamingSheet {
     fn ensure_row(&mut self, row: RowNum) -> crate::Result<()> {
         if let Some(last) = self.last_row {
             if row < last {
-                return Err(crate::Error::InvalidData(
-                    format!("Streaming mode requires ascending row order: got row {} after row {}", row, last),
-                ));
+                return Err(crate::Error::InvalidData(format!(
+                    "Streaming mode requires ascending row order: got row {} after row {}",
+                    row, last
+                )));
             }
             if row != last {
                 // Close previous row
@@ -236,15 +457,20 @@ impl StreamingSheet {
             CellType::Number(n) => {
                 let mut v = String::new();
                 let _ = write!(v, "{n}");
-                if xf > 0 { w.start_tag("c", &[("r", &ref_str), ("s", &xf_s)]); }
-                else { w.start_tag("c", &[("r", &ref_str)]); }
+                if xf > 0 {
+                    w.start_tag("c", &[("r", &ref_str), ("s", &xf_s)]);
+                } else {
+                    w.start_tag("c", &[("r", &ref_str)]);
+                }
                 w.text_element("v", &[], &v);
                 w.end_tag("c");
             }
             CellType::SharedString(idx) => {
                 let v = idx.to_string();
                 let mut attrs: Vec<(&str, &str)> = vec![("r", &ref_str), ("t", "s")];
-                if xf > 0 { attrs.push(("s", &xf_s)); }
+                if xf > 0 {
+                    attrs.push(("s", &xf_s));
+                }
                 w.start_tag("c", &attrs);
                 w.text_element("v", &[], &v);
                 w.end_tag("c");
@@ -252,14 +478,22 @@ impl StreamingSheet {
             CellType::Bool(b) => {
                 let v = if *b { "1" } else { "0" };
                 let mut attrs: Vec<(&str, &str)> = vec![("r", &ref_str), ("t", "b")];
-                if xf > 0 { attrs.push(("s", &xf_s)); }
+                if xf > 0 {
+                    attrs.push(("s", &xf_s));
+                }
                 w.start_tag("c", &attrs);
                 w.text_element("v", &[], v);
                 w.end_tag("c");
             }
-            CellType::Formula { text, cached_number } => {
-                if xf > 0 { w.start_tag("c", &[("r", &ref_str), ("s", &xf_s)]); }
-                else { w.start_tag("c", &[("r", &ref_str)]); }
+            CellType::Formula {
+                text,
+                cached_number,
+            } => {
+                if xf > 0 {
+                    w.start_tag("c", &[("r", &ref_str), ("s", &xf_s)]);
+                } else {
+                    w.start_tag("c", &[("r", &ref_str)]);
+                }
                 w.text_element("f", &[], text);
                 let n = cached_number.unwrap_or(0.0);
                 let mut v = String::new();
@@ -270,8 +504,11 @@ impl StreamingSheet {
             CellType::DateTime(serial) => {
                 let mut v = String::new();
                 let _ = write!(v, "{serial}");
-                if xf > 0 { w.start_tag("c", &[("r", &ref_str), ("s", &xf_s)]); }
-                else { w.start_tag("c", &[("r", &ref_str)]); }
+                if xf > 0 {
+                    w.start_tag("c", &[("r", &ref_str), ("s", &xf_s)]);
+                } else {
+                    w.start_tag("c", &[("r", &ref_str)]);
+                }
                 w.text_element("v", &[], &v);
                 w.end_tag("c");
             }
@@ -281,7 +518,9 @@ impl StreamingSheet {
     }
 
     fn finalize(&mut self) {
-        if !self.header_written { self.ensure_header(); }
+        if !self.header_written {
+            self.ensure_header();
+        }
         if self.row_open {
             self.xml_buf.extend_from_slice(b"</row>");
         }
@@ -292,10 +531,42 @@ impl StreamingSheet {
             let count = self.merge_ranges.len().to_string();
             w.start_tag("mergeCells", &[("count", &count)]);
             for &(r1, c1, r2, c2) in &self.merge_ranges {
-                let ref_str = format!("{}{}:{}{}", col_to_letter(c1), r1 + 1, col_to_letter(c2), r2 + 1);
+                let ref_str = format!(
+                    "{}{}:{}{}",
+                    col_to_letter(c1),
+                    r1 + 1,
+                    col_to_letter(c2),
+                    r2 + 1
+                );
                 w.empty_tag("mergeCell", &[("ref", &ref_str)]);
             }
             w.end_tag("mergeCells");
+            self.xml_buf.extend_from_slice(&w.into_bytes());
+        }
+
+        // Conditional formatting rules
+        if !self.conditional_formats.is_empty() {
+            for (i, cf) in self.conditional_formats.iter().enumerate() {
+                let (r1, c1, r2, c2) = cf.range;
+                let sqref = format!(
+                    "{}{}:{}{}",
+                    col_to_letter(c1),
+                    r1 + 1,
+                    col_to_letter(c2),
+                    r2 + 1
+                );
+                let mut w = XmlWriter::new();
+                w.start_tag("conditionalFormatting", &[("sqref", &sqref)]);
+                cf.rule.write_rule(&mut w, (i + 1) as u32, cf.dxf_id);
+                w.end_tag("conditionalFormatting");
+                self.xml_buf.extend_from_slice(&w.into_bytes());
+            }
+        }
+
+        // Drawing reference (for charts/images)
+        if !self.charts.is_empty() || !self.images.is_empty() {
+            let mut w = XmlWriter::new();
+            w.empty_tag("drawing", &[("r:id", "rId1")]);
             self.xml_buf.extend_from_slice(&w.into_bytes());
         }
 
@@ -303,34 +574,187 @@ impl StreamingSheet {
     }
 }
 
+#[allow(dead_code)]
 fn write_streaming_content_types(sheet_count: usize, has_props: bool) -> Vec<u8> {
+    write_streaming_content_types_ext(sheet_count, has_props, 0, &[], &[])
+}
+
+fn write_streaming_content_types_ext(
+    sheet_count: usize,
+    has_props: bool,
+    chart_count: usize,
+    sheets_with_drawings: &[usize],
+    image_extensions: &[String],
+) -> Vec<u8> {
     let mut w = XmlWriter::new();
     w.declaration();
-    w.start_tag("Types", &[("xmlns", "http://schemas.openxmlformats.org/package/2006/content-types")]);
-    w.empty_tag("Default", &[("Extension", "rels"), ("ContentType", "application/vnd.openxmlformats-package.relationships+xml")]);
-    w.empty_tag("Default", &[("Extension", "xml"), ("ContentType", "application/xml")]);
-    w.empty_tag("Override", &[("PartName", "/xl/workbook.xml"), ("ContentType", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml")]);
+    w.start_tag(
+        "Types",
+        &[(
+            "xmlns",
+            "http://schemas.openxmlformats.org/package/2006/content-types",
+        )],
+    );
+    w.empty_tag(
+        "Default",
+        &[
+            ("Extension", "rels"),
+            (
+                "ContentType",
+                "application/vnd.openxmlformats-package.relationships+xml",
+            ),
+        ],
+    );
+    w.empty_tag(
+        "Default",
+        &[("Extension", "xml"), ("ContentType", "application/xml")],
+    );
+
+    // Image defaults
+    let mut has_png = false;
+    let mut has_jpeg = false;
+    for ext in image_extensions {
+        match ext.as_str() {
+            "png" if !has_png => {
+                has_png = true;
+                w.empty_tag(
+                    "Default",
+                    &[("Extension", "png"), ("ContentType", "image/png")],
+                );
+            }
+            "jpeg" if !has_jpeg => {
+                has_jpeg = true;
+                w.empty_tag(
+                    "Default",
+                    &[("Extension", "jpeg"), ("ContentType", "image/jpeg")],
+                );
+            }
+            _ => {}
+        }
+    }
+
+    w.empty_tag(
+        "Override",
+        &[
+            ("PartName", "/xl/workbook.xml"),
+            (
+                "ContentType",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml",
+            ),
+        ],
+    );
     for i in 1..=sheet_count {
         let part = format!("/xl/worksheets/sheet{i}.xml");
-        w.empty_tag("Override", &[("PartName", &part), ("ContentType", "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml")]);
+        w.empty_tag(
+            "Override",
+            &[
+                ("PartName", &part),
+                (
+                    "ContentType",
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml",
+                ),
+            ],
+        );
     }
-    w.empty_tag("Override", &[("PartName", "/xl/styles.xml"), ("ContentType", "application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml")]);
-    w.empty_tag("Override", &[("PartName", "/xl/theme/theme1.xml"), ("ContentType", "application/vnd.openxmlformats-officedocument.theme+xml")]);
-    w.empty_tag("Override", &[("PartName", "/xl/sharedStrings.xml"), ("ContentType", "application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml")]);
+    w.empty_tag(
+        "Override",
+        &[
+            ("PartName", "/xl/styles.xml"),
+            (
+                "ContentType",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml",
+            ),
+        ],
+    );
+    w.empty_tag(
+        "Override",
+        &[
+            ("PartName", "/xl/theme/theme1.xml"),
+            (
+                "ContentType",
+                "application/vnd.openxmlformats-officedocument.theme+xml",
+            ),
+        ],
+    );
+    w.empty_tag(
+        "Override",
+        &[
+            ("PartName", "/xl/sharedStrings.xml"),
+            (
+                "ContentType",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml",
+            ),
+        ],
+    );
+
+    // Drawing overrides
+    for &idx in sheets_with_drawings {
+        let part = format!("/xl/drawings/drawing{}.xml", idx + 1);
+        w.empty_tag(
+            "Override",
+            &[
+                ("PartName", &part),
+                (
+                    "ContentType",
+                    "application/vnd.openxmlformats-officedocument.drawing+xml",
+                ),
+            ],
+        );
+    }
+
+    // Chart overrides
+    for i in 1..=chart_count {
+        let part = format!("/xl/charts/chart{i}.xml");
+        w.empty_tag(
+            "Override",
+            &[
+                ("PartName", &part),
+                (
+                    "ContentType",
+                    "application/vnd.openxmlformats-officedocument.drawingml.chart+xml",
+                ),
+            ],
+        );
+    }
+
     if has_props {
-        w.empty_tag("Override", &[("PartName", "/docProps/core.xml"), ("ContentType", "application/vnd.openxmlformats-package.core-properties+xml")]);
-        w.empty_tag("Override", &[("PartName", "/docProps/app.xml"), ("ContentType", "application/vnd.openxmlformats-officedocument.extended-properties+xml")]);
+        w.empty_tag(
+            "Override",
+            &[
+                ("PartName", "/docProps/core.xml"),
+                (
+                    "ContentType",
+                    "application/vnd.openxmlformats-package.core-properties+xml",
+                ),
+            ],
+        );
+        w.empty_tag(
+            "Override",
+            &[
+                ("PartName", "/docProps/app.xml"),
+                (
+                    "ContentType",
+                    "application/vnd.openxmlformats-officedocument.extended-properties+xml",
+                ),
+            ],
+        );
     }
     w.end_tag("Types");
     w.into_bytes()
 }
 
 fn write_streaming_root_rels(has_props: bool) -> Vec<u8> {
-    let mut rels = vec![
-        ("rId1", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument", "xl/workbook.xml"),
-    ];
+    let mut rels = vec![(
+        "rId1",
+        "http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument",
+        "xl/workbook.xml",
+    )];
     if has_props {
-        rels.push(("rId2", "http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties", "docProps/core.xml"));
+        rels.push((
+            "rId2",
+            "http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties",
+            "docProps/core.xml",
+        ));
         rels.push(("rId3", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties", "docProps/app.xml"));
     }
     rel_writer::write_rels(&rels)
@@ -339,15 +763,27 @@ fn write_streaming_root_rels(has_props: bool) -> Vec<u8> {
 fn write_streaming_workbook(sheets: &[StreamingSheet]) -> Vec<u8> {
     let mut w = XmlWriter::new();
     w.declaration();
-    w.start_tag("workbook", &[
-        ("xmlns", "http://schemas.openxmlformats.org/spreadsheetml/2006/main"),
-        ("xmlns:r", "http://schemas.openxmlformats.org/officeDocument/2006/relationships"),
-    ]);
+    w.start_tag(
+        "workbook",
+        &[
+            (
+                "xmlns",
+                "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
+            ),
+            (
+                "xmlns:r",
+                "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+            ),
+        ],
+    );
     w.start_tag("sheets", &[]);
     for (i, sheet) in sheets.iter().enumerate() {
         let id = (i + 1).to_string();
         let rid = format!("rId{}", i + 1);
-        w.empty_tag("sheet", &[("name", &sheet.name), ("sheetId", &id), ("r:id", &rid)]);
+        w.empty_tag(
+            "sheet",
+            &[("name", &sheet.name), ("sheetId", &id), ("r:id", &rid)],
+        );
     }
     w.end_tag("sheets");
     w.end_tag("workbook");

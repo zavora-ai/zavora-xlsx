@@ -1,45 +1,43 @@
-//! Example: Map chart demonstration.
-//!
-//! Map charts require Bing Maps geoCache data that Excel generates
-//! when you create a map chart interactively. This example creates
-//! a workbook with data suitable for a map chart.
-//!
-//! To create the actual map chart:
-//! 1. Open the generated file in Excel
-//! 2. Select the data range (A1:B9)
-//! 3. Insert → Map Chart → Filled Map
-//!
-//! Run with: cargo run --example map_chart
+//! Example: Create a map chart showing sales by country (Task 32).
 
-use zavora_xlsx::Workbook;
+use zavora_xlsx::*;
 
-fn main() {
+fn main() -> Result<()> {
+    let path = std::path::PathBuf::from("output/map_chart_example.xlsx");
+
     let mut wb = Workbook::new();
-    let ws = wb.worksheet(0).unwrap();
-    ws.set_name("Map Data").unwrap();
+    let ws = wb.worksheet(0)?;
+    ws.set_name("Sales Data")?;
 
-    // Headers
-    ws.write(0, 0, "Country").unwrap();
-    ws.write(0, 1, "Sales ($M)").unwrap();
+    let hdr = Format::new().bold();
+    ws.write_with_format(0, 0, "Country", &hdr)?;
+    ws.write_with_format(0, 1, "Revenue ($K)", &hdr)?;
 
-    // Data for map chart
     let data = [
         ("United States", 450.0),
-        ("Germany", 180.0),
-        ("Japan", 220.0),
-        ("United Kingdom", 160.0),
-        ("France", 140.0),
-        ("Brazil", 95.0),
-        ("Australia", 85.0),
         ("Canada", 120.0),
+        ("Mexico", 95.0),
+        ("Brazil", 180.0),
+        ("United Kingdom", 210.0),
+        ("Germany", 165.0),
+        ("France", 140.0),
+        ("Japan", 230.0),
     ];
-
-    for (i, (country, sales)) in data.iter().enumerate() {
-        ws.write(i as u32 + 1, 0, *country).unwrap();
-        ws.write(i as u32 + 1, 1, *sales).unwrap();
+    for (i, (country, revenue)) in data.iter().enumerate() {
+        ws.write((i + 1) as u32, 0, *country)?;
+        ws.write((i + 1) as u32, 1, *revenue)?;
     }
 
-    wb.save("map_chart.xlsx").unwrap();
-    println!("Created map_chart.xlsx with data for a map chart.");
-    println!("Open in Excel, select A1:B9, then Insert → Map Chart → Filled Map");
+    let mut chart = MapChart::new();
+    chart.set_title("Global Sales by Country");
+    chart.set_series_name("Revenue");
+    chart.set_map_level(MapLevel::Country);
+    for (country, revenue) in &data {
+        chart.add_point(country, *revenue);
+    }
+    ws.insert_map(12, 0, &chart)?;
+
+    wb.save(&path)?;
+    println!("✅ Map chart saved to {}", path.display());
+    Ok(())
 }

@@ -18,12 +18,26 @@ pub struct TreemapChart {
     pub(crate) val_range: Option<String>,
 }
 
+impl Default for TreemapChart {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TreemapChart {
     pub fn new() -> Self {
         Self {
-            title: None, categories: Vec::new(), values: Vec::new(),
-            colors: Vec::new(), width: 480, height: 320, row: 0, col: 0,
-            series_name: None, cat_range: None, val_range: None,
+            title: None,
+            categories: Vec::new(),
+            values: Vec::new(),
+            colors: Vec::new(),
+            width: 480,
+            height: 320,
+            row: 0,
+            col: 0,
+            series_name: None,
+            cat_range: None,
+            val_range: None,
         }
     }
 
@@ -36,7 +50,12 @@ impl TreemapChart {
     }
 
     /// Add a data point with a specific color.
-    pub fn add_point_with_color(&mut self, category: &str, value: f64, color: impl crate::format::IntoColor) -> &mut Self {
+    pub fn add_point_with_color(
+        &mut self,
+        category: &str,
+        value: f64,
+        color: impl crate::format::IntoColor,
+    ) -> &mut Self {
         self.categories.push(category.to_string());
         self.values.push(value);
         self.colors.push(Some(color.into_color().to_rgb()));
@@ -50,8 +69,20 @@ impl TreemapChart {
         self
     }
 
-    pub fn set_title(&mut self, title: &str) -> &mut Self { self.title = Some(title.to_string()); self }
-    pub fn set_series_name(&mut self, name: &str) -> &mut Self { self.series_name = Some(name.to_string()); self }
-    pub fn set_width(&mut self, w: u32) -> &mut Self { self.width = w; self }
-    pub fn set_height(&mut self, h: u32) -> &mut Self { self.height = h; self }
+    pub fn set_title(&mut self, title: &str) -> &mut Self {
+        self.title = Some(title.to_string());
+        self
+    }
+    pub fn set_series_name(&mut self, name: &str) -> &mut Self {
+        self.series_name = Some(name.to_string());
+        self
+    }
+    pub fn set_width(&mut self, w: u32) -> &mut Self {
+        self.width = w;
+        self
+    }
+    pub fn set_height(&mut self, h: u32) -> &mut Self {
+        self.height = h;
+        self
+    }
 }

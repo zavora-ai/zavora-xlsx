@@ -31,8 +31,23 @@ wb.save("output.xlsx")?;
 
 ```toml
 [dependencies]
-zavora-xlsx = { path = "path/to/zavora-xlsx" }
+zavora-xlsx = "0.1"
 ```
+
+### Optional features
+
+```toml
+[dependencies]
+zavora-xlsx = { version = "0.1", features = ["serde-support", "async-tokio"] }
+```
+
+| Feature | Description |
+|---------|-------------|
+| `mmap` | Memory-mapped file I/O via `memmap2` |
+| `serde-support` | Serialize/deserialize rows via `serde` |
+| `async-tokio` | Async file I/O via `tokio` |
+| `wasm` | WASM target support |
+| `cffi` | C FFI bindings |
 
 Dependencies: `quick-xml`, `zip`, `atoi_simd`, `fast-float2` — no heavy frameworks.
 

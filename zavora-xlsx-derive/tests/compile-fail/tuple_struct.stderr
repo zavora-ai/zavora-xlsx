@@ -1,0 +1,5 @@
+error: ExcelRow can only be derived for named structs
+ --> tests/compile-fail/tuple_struct.rs:4:1
+  |
+4 | struct Foo(u32, String);
+  | ^^^^^^^^^^^^^^^^^^^^^^^^

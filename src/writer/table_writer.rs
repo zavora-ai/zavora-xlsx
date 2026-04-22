@@ -6,17 +6,33 @@ pub fn write_table_xml(table: &Table, table_id: usize) -> Vec<u8> {
     let mut w = XmlWriter::new();
     w.declaration();
     let id_s = table_id.to_string();
-    let name = table.name.clone().unwrap_or_else(|| format!("Table{table_id}"));
+    let name = table
+        .name
+        .clone()
+        .unwrap_or_else(|| format!("Table{table_id}"));
     let display_name = name.clone();
-    let range_ref = format!("{}{}:{}{}",
-        col_to_letter(table.first_col), table.first_row + 1,
-        col_to_letter(table.last_col), table.last_row + 1);
+    let range_ref = format!(
+        "{}{}:{}{}",
+        col_to_letter(table.first_col),
+        table.first_row + 1,
+        col_to_letter(table.last_col),
+        table.last_row + 1
+    );
 
-    w.start_tag("table", &[
-        ("xmlns", "http://schemas.openxmlformats.org/spreadsheetml/2006/main"),
-        ("id", &id_s), ("name", &name), ("displayName", &display_name), ("ref", &range_ref),
-        ("totalsRowShown", if table.total_row { "1" } else { "0" }),
-    ]);
+    w.start_tag(
+        "table",
+        &[
+            (
+                "xmlns",
+                "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
+            ),
+            ("id", &id_s),
+            ("name", &name),
+            ("displayName", &display_name),
+            ("ref", &range_ref),
+            ("totalsRowShown", if table.total_row { "1" } else { "0" }),
+        ],
+    );
 
     if table.autofilter {
         w.empty_tag("autoFilter", &[("ref", &range_ref)]);
@@ -41,12 +57,28 @@ pub fn write_table_xml(table: &Table, table_id: usize) -> Vec<u8> {
     }
 
     // Style
-    if let Some(ref style) = table.style {
-        w.empty_tag("tableStyleInfo", &[
-            ("name", &style.name()),
-            ("showFirstColumn", "0"), ("showLastColumn", "0"),
-            ("showRowStripes", "1"), ("showColumnStripes", "0"),
-        ]);
+    if let Some(ref custom) = table.custom_style {
+        w.empty_tag(
+            "tableStyleInfo",
+            &[
+                ("name", &custom.name),
+                ("showFirstColumn", "0"),
+                ("showLastColumn", "0"),
+                ("showRowStripes", "1"),
+                ("showColumnStripes", "0"),
+            ],
+        );
+    } else if let Some(ref style) = table.style {
+        w.empty_tag(
+            "tableStyleInfo",
+            &[
+                ("name", &style.name()),
+                ("showFirstColumn", "0"),
+                ("showLastColumn", "0"),
+                ("showRowStripes", "1"),
+                ("showColumnStripes", "0"),
+            ],
+        );
     }
 
     w.end_tag("table");

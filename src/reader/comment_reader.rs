@@ -33,10 +33,7 @@ pub struct ParsedComment {
 ///
 /// Returns an empty vec if the data is malformed or cannot be parsed.
 pub fn parse_comments(data: &[u8]) -> Vec<ParsedComment> {
-    match parse_comments_inner(data) {
-        Ok(comments) => comments,
-        Err(_) => Vec::new(), // Gracefully skip malformed comment files
-    }
+    parse_comments_inner(data).unwrap_or_default()
 }
 
 fn parse_comments_inner(data: &[u8]) -> crate::Result<Vec<ParsedComment>> {
@@ -75,13 +72,12 @@ fn parse_comments_inner(data: &[u8]) -> crate::Result<Vec<ParsedComment>> {
                     in_comment = true;
                     cur_text.clear();
                     // Parse the ref attribute to get cell coordinates
-                    if let Some(cell_ref) = get_attr(e.attributes(), b"ref")
-                        .and_then(|v| std::str::from_utf8(v).ok())
+                    if let Some(cell_ref) =
+                        get_attr(e.attributes(), b"ref").and_then(|v| std::str::from_utf8(v).ok())
+                        && let Ok((r, c)) = crate::utility::parse_cell_ref(cell_ref)
                     {
-                        if let Ok((r, c)) = crate::utility::parse_cell_ref(cell_ref) {
-                            cur_row = r;
-                            cur_col = c;
-                        }
+                        cur_row = r;
+                        cur_col = c;
                     }
                     // Parse the authorId attribute
                     cur_author_id = get_attr(e.attributes(), b"authorId")
@@ -97,15 +93,11 @@ fn parse_comments_inner(data: &[u8]) -> crate::Result<Vec<ParsedComment>> {
                 _ => {}
             },
             Event::Text(e) => {
-                if in_author {
-                    if let Ok(t) = e.unescape() {
-                        author_text.push_str(&t);
-                    }
+                if in_author && let Ok(t) = e.unescape() {
+                    author_text.push_str(&t);
                 }
-                if in_t {
-                    if let Ok(t) = e.unescape() {
-                        cur_text.push_str(&t);
-                    }
+                if in_t && let Ok(t) = e.unescape() {
+                    cur_text.push_str(&t);
                 }
             }
             Event::End(e) => match e.local_name().as_ref() {
@@ -160,10 +152,10 @@ pub fn find_comments_path_from_rels(sheet_rels_data: &[u8]) -> Option<String> {
     for rel in &rels {
         if rel.rel_type == comment_rel_type {
             let target = &rel.target;
-            let full_path = if target.starts_with("../") {
-                format!("xl/{}", &target[3..])
-            } else if target.starts_with("/xl/") {
-                target[1..].to_string()
+            let full_path = if let Some(stripped) = target.strip_prefix("../") {
+                format!("xl/{}", stripped)
+            } else if let Some(stripped) = target.strip_prefix("/xl/") {
+                stripped.to_string()
             } else if target.starts_with("xl/") {
                 target.to_string()
             } else {

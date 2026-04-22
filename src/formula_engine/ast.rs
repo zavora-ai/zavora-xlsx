@@ -33,15 +33,9 @@ pub enum AstNode {
         end: Box<AstNode>,
     },
     /// Sheet-qualified reference.
-    SheetRef {
-        sheet: String,
-        inner: Box<AstNode>,
-    },
+    SheetRef { sheet: String, inner: Box<AstNode> },
     /// Structured table reference.
-    StructuredRef {
-        table: String,
-        column: String,
-    },
+    StructuredRef { table: String, column: String },
     /// Binary operation.
     BinaryOp {
         op: Op,
@@ -49,17 +43,9 @@ pub enum AstNode {
         right: Box<AstNode>,
     },
     /// Unary operation (negation, percent).
-    UnaryOp {
-        op: Op,
-        operand: Box<AstNode>,
-    },
+    UnaryOp { op: Op, operand: Box<AstNode> },
     /// Function call.
-    FunctionCall {
-        name: String,
-        args: Vec<AstNode>,
-    },
+    FunctionCall { name: String, args: Vec<AstNode> },
     /// Array literal `{1,2;3,4}`.
-    Array {
-        rows: Vec<Vec<AstNode>>,
-    },
+    Array { rows: Vec<Vec<AstNode>> },
 }

@@ -6,20 +6,25 @@ use std::sync::Arc;
 pub struct SharedStringTable {
     strings: Vec<Arc<str>>,
     index_map: HashMap<Arc<str>, u32>,
+    ref_counts: Vec<u32>,
 }
 
 impl SharedStringTable {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     /// Get or insert a string, returning its index.
     pub fn intern(&mut self, s: &str) -> u32 {
         if let Some(&idx) = self.index_map.get(s) {
+            self.ref_counts[idx as usize] += 1;
             return idx;
         }
         let idx = self.strings.len() as u32;
         let arc: Arc<str> = Arc::from(s);
         self.strings.push(Arc::clone(&arc));
         self.index_map.insert(arc, idx);
+        self.ref_counts.push(1);
         idx
     }
 
@@ -29,9 +34,13 @@ impl SharedStringTable {
     }
 
     /// Number of unique strings.
-    pub fn len(&self) -> u32 { self.strings.len() as u32 }
+    pub fn len(&self) -> u32 {
+        self.strings.len() as u32
+    }
     #[allow(dead_code)]
-    pub fn is_empty(&self) -> bool { self.strings.is_empty() }
+    pub fn is_empty(&self) -> bool {
+        self.strings.is_empty()
+    }
 
     /// Iterate all strings in order.
     pub fn iter(&self) -> impl Iterator<Item = &str> {
@@ -44,6 +53,12 @@ impl SharedStringTable {
         let idx = self.strings.len() as u32;
         self.index_map.insert(Arc::clone(&arc), idx);
         self.strings.push(arc);
+        self.ref_counts.push(1);
+    }
+
+    /// Get the reference count for a string by index.
+    pub fn ref_count(&self, index: u32) -> u32 {
+        self.ref_counts.get(index as usize).copied().unwrap_or(0)
     }
 }
 

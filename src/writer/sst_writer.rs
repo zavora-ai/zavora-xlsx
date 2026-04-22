@@ -5,11 +5,17 @@ pub fn write_sst(sst: &SharedStringTable) -> Vec<u8> {
     let mut w = XmlWriter::new();
     w.declaration();
     let count = sst.len().to_string();
-    w.start_tag("sst", &[
-        ("xmlns", "http://schemas.openxmlformats.org/spreadsheetml/2006/main"),
-        ("count", &count),
-        ("uniqueCount", &count),
-    ]);
+    w.start_tag(
+        "sst",
+        &[
+            (
+                "xmlns",
+                "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
+            ),
+            ("count", &count),
+            ("uniqueCount", &count),
+        ],
+    );
     for s in sst.iter() {
         w.start_tag("si", &[]);
         w.text_element("t", &[], s);

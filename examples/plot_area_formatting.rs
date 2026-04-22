@@ -1,54 +1,73 @@
-//! Example: Format chart plot area, series styling, and error bars.
-//!
-//! Run with: cargo run --example plot_area_formatting
+//! Example: Format plot area, series lines, and add error bars (Task 37).
 
-use zavora_xlsx::{
-    Chart, ChartType, DashStyle, ErrorBar, ErrorBarType, ErrorBarValueType,
-    PlotAreaFormat, Workbook,
-};
+use zavora_xlsx::*;
 
-fn main() {
+fn main() -> Result<()> {
+    let path = std::path::PathBuf::from("output/plot_area_formatting_example.xlsx");
+
     let mut wb = Workbook::new();
-    let ws = wb.worksheet(0).unwrap();
-    ws.set_name("Data").unwrap();
+    let ws = wb.worksheet(0)?;
+    ws.set_name("Data")?;
 
-    ws.write(0, 0, "Category").unwrap();
-    ws.write(0, 1, "Actual").unwrap();
-    ws.write(0, 2, "Target").unwrap();
-    let cats = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"];
-    let actual = [85.0, 92.0, 78.0, 95.0, 88.0];
-    let target = [80.0, 85.0, 80.0, 90.0, 85.0];
-    for (i, (c, (a, t))) in cats.iter().zip(actual.iter().zip(target.iter())).enumerate() {
-        ws.write(i as u32 + 1, 0, *c).unwrap();
-        ws.write(i as u32 + 1, 1, *a).unwrap();
-        ws.write(i as u32 + 1, 2, *t).unwrap();
+    let hdr = Format::new().bold();
+    ws.write_with_format(0, 0, "Trial", &hdr)?;
+    ws.write_with_format(0, 1, "Measurement A", &hdr)?;
+    ws.write_with_format(0, 2, "Measurement B", &hdr)?;
+
+    let trials = ["T1", "T2", "T3", "T4", "T5", "T6"];
+    let a = [23.5, 28.1, 25.7, 31.2, 27.8, 33.4];
+    let b = [18.2, 22.6, 20.1, 26.3, 24.5, 29.0];
+    for (i, (t, (va, vb))) in trials.iter().zip(a.iter().zip(b.iter())).enumerate() {
+        let r = (i + 1) as u32;
+        ws.write(r, 0, *t)?;
+        ws.write(r, 1, *va)?;
+        ws.write(r, 2, *vb)?;
     }
 
-    let mut chart = Chart::new(ChartType::Column);
-    chart.set_title("Performance vs Target");
+    let mut chart = Chart::new(ChartType::Line);
+    chart.set_title("Measurements with Error Bars");
 
-    // Plot area with light gray fill
+    // Light blue plot area with gray border
     let mut pf = PlotAreaFormat::new();
-    pf.fill = Some([245, 245, 245]);
-    pf.border = Some([180, 180, 180]);
+    pf.set_fill([240, 248, 255]);
+    pf.set_border([180, 180, 180]);
     chart.set_plot_area_format(pf);
 
-    // Actual series with gradient and error bars
-    let s = chart.add_series();
-    s.set_categories("Data!$A$2:$A$6")
-     .set_values("Data!$B$2:$B$6")
-     .set_name("Actual")
-     .set_color((70, 130, 180))
-     .set_error_bars(ErrorBar::new(ErrorBarType::Both, ErrorBarValueType::Percentage, 5.0));
+    // Series A: thick dashed line with percentage error bars
+    chart
+        .add_series()
+        .set_values("Data!$B$2:$B$7")
+        .set_categories("Data!$A$2:$A$7")
+        .set_name("Measurement A")
+        .set_color((220u8, 50u8, 50u8))
+        .set_line_width(2.5)
+        .set_dash_style(DashStyle::Dash)
+        .set_error_bars(ErrorBar::new(
+            ErrorBarType::Both,
+            ErrorBarValueType::Percentage,
+            10.0,
+        ));
 
-    // Target series with dashed outline
-    let s = chart.add_series();
-    s.set_values("Data!$C$2:$C$6")
-     .set_name("Target")
-     .set_color((220, 80, 60))
-     .set_dash_style(DashStyle::Dash);
+    // Series B: solid line with fixed-value error bars
+    chart
+        .add_series()
+        .set_values("Data!$C$2:$C$7")
+        .set_categories("Data!$A$2:$A$7")
+        .set_name("Measurement B")
+        .set_color((50u8, 120u8, 200u8))
+        .set_line_width(1.5)
+        .set_error_bars(ErrorBar::new(
+            ErrorBarType::Both,
+            ErrorBarValueType::FixedValue,
+            2.0,
+        ));
 
-    ws.insert_chart(7, 0, &chart).unwrap();
-    wb.save("plot_area_formatting.xlsx").unwrap();
-    println!("Created plot_area_formatting.xlsx");
+    ws.insert_chart(9, 0, &chart)?;
+
+    wb.save(&path)?;
+    println!(
+        "✅ Formatted chart with error bars saved to {}",
+        path.display()
+    );
+    Ok(())
 }

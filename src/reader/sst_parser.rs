@@ -32,8 +32,13 @@ pub fn parse_sst(data: &[u8]) -> crate::Result<SharedStringTable> {
             Event::Start(e) => {
                 let local = e.local_name();
                 match local.as_ref() {
-                    b"si" => { in_si = true; current.clear(); }
-                    b"rPh" => { in_rph = true; }
+                    b"si" => {
+                        in_si = true;
+                        current.clear();
+                    }
+                    b"rPh" => {
+                        in_rph = true;
+                    }
                     _ => {}
                 }
             }
@@ -44,7 +49,9 @@ pub fn parse_sst(data: &[u8]) -> crate::Result<SharedStringTable> {
                         sst.push(&current);
                         in_si = false;
                     }
-                    b"rPh" => { in_rph = false; }
+                    b"rPh" => {
+                        in_rph = false;
+                    }
                     _ => {}
                 }
             }

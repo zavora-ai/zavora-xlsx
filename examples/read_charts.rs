@@ -6,7 +6,7 @@
 use zavora_xlsx::*;
 
 fn main() -> Result<()> {
-    let path = std::env::temp_dir().join("read_charts_example.xlsx");
+    let path = std::path::PathBuf::from("output/read_charts_example.xlsx");
 
     // ── Step 1: Create a workbook with charts ──
     println!("📝 Creating workbook with multiple chart types...\n");
@@ -45,11 +45,13 @@ fn main() -> Result<()> {
         bar_chart.set_x_axis_name("Month");
         bar_chart.set_y_axis_name("Amount ($)");
         bar_chart.set_legend_position(LegendPosition::Bottom);
-        bar_chart.add_series()
+        bar_chart
+            .add_series()
             .set_values("'Chart Demo'!$B$2:$B$7")
             .set_categories("'Chart Demo'!$A$2:$A$7")
             .set_name("Sales");
-        bar_chart.add_series()
+        bar_chart
+            .add_series()
             .set_values("'Chart Demo'!$C$2:$C$7")
             .set_categories("'Chart Demo'!$A$2:$A$7")
             .set_name("Expenses");
@@ -59,7 +61,8 @@ fn main() -> Result<()> {
         let mut line_chart = Chart::new(ChartType::Line);
         line_chart.set_title("Profit Trend");
         line_chart.set_legend_position(LegendPosition::Top);
-        line_chart.add_series()
+        line_chart
+            .add_series()
             .set_values("'Chart Demo'!$D$2:$D$7")
             .set_categories("'Chart Demo'!$A$2:$A$7")
             .set_name("Profit");
@@ -68,7 +71,8 @@ fn main() -> Result<()> {
         // Chart 3: Pie chart — Sales distribution
         let mut pie_chart = Chart::new(ChartType::Pie);
         pie_chart.set_title("Sales by Month");
-        pie_chart.add_series()
+        pie_chart
+            .add_series()
             .set_values("'Chart Demo'!$B$2:$B$7")
             .set_categories("'Chart Demo'!$A$2:$A$7")
             .set_name("Sales");
@@ -77,7 +81,8 @@ fn main() -> Result<()> {
         // Chart 4: Scatter chart
         let mut scatter_chart = Chart::new(ChartType::Scatter);
         scatter_chart.set_title("Sales vs Profit Correlation");
-        scatter_chart.add_series()
+        scatter_chart
+            .add_series()
             .set_values("'Chart Demo'!$D$2:$D$7")
             .set_categories("'Chart Demo'!$B$2:$B$7")
             .set_name("Correlation");

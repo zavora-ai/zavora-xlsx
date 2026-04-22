@@ -5,12 +5,16 @@ fn test_autofit() {
     let mut wb = Workbook::new();
     let ws = wb.worksheet(0).unwrap();
     ws.write(0, 0, "Short").unwrap();
-    ws.write(0, 1, "This is a much longer string value").unwrap();
+    ws.write(0, 1, "This is a much longer string value")
+        .unwrap();
     ws.write(0, 2, 12345.6789).unwrap();
     ws.autofit().unwrap();
     let buf = wb.save_to_buffer().unwrap();
     let xml = extract_sheet_xml(&buf, 1);
-    assert!(xml.contains("customWidth"), "Should contain customWidth columns");
+    assert!(
+        xml.contains("customWidth"),
+        "Should contain customWidth columns"
+    );
     assert!(xml.contains("<cols>"), "Should contain cols element");
 }
 
@@ -22,7 +26,10 @@ fn test_sheet_protection() {
     ws.protect_with_password("secret");
     let buf = wb.save_to_buffer().unwrap();
     let xml = extract_sheet_xml(&buf, 1);
-    assert!(xml.contains("sheetProtection"), "Should contain sheetProtection element");
+    assert!(
+        xml.contains("sheetProtection"),
+        "Should contain sheetProtection element"
+    );
     assert!(xml.contains("password="), "Should contain password hash");
 }
 
@@ -34,8 +41,14 @@ fn test_sheet_protection_no_password() {
     ws.protect();
     let buf = wb.save_to_buffer().unwrap();
     let xml = extract_sheet_xml(&buf, 1);
-    assert!(xml.contains("sheetProtection"), "Should contain sheetProtection element");
-    assert!(!xml.contains("password="), "Should not contain password when none set");
+    assert!(
+        xml.contains("sheetProtection"),
+        "Should contain sheetProtection element"
+    );
+    assert!(
+        !xml.contains("password="),
+        "Should not contain password when none set"
+    );
 }
 
 #[test]
@@ -45,7 +58,10 @@ fn test_workbook_protection() {
     wb.protect_with_password("admin");
     let buf = wb.save_to_buffer().unwrap();
     let xml = extract_xml(&buf, "xl/workbook.xml");
-    assert!(xml.contains("workbookProtection"), "Should contain workbookProtection");
+    assert!(
+        xml.contains("workbookProtection"),
+        "Should contain workbookProtection"
+    );
     assert!(xml.contains("lockStructure"), "Should lock structure");
 }
 
@@ -104,7 +120,9 @@ fn test_streaming_workbook() {
     // Verify it's a valid xlsx by checking zip structure
     let cursor = std::io::Cursor::new(&buf);
     let archive = zip::ZipArchive::new(cursor).unwrap();
-    let names: Vec<_> = (0..archive.len()).map(|i| archive.name_for_index(i).unwrap().to_string()).collect();
+    let names: Vec<_> = (0..archive.len())
+        .map(|i| archive.name_for_index(i).unwrap().to_string())
+        .collect();
     assert!(names.iter().any(|n| n.contains("sheet1.xml")));
     assert!(names.iter().any(|n| n.contains("workbook.xml")));
 }
@@ -126,7 +144,9 @@ fn test_streaming_multi_sheet() {
     let buf = wb.save_to_buffer().unwrap();
     let cursor = std::io::Cursor::new(&buf);
     let archive = zip::ZipArchive::new(cursor).unwrap();
-    let names: Vec<_> = (0..archive.len()).map(|i| archive.name_for_index(i).unwrap().to_string()).collect();
+    let names: Vec<_> = (0..archive.len())
+        .map(|i| archive.name_for_index(i).unwrap().to_string())
+        .collect();
     assert!(names.iter().any(|n| n.contains("sheet2.xml")));
 }
 
@@ -134,15 +154,23 @@ fn test_streaming_multi_sheet() {
 fn test_parallel_assembly_multi_sheet() {
     let mut wb = Workbook::new();
     wb.worksheet(0).unwrap().write(0, 0, "Sheet1").unwrap();
-    wb.add_worksheet_with_name("Data").unwrap().write(0, 0, "Sheet2").unwrap();
-    wb.add_worksheet_with_name("Summary").unwrap().write(0, 0, "Sheet3").unwrap();
+    wb.add_worksheet_with_name("Data")
+        .unwrap()
+        .write(0, 0, "Sheet2")
+        .unwrap();
+    wb.add_worksheet_with_name("Summary")
+        .unwrap()
+        .write(0, 0, "Sheet3")
+        .unwrap();
     // This exercises the parallel assembly path in save_to_buffer
     let buf = wb.save_to_buffer().unwrap();
     assert!(!buf.is_empty());
     // Verify all 3 sheets are present
     let cursor = std::io::Cursor::new(&buf);
     let archive = zip::ZipArchive::new(cursor).unwrap();
-    let names: Vec<_> = (0..archive.len()).map(|i| archive.name_for_index(i).unwrap().to_string()).collect();
+    let names: Vec<_> = (0..archive.len())
+        .map(|i| archive.name_for_index(i).unwrap().to_string())
+        .collect();
     assert!(names.iter().any(|n| n.contains("sheet3.xml")));
 }
 
@@ -183,4 +211,55 @@ fn extract_xml(buf: &[u8], path: &str) -> String {
     let mut xml = String::new();
     std::io::Read::read_to_string(&mut entry, &mut xml).unwrap();
     xml
+}
+
+#[test]
+fn test_gradient_data_bar() {
+    let mut wb = Workbook::new();
+    let ws = wb.worksheet(0).unwrap();
+    for r in 0..5u32 {
+        ws.write(r, 0, (r * 20) as f64).unwrap();
+    }
+
+    // Create a data bar with gradient enabled
+    let mut bar = ConditionalFormatDataBar::new("#638EC6");
+    bar.set_gradient(true);
+    ws.add_conditional_format(0, 0, 4, 0, bar).unwrap();
+
+    let buf = wb.save_to_buffer().unwrap();
+    let xml = extract_sheet_xml(&buf, 1);
+
+    // When gradient is true, no gradient="0" should be emitted (Excel defaults to gradient)
+    assert!(xml.contains("<dataBar>"), "Should contain dataBar element");
+    assert!(
+        !xml.contains("gradient=\"0\""),
+        "Gradient data bar should NOT emit gradient=\"0\""
+    );
+
+    // Now test with gradient=false (default)
+    let mut wb2 = Workbook::new();
+    let ws2 = wb2.worksheet(0).unwrap();
+    for r in 0..5u32 {
+        ws2.write(r, 0, (r * 20) as f64).unwrap();
+    }
+
+    let bar2 = ConditionalFormatDataBar::new("#638EC6"); // gradient defaults to false
+    ws2.add_conditional_format(0, 0, 4, 0, bar2).unwrap();
+
+    let buf2 = wb2.save_to_buffer().unwrap();
+    let xml2 = extract_sheet_xml(&buf2, 1);
+
+    // When gradient is false, should emit gradient="0" in extLst
+    assert!(
+        xml2.contains("gradient=\"0\""),
+        "Non-gradient data bar should emit gradient=\"0\""
+    );
+    assert!(
+        xml2.contains("x14:dataBar"),
+        "Should contain x14:dataBar element in extLst"
+    );
+    assert!(
+        xml2.contains("{B025F937-C7B1-47D3-B67F-A62EFF666E3E}"),
+        "Should contain ext URI"
+    );
 }

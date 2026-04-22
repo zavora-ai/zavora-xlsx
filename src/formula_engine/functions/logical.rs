@@ -6,7 +6,7 @@ use crate::formula_engine::evaluator::{ErrorKind, Value};
 // AND
 // ---------------------------------------------------------------------------
 
-/// AND(logical1, [logical2], ...)
+/// AND(`logical1`, \[`logical2`\], ...)
 /// Returns TRUE if all arguments are TRUE.
 pub fn fn_and(args: &[Value]) -> Value {
     if args.is_empty() {
@@ -40,7 +40,7 @@ pub fn fn_and(args: &[Value]) -> Value {
 // OR
 // ---------------------------------------------------------------------------
 
-/// OR(logical1, [logical2], ...)
+/// OR(`logical1`, \[`logical2`\], ...)
 /// Returns TRUE if any argument is TRUE.
 pub fn fn_or(args: &[Value]) -> Value {
     if args.is_empty() {
@@ -122,7 +122,7 @@ pub fn fn_ifna(args: &[Value]) -> Value {
 // SWITCH
 // ---------------------------------------------------------------------------
 
-/// SWITCH(expression, value1, result1, [value2, result2], ..., [default])
+/// SWITCH(`expression`, `value1`, `result1`, \[`value2`, `result2`\], ..., \[`default`\])
 /// Evaluates an expression against a list of values and returns the result
 /// corresponding to the first matching value. If no match, returns default or #N/A.
 pub fn fn_switch(args: &[Value]) -> Value {
@@ -160,7 +160,7 @@ pub fn fn_switch(args: &[Value]) -> Value {
 /// IFS(logical_test1, value_if_true1, [logical_test2, value_if_true2], ...)
 /// Checks multiple conditions and returns the value corresponding to the first TRUE condition.
 pub fn fn_ifs(args: &[Value]) -> Value {
-    if args.len() < 2 || args.len() % 2 != 0 {
+    if args.len() < 2 || !args.len().is_multiple_of(2) {
         return Value::Error(ErrorKind::Value);
     }
 
@@ -207,8 +207,14 @@ mod tests {
 
     #[test]
     fn test_and() {
-        assert_eq!(fn_and(&[Value::Bool(true), Value::Bool(true)]), Value::Bool(true));
-        assert_eq!(fn_and(&[Value::Bool(true), Value::Bool(false)]), Value::Bool(false));
+        assert_eq!(
+            fn_and(&[Value::Bool(true), Value::Bool(true)]),
+            Value::Bool(true)
+        );
+        assert_eq!(
+            fn_and(&[Value::Bool(true), Value::Bool(false)]),
+            Value::Bool(false)
+        );
         assert_eq!(fn_and(&[Value::Bool(false)]), Value::Bool(false));
         // Numbers: 0 = false, non-zero = true
         assert_eq!(fn_and(&[num(1.0), num(2.0)]), Value::Bool(true));
@@ -217,8 +223,14 @@ mod tests {
 
     #[test]
     fn test_or() {
-        assert_eq!(fn_or(&[Value::Bool(false), Value::Bool(true)]), Value::Bool(true));
-        assert_eq!(fn_or(&[Value::Bool(false), Value::Bool(false)]), Value::Bool(false));
+        assert_eq!(
+            fn_or(&[Value::Bool(false), Value::Bool(true)]),
+            Value::Bool(true)
+        );
+        assert_eq!(
+            fn_or(&[Value::Bool(false), Value::Bool(false)]),
+            Value::Bool(false)
+        );
         assert_eq!(fn_or(&[num(0.0), num(1.0)]), Value::Bool(true));
     }
 
@@ -261,12 +273,27 @@ mod tests {
     fn test_switch() {
         // SWITCH(2, 1, "one", 2, "two", 3, "three")
         assert_eq!(
-            fn_switch(&[num(2.0), num(1.0), s("one"), num(2.0), s("two"), num(3.0), s("three")]),
+            fn_switch(&[
+                num(2.0),
+                num(1.0),
+                s("one"),
+                num(2.0),
+                s("two"),
+                num(3.0),
+                s("three")
+            ]),
             s("two")
         );
         // No match, with default
         assert_eq!(
-            fn_switch(&[num(4.0), num(1.0), s("one"), num(2.0), s("two"), s("default")]),
+            fn_switch(&[
+                num(4.0),
+                num(1.0),
+                s("one"),
+                num(2.0),
+                s("two"),
+                s("default")
+            ]),
             s("default")
         );
         // No match, no default
@@ -285,7 +312,12 @@ mod tests {
         );
         // First true wins
         assert_eq!(
-            fn_ifs(&[Value::Bool(true), s("first"), Value::Bool(true), s("second")]),
+            fn_ifs(&[
+                Value::Bool(true),
+                s("first"),
+                Value::Bool(true),
+                s("second")
+            ]),
             s("first")
         );
         // No match
@@ -321,9 +353,6 @@ mod tests {
     #[test]
     fn test_ifs_with_numbers() {
         // Numbers as conditions: 0 = false, non-zero = true
-        assert_eq!(
-            fn_ifs(&[num(0.0), s("zero"), num(1.0), s("one")]),
-            s("one")
-        );
+        assert_eq!(fn_ifs(&[num(0.0), s("zero"), num(1.0), s("one")]), s("one"));
     }
 }

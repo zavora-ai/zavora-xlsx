@@ -65,8 +65,8 @@
   - [x] 7.5 Write round-trip test: write comments, read back, verify text and author
   - [x] 7.6 Write example (`examples/read_comments.rs`): create comments, read back, print comment data
 
-- [x] 8. Read Sparklines
-  - [x] 8.1 Create `src/reader/sparkline_reader.rs` module
+- [-] 8. Read Sparklines
+  - [ ] 8.1 Create `src/reader/sparkline_reader.rs` module
   - [x] 8.2 Parse sparkline groups from `<extLst>` in sheet XML
   - [x] 8.3 Populate `Sparkline` structs with data range, location, and type
   - [x] 8.4 Expose `sparklines()` accessor on `Worksheet`
@@ -248,441 +248,441 @@
   - [x] 31.4 Write test: create box & whisker chart, verify XML
 
 - [x] 32. Map Charts
-  - [ ] 32.1 Add `ChartType::Map` variant
-  - [ ] 32.2 Support region-level and country-level granularity
-  - [ ] 32.3 Implement map chart XML serialization
-  - [ ] 32.4 Write test: create map chart, verify XML structure
+  - [x] 32.1 Add `ChartType::Map` variant
+  - [x] 32.2 Support region-level and country-level granularity
+  - [x] 32.3 Implement map chart XML serialization
+  - [x] 32.4 Write test: create map chart, verify XML structure
 
-- [ ] 33. 3D Chart Variants
-  - [ ] 33.1 Add `Column3D`, `Bar3D`, `Line3D`, `Pie3D`, `Area3D` to `ChartType`
-  - [ ] 33.2 Add `View3D` struct (rot_x, rot_y, perspective, right_angle_axes)
-  - [ ] 33.3 Serialize `<c:view3D>` element for 3D charts
-  - [ ] 33.4 Write test: create 3D column chart, verify view3D in XML
+- [x] 33. 3D Chart Variants
+  - [x] 33.1 Add `Column3D`, `Bar3D`, `Line3D`, `Pie3D`, `Area3D` to `ChartType`
+  - [x] 33.2 Add `View3D` struct (rot_x, rot_y, perspective, right_angle_axes)
+  - [x] 33.3 Serialize `<c:view3D>` element for 3D charts
+  - [x] 33.4 Write test: create 3D column chart, verify view3D in XML
 
-- [ ] 34. Surface Charts
-  - [ ] 34.1 Add `ChartType::Surface` and `ChartType::WireframeSurface`
-  - [ ] 34.2 Implement surface chart XML serialization with 3D view
-  - [ ] 34.3 Write test: create surface chart, verify XML structure
+- [x] 34. Surface Charts
+  - [x] 34.1 Add `ChartType::Surface` and `ChartType::WireframeSurface`
+  - [x] 34.2 Implement surface chart XML serialization with 3D view
+  - [x] 34.3 Write test: create surface chart, verify XML structure
 
-- [ ] 35. Chart Style Themes
-  - [ ] 35.1 Add `style: Option<u8>` field to `Chart`
-  - [ ] 35.2 Add `set_style(n: u8)` method
-  - [ ] 35.3 Serialize `<c:style val="N"/>` in chart XML
-  - [ ] 35.4 Write test: set chart style, verify serialization
+- [x] 35. Chart Style Themes
+  - [x] 35.1 Add `style: Option<u8>` field to `Chart`
+  - [x] 35.2 Add `set_style(n: u8)` method
+  - [x] 35.3 Serialize `<c:style val="N"/>` in chart XML
+  - [x] 35.4 Write test: set chart style, verify serialization
 
-- [ ] 36. Axis Formatting
-  - [ ] 36.1 Add `AxisFormat` struct (num_format, font, font_size, tick_marks, gridline_style)
-  - [ ] 36.2 Add `set_x_axis_format()` and `set_y_axis_format()` methods on `Chart`
-  - [ ] 36.3 Serialize axis formatting elements (numFmt, txPr, majorTickMark, majorGridlines)
-  - [ ] 36.4 Write test: format axes, verify XML elements
+- [x] 36. Axis Formatting
+  - [x] 36.1 Add `AxisFormat` struct (num_format, font, font_size, tick_marks, gridline_style)
+  - [x] 36.2 Add `set_x_axis_format()` and `set_y_axis_format()` methods on `Chart`
+  - [x] 36.3 Serialize axis formatting elements (numFmt, txPr, majorTickMark, majorGridlines)
+  - [x] 36.4 Write test: format axes, verify XML elements
 
-- [ ] 37. Plot Area and Series Formatting
-  - [ ] 37.1 Add `PlotAreaFormat` struct (fill, border, gradient)
-  - [ ] 37.2 Add `set_plot_area_format()` method on `Chart`
-  - [ ] 37.3 Extend `ChartSeries` with line_width, dash_style, gradient fields
-  - [ ] 37.4 Add `ErrorBar` struct and `set_error_bars()` on `ChartSeries`
-  - [ ] 37.5 Serialize plot area and series formatting in chart XML
-  - [ ] 37.6 Write test: format plot area and series, verify XML
+- [x] 37. Plot Area and Series Formatting
+  - [x] 37.1 Add `PlotAreaFormat` struct (fill, border, gradient)
+  - [x] 37.2 Add `set_plot_area_format()` method on `Chart`
+  - [x] 37.3 Extend `ChartSeries` with line_width, dash_style, gradient fields
+  - [x] 37.4 Add `ErrorBar` struct and `set_error_bars()` on `ChartSeries`
+  - [x] 37.5 Serialize plot area and series formatting in chart XML
+  - [x] 37.6 Write test: format plot area and series, verify XML
 
-- [ ] 38. Chart Accessories (Drop Lines, High-Low Lines, Chart Sheets)
-  - [ ] 38.1 Add drop lines and high-low lines options to line charts
-  - [ ] 38.2 Serialize `<c:dropLines>` and `<c:hiLowLines>` elements
-  - [ ] 38.3 Add `ChartSheet` support — create dedicated chartsheet XML part
-  - [ ] 38.4 Update content types and relationships for chart sheets
-  - [ ] 38.5 Write test: chart sheet creation, verify file structure
+- [x] 38. Chart Accessories (Drop Lines, High-Low Lines, Chart Sheets)
+  - [x] 38.1 Add drop lines and high-low lines options to line charts
+  - [x] 38.2 Serialize `<c:dropLines>` and `<c:hiLowLines>` elements
+  - [x] 38.3 Add `ChartSheet` support — create dedicated chartsheet XML part
+  - [x] 38.4 Update content types and relationships for chart sheets
+  - [x] 38.5 Write test: chart sheet creation, verify file structure
 
 
 ## Phase 4: Advanced Formatting
 
-- [ ] 39. Gradient Fills
-  - [ ] 39.1 Add `GradientFill` and `GradientStop` structs to `format.rs`
-  - [ ] 39.2 Add `Format::gradient_fill(angle, stops)` builder method
-  - [ ] 39.3 Extend `StyleRegistry` to register gradient fills
-  - [ ] 39.4 Serialize `<gradientFill>` element in `style_writer.rs`
-  - [ ] 39.5 Write test: apply gradient fill, verify styles XML
-  - [ ] 39.6 Write example (`examples/gradient_fills.rs`): create cells with gradient fills
+- [x] 39. Gradient Fills
+  - [x] 39.1 Add `GradientFill` and `GradientStop` structs to `format.rs`
+  - [x] 39.2 Add `Format::gradient_fill(angle, stops)` builder method
+  - [x] 39.3 Extend `StyleRegistry` to register gradient fills
+  - [x] 39.4 Serialize `<gradientFill>` element in `style_writer.rs`
+  - [x] 39.5 Write test: apply gradient fill, verify styles XML
+  - [x] 39.6 Write example (`examples/gradient_fills.rs`): create cells with gradient fills
 
-- [ ] 40. Theme Colors
-  - [ ] 40.1 Add `ThemeColor` and `ThemeColorIndex` enums
-  - [ ] 40.2 Add `Format::theme_color(index, tint)` builder method
-  - [ ] 40.3 Serialize theme index and tint in font/fill color elements
-  - [ ] 40.4 Parse theme colors from `xl/theme/theme1.xml` in reader
-  - [ ] 40.5 Resolve theme color references to RGB during read
-  - [ ] 40.6 Write test: use theme colors, verify XML serialization
+- [x] 40. Theme Colors
+  - [x] 40.1 Add `ThemeColor` and `ThemeColorIndex` enums
+  - [x] 40.2 Add `Format::theme_color(index, tint)` builder method
+  - [x] 40.3 Serialize theme index and tint in font/fill color elements
+  - [x] 40.4 Parse theme colors from `xl/theme/theme1.xml` in reader
+  - [x] 40.5 Resolve theme color references to RGB during read
+  - [x] 40.6 Write test: use theme colors, verify XML serialization
 
-- [ ] 41. Gradient Data Bars
-  - [ ] 41.1 Add `gradient: bool` field to `ConditionalFormatDataBar`
-  - [ ] 41.2 Add `set_gradient(true)` method
-  - [ ] 41.3 Serialize gradient attribute in data bar CF rule XML
-  - [ ] 41.4 Write test: gradient data bar, verify XML attribute
+- [x] 41. Gradient Data Bars
+  - [x] 41.1 Add `gradient: bool` field to `ConditionalFormatDataBar`
+  - [x] 41.2 Add `set_gradient(true)` method
+  - [x] 41.3 Serialize gradient attribute in data bar CF rule XML
+  - [x] 41.4 Write test: gradient data bar, verify XML attribute
 
-- [ ] 42. Cell Styles
-  - [ ] 42.1 Add `Format::cell_style(name: &str)` builder method
-  - [ ] 42.2 Map style names to cellStyleXfs indices in `StyleRegistry`
-  - [ ] 42.3 Serialize `<cellStyle>` references in styles XML
-  - [ ] 42.4 Write test: apply named cell style, verify styles XML
+- [x] 42. Cell Styles
+  - [x] 42.1 Add `Format::cell_style(name: &str)` builder method
+  - [x] 42.2 Map style names to cellStyleXfs indices in `StyleRegistry`
+  - [x] 42.3 Serialize `<cellStyle>` references in styles XML
+  - [x] 42.4 Write test: apply named cell style, verify styles XML
 
-- [ ] 43. Custom Table Styles
-  - [ ] 43.1 Add `CustomTableStyle` struct with stripe sizes and element formatting
-  - [ ] 43.2 Add `Table::set_custom_style(style)` method
-  - [ ] 43.3 Serialize `<tableStyle>` element in styles XML
-  - [ ] 43.4 Write test: custom table style, verify XML
+- [x] 43. Custom Table Styles
+  - [x] 43.1 Add `CustomTableStyle` struct with stripe sizes and element formatting
+  - [x] 43.2 Add `Table::set_custom_style(style)` method
+  - [x] 43.3 Serialize `<tableStyle>` element in styles XML
+  - [x] 43.4 Write test: custom table style, verify XML
 
-- [ ] 44. Phonetic Text (Furigana)
-  - [ ] 44.1 Add `PhoneticRun` struct (start_index, end_index, text)
-  - [ ] 44.2 Add `Worksheet::set_phonetic(row, col, runs)` method
-  - [ ] 44.3 Serialize `<phoneticPr>` and `<rPh>` elements in sheet XML
-  - [ ] 44.4 Write test: add phonetic text, verify XML elements
+- [x] 44. Phonetic Text (Furigana)
+  - [x] 44.1 Add `PhoneticRun` struct (start_index, end_index, text)
+  - [x] 44.2 Add `Worksheet::set_phonetic(row, col, runs)` method
+  - [x] 44.3 Serialize `<phoneticPr>` and `<rPh>` elements in sheet XML
+  - [x] 44.4 Write test: add phonetic text, verify XML elements
 
-- [ ] 45. Text Effects
-  - [ ] 45.1 Add `shadow`, `outline`, `emboss`, `engrave` fields to `Format`
-  - [ ] 45.2 Add corresponding builder methods
-  - [ ] 45.3 Serialize text effect attributes in font elements
-  - [ ] 45.4 Write test: apply text effects, verify font XML
+- [x] 45. Text Effects
+  - [x] 45.1 Add `shadow`, `outline`, `emboss`, `engrave` fields to `Format`
+  - [x] 45.2 Add corresponding builder methods
+  - [x] 45.3 Serialize text effect attributes in font elements
+  - [x] 45.4 Write test: apply text effects, verify font XML
 
 
 ## Phase 5: Data & Interactivity
 
-- [ ] 46. Slicers
-  - [ ] 46.1 Create `src/features/slicer.rs` with `Slicer` struct
-  - [ ] 46.2 Add `Worksheet::add_slicer(row, col, slicer)` method
-  - [ ] 46.3 Implement slicer XML part serialization (slicerN.xml)
-  - [ ] 46.4 Implement slicer cache XML serialization
-  - [ ] 46.5 Add slicer drawing relationship and content type entries
-  - [ ] 46.6 Support linking slicer to pivot table cache
-  - [ ] 46.7 Implement slicer reading in reader module
-  - [ ] 46.8 Write test: add slicer to table, verify file structure
-  - [ ] 46.9 Write example (`examples/slicers.rs`): add slicers to a table, verify file structure
+- [x] 46. Slicers
+  - [x] 46.1 Create `src/features/slicer.rs` with `Slicer` struct
+  - [x] 46.2 Add `Worksheet::add_slicer(row, col, slicer)` method
+  - [x] 46.3 Implement slicer XML part serialization (slicerN.xml)
+  - [x] 46.4 Implement slicer cache XML serialization
+  - [x] 46.5 Add slicer drawing relationship and content type entries
+  - [x] 46.6 Support linking slicer to pivot table cache
+  - [x] 46.7 Implement slicer reading in reader module
+  - [x] 46.8 Write test: add slicer to table, verify file structure
+  - [x] 46.9 Write example (`examples/slicers.rs`): add slicers to a table, verify file structure
 
-- [ ] 47. Timelines
-  - [ ] 47.1 Create `src/features/timeline.rs` with `Timeline` struct
-  - [ ] 47.2 Add `Worksheet::add_timeline(row, col, timeline)` method
-  - [ ] 47.3 Implement timeline XML part and cache serialization
-  - [ ] 47.4 Implement timeline reading in reader module
-  - [ ] 47.5 Write test: add timeline to pivot table, verify file structure
+- [x] 47. Timelines
+  - [x] 47.1 Create `src/features/timeline.rs` with `Timeline` struct
+  - [x] 47.2 Add `Worksheet::add_timeline(row, col, timeline)` method
+  - [x] 47.3 Implement timeline XML part and cache serialization
+  - [x] 47.4 Implement timeline reading in reader module
+  - [x] 47.5 Write test: add timeline to pivot table, verify file structure
 
-- [ ] 48. Named Ranges CRUD
-  - [ ] 48.1 Add `Workbook::add_named_range(name, formula, scope)` method
-  - [ ] 48.2 Add `Workbook::update_named_range(name, new_formula)` method
-  - [ ] 48.3 Add `Workbook::remove_named_range(name, scope)` method
-  - [ ] 48.4 Serialize updated `<definedNames>` in workbook XML
-  - [ ] 48.5 Write test: CRUD operations on named ranges, verify XML
-  - [ ] 48.6 Write example (`examples/named_ranges.rs`): create, update, delete named ranges
+- [x] 48. Named Ranges CRUD
+  - [x] 48.1 Add `Workbook::add_named_range(name, formula, scope)` method
+  - [x] 48.2 Add `Workbook::update_named_range(name, new_formula)` method
+  - [x] 48.3 Add `Workbook::remove_named_range(name, scope)` method
+  - [x] 48.4 Serialize updated `<definedNames>` in workbook XML
+  - [x] 48.5 Write test: CRUD operations on named ranges, verify XML
+  - [x] 48.6 Write example (`examples/named_ranges.rs`): create, update, delete named ranges
 
-- [ ] 49. External Data Connections Preservation
-  - [ ] 49.1 Detect and preserve `xl/connections.xml` during edit-mode save
-  - [ ] 49.2 Add `Workbook::add_connection(connection_string, command)` method
-  - [ ] 49.3 Write test: open file with connections, modify, save, verify preservation
+- [x] 49. External Data Connections Preservation
+  - [x] 49.1 Detect and preserve `xl/connections.xml` during edit-mode save
+  - [x] 49.2 Add `Workbook::add_connection(connection_string, command)` method
+  - [x] 49.3 Write test: open file with connections, modify, save, verify preservation
 
-- [ ] 50. Power Query Preservation
-  - [ ] 50.1 Detect and preserve `customXml/` parts containing Power Query metadata during save
-  - [ ] 50.2 Write test: open file with Power Query, modify cells, save, verify PQ parts preserved
+- [x] 50. Power Query Preservation
+  - [x] 50.1 Detect and preserve `customXml/` parts containing Power Query metadata during save
+  - [x] 50.2 Write test: open file with Power Query, modify cells, save, verify PQ parts preserved
 
-- [ ] 51. Pivot Table Grouping
-  - [ ] 51.1 Add `PivotTable::group_by_date(field, levels)` method
-  - [ ] 51.2 Add `PivotTable::group_by_range(field, start, end, interval)` method
-  - [ ] 51.3 Serialize `<fieldGroup>` and `<rangePr>` in pivot cache definition XML
-  - [ ] 51.4 Write test: date grouping and numeric grouping, verify XML
+- [x] 51. Pivot Table Grouping
+  - [x] 51.1 Add `PivotTable::group_by_date(field, levels)` method
+  - [x] 51.2 Add `PivotTable::group_by_range(field, start, end, interval)` method
+  - [x] 51.3 Serialize `<fieldGroup>` and `<rangePr>` in pivot cache definition XML
+  - [x] 51.4 Write test: date grouping and numeric grouping, verify XML
 
-- [ ] 52. Pivot Table Calculated Items
-  - [ ] 52.1 Add `PivotTable::add_calculated_item(name, formula)` method
-  - [ ] 52.2 Serialize `<calculatedItem>` in pivot table definition XML
-  - [ ] 52.3 Write test: add calculated item, verify XML
+- [x] 52. Pivot Table Calculated Items
+  - [x] 52.1 Add `PivotTable::add_calculated_item(name, formula)` method
+  - [x] 52.2 Serialize `<calculatedItem>` in pivot table definition XML
+  - [x] 52.3 Write test: add calculated item, verify XML
 
-- [ ] 53. Sort State
-  - [ ] 53.1 Preserve `<sortState>` element during edit-mode save
-  - [ ] 53.2 Add `Worksheet::set_sort(col, direction)` method
-  - [ ] 53.3 Serialize `<sortState>` and `<sortCondition>` elements
-  - [ ] 53.4 Write test: set sort, verify XML; round-trip preservation test
+- [x] 53. Sort State
+  - [x] 53.1 Preserve `<sortState>` element during edit-mode save
+  - [x] 53.2 Add `Worksheet::set_sort(col, direction)` method
+  - [x] 53.3 Serialize `<sortState>` and `<sortCondition>` elements
+  - [x] 53.4 Write test: set sort, verify XML; round-trip preservation test
 
-- [ ] 54. Advanced Autofilter
-  - [ ] 54.1 Add `FilterRule` enum (Top10, DateFilter, CustomFilter)
-  - [ ] 54.2 Add `Worksheet::filter_column_advanced(col, rule)` method
-  - [ ] 54.3 Serialize `<top10>`, `<dateGroupItem>`, and `<customFilters>` elements
-  - [ ] 54.4 Write test: top-10 filter, date filter, custom AND/OR filter
+- [x] 54. Advanced Autofilter
+  - [x] 54.1 Add `FilterRule` enum (Top10, DateFilter, CustomFilter)
+  - [x] 54.2 Add `Worksheet::filter_column_advanced(col, rule)` method
+  - [x] 54.3 Serialize `<top10>`, `<dateGroupItem>`, and `<customFilters>` elements
+  - [x] 54.4 Write test: top-10 filter, date filter, custom AND/OR filter
 
 
 ## Phase 6: Streaming & Performance
 
-- [ ] 55. Streaming Read
-  - [ ] 55.1 Create `src/reader/streaming_reader.rs` with `StreamingReader` struct
-  - [ ] 55.2 Implement SST upfront loading (shared strings are small relative to data)
-  - [ ] 55.3 Implement SAX-style row iterator using `quick-xml` event reader
-  - [ ] 55.4 Implement `StreamingRow` and `StreamingCell` types
-  - [ ] 55.5 Resolve shared string references during iteration
-  - [ ] 55.6 Support reading xf indices per cell
-  - [ ] 55.7 Expose `StreamingReader::open(path)` and `StreamingReader::sheet(index)` API
-  - [ ] 55.8 Write test: stream-read a large file, verify constant memory (no OOM on 1M rows)
-  - [ ] 55.9 Write example (`examples/streaming_read.rs`): stream-read a large file, print row count and sample data
+- [x] 55. Streaming Read
+  - [x] 55.1 Create `src/reader/streaming_reader.rs` with `StreamingReader` struct
+  - [x] 55.2 Implement SST upfront loading (shared strings are small relative to data)
+  - [x] 55.3 Implement SAX-style row iterator using `quick-xml` event reader
+  - [x] 55.4 Implement `StreamingRow` and `StreamingCell` types
+  - [x] 55.5 Resolve shared string references during iteration
+  - [x] 55.6 Support reading xf indices per cell
+  - [x] 55.7 Expose `StreamingReader::open(path)` and `StreamingReader::sheet(index)` API
+  - [x] 55.8 Write test: stream-read a large file, verify constant memory (no OOM on 1M rows)
+  - [x] 55.9 Write example (`examples/streaming_read.rs`): stream-read a large file, print row count and sample data
 
-- [ ] 56. Streaming Write with Charts and Images
-  - [ ] 56.1 Add `StreamingWorkbook::insert_chart(row, col, chart)` method
-  - [ ] 56.2 Add `StreamingWorkbook::insert_image(row, col, image)` method
-  - [ ] 56.3 Buffer chart/image data and serialize drawing parts at finalize
-  - [ ] 56.4 Write test: streaming write with chart and image, verify file opens in Excel
+- [x] 56. Streaming Write with Charts and Images
+  - [x] 56.1 Add `StreamingWorkbook::insert_chart(row, col, chart)` method
+  - [x] 56.2 Add `StreamingWorkbook::insert_image(row, col, image)` method
+  - [x] 56.3 Buffer chart/image data and serialize drawing parts at finalize
+  - [x] 56.4 Write test: streaming write with chart and image, verify file opens in Excel
 
-- [ ] 57. Streaming Write with Conditional Formatting
-  - [ ] 57.1 Add `StreamingWorkbook::add_conditional_format(range, cf)` method
-  - [ ] 57.2 Buffer CF rules and serialize after `</sheetData>` during finalize
-  - [ ] 57.3 Write test: streaming write with CF rules, verify XML
+- [x] 57. Streaming Write with Conditional Formatting
+  - [x] 57.1 Add `StreamingWorkbook::add_conditional_format(range, cf)` method
+  - [x] 57.2 Buffer CF rules and serialize after `</sheetData>` during finalize
+  - [x] 57.3 Write test: streaming write with CF rules, verify XML
 
-- [ ] 58. Parallel Sheet Writing
-  - [ ] 58.1 Wrap `SharedStringTable` and `StyleRegistry` in `Arc<Mutex<_>>`
-  - [ ] 58.2 Add `Workbook::save_parallel(path)` method using `std::thread::scope`
-  - [ ] 58.3 Serialize each sheet on a separate thread, join before ZIP assembly
-  - [ ] 58.4 Write test: parallel save produces identical output to sequential save
+- [x] 58. Parallel Sheet Writing
+  - [x] 58.1 Wrap `SharedStringTable` and `StyleRegistry` in `Arc<Mutex<_>>`
+  - [x] 58.2 Add `Workbook::save_parallel(path)` method using `std::thread::scope`
+  - [x] 58.3 Serialize each sheet on a separate thread, join before ZIP assembly
+  - [x] 58.4 Write test: parallel save produces identical output to sequential save
 
-- [ ] 59. Memory-Mapped Reading
-  - [ ] 59.1 Add optional `memmap2` dependency behind `mmap` feature flag
-  - [ ] 59.2 Add `Workbook::open_mmap(path)` method
-  - [ ] 59.3 Pass mmap slice to ZIP reader instead of reading into heap
-  - [ ] 59.4 Write test: open large file via mmap, verify cell reads work
+- [x] 59. Memory-Mapped Reading
+  - [x] 59.1 Add optional `memmap2` dependency behind `mmap` feature flag
+  - [x] 59.2 Add `Workbook::open_mmap(path)` method
+  - [x] 59.3 Pass mmap slice to ZIP reader instead of reading into heap
+  - [x] 59.4 Write test: open large file via mmap, verify cell reads work
 
-- [ ] 60. Incremental Save
-  - [ ] 60.1 Track dirty flag per sheet (already exists)
-  - [ ] 60.2 During edit-mode save, copy original ZIP entries for non-dirty sheets
-  - [ ] 60.3 Only re-serialize sheets where `dirty == true`
-  - [ ] 60.4 Write test: modify one sheet in 10-sheet workbook, verify only that sheet is re-serialized
+- [x] 60. Incremental Save
+  - [x] 60.1 Track dirty flag per sheet (already exists)
+  - [x] 60.2 During edit-mode save, copy original ZIP entries for non-dirty sheets
+  - [x] 60.3 Only re-serialize sheets where `dirty == true`
+  - [x] 60.4 Write test: modify one sheet in 10-sheet workbook, verify only that sheet is re-serialized
 
-- [ ] 61. Shared String Deduplication Tuning
-  - [ ] 61.1 Add `Workbook::set_sst_threshold(n: usize)` configuration method
-  - [ ] 61.2 In finalize, inline strings appearing fewer than N times
-  - [ ] 61.3 Write test: set threshold=2, verify single-use strings are inlined
+- [x] 61. Shared String Deduplication Tuning
+  - [x] 61.1 Add `Workbook::set_sst_threshold(n: usize)` configuration method
+  - [x] 61.2 In finalize, inline strings appearing fewer than N times
+  - [x] 61.3 Write test: set threshold=2, verify single-use strings are inlined
 
 
 ## Phase 7: File Format Variants
 
-- [ ] 62. XLSM Write
-  - [ ] 62.1 Add `Workbook::save_as_xlsm(path, vba_project: &[u8])` method
-  - [ ] 62.2 Set macro-enabled content types (`vnd.ms-excel.sheet.macroEnabled.main+xml`)
-  - [ ] 62.3 Include `xl/vbaProject.bin` in ZIP output
-  - [ ] 62.4 Return error if no VBA project provided
-  - [ ] 62.5 Write test: save as XLSM with VBA binary, verify content types
-  - [ ] 62.6 Write example (`examples/xlsm_write.rs`): create macro-enabled workbook
+- [x] 62. XLSM Write
+  - [x] 62.1 Add `Workbook::save_as_xlsm(path, vba_project: &[u8])` method
+  - [x] 62.2 Set macro-enabled content types (`vnd.ms-excel.sheet.macroEnabled.main+xml`)
+  - [x] 62.3 Include `xl/vbaProject.bin` in ZIP output
+  - [x] 62.4 Return error if no VBA project provided
+  - [x] 62.5 Write test: save as XLSM with VBA binary, verify content types
+  - [x] 62.6 Write example (`examples/xlsm_write.rs`): create macro-enabled workbook
 
-- [ ] 63. Template Formats (XLTX/XLTM)
-  - [ ] 63.1 Add `Workbook::save_as_template(path)` and `save_as_template_macro(path)` methods
-  - [ ] 63.2 Set template content types
-  - [ ] 63.3 Write test: save as XLTX, verify content type in `[Content_Types].xml`
+- [x] 63. Template Formats (XLTX/XLTM)
+  - [x] 63.1 Add `Workbook::save_as_template(path)` and `save_as_template_macro(path)` methods
+  - [x] 63.2 Set template content types
+  - [x] 63.3 Write test: save as XLTX, verify content type in `[Content_Types].xml`
 
-- [ ] 64. XLSB Read
-  - [ ] 64.1 Create `src/formats/xlsb_reader.rs` behind `xlsb` feature flag
-  - [ ] 64.2 Detect XLSB via content types in ZIP
-  - [ ] 64.3 Implement binary record stream parser (record type ID + length + payload)
-  - [ ] 64.4 Parse BrtCellBlank, BrtCellReal, BrtCellSt, BrtCellBool, BrtFmla records
-  - [ ] 64.5 Map parsed records to `CellValue` and `SheetMeta`
-  - [ ] 64.6 Skip unsupported records gracefully
-  - [ ] 64.7 Write test: read XLSB file, verify cell values match expected
+- [x] 64. XLSB Read
+  - [x] 64.1 Create `src/formats/xlsb_reader.rs` behind `xlsb` feature flag
+  - [x] 64.2 Detect XLSB via content types in ZIP
+  - [x] 64.3 Implement binary record stream parser (record type ID + length + payload)
+  - [x] 64.4 Parse BrtCellBlank, BrtCellReal, BrtCellSt, BrtCellBool, BrtFmla records
+  - [x] 64.5 Map parsed records to `CellValue` and `SheetMeta`
+  - [x] 64.6 Skip unsupported records gracefully
+  - [x] 64.7 Write test: read XLSB file, verify cell values match expected
 
-- [ ] 65. XLS Read (BIFF8)
-  - [ ] 65.1 Create `src/formats/xls_reader.rs` behind `xls` feature flag
-  - [ ] 65.2 Implement OLE2 compound document header and directory parsing
-  - [ ] 65.3 Locate Workbook stream in OLE2 directory
-  - [ ] 65.4 Parse BIFF8 records (BOF, SHEET, SST, LABELSST, NUMBER, FORMULA, EOF)
-  - [ ] 65.5 Map parsed records to `CellValue` and sheet names
-  - [ ] 65.6 Skip unsupported records gracefully
-  - [ ] 65.7 Write test: read XLS file, verify cell values
+- [x] 65. XLS Read (BIFF8)
+  - [x] 65.1 Create `src/formats/xls_reader.rs` behind `xls` feature flag
+  - [x] 65.2 Implement OLE2 compound document header and directory parsing
+  - [x] 65.3 Locate Workbook stream in OLE2 directory
+  - [x] 65.4 Parse BIFF8 records (BOF, SHEET, SST, LABELSST, NUMBER, FORMULA, EOF)
+  - [x] 65.5 Map parsed records to `CellValue` and sheet names
+  - [x] 65.6 Skip unsupported records gracefully
+  - [x] 65.7 Write test: read XLS file, verify cell values
 
-- [ ] 66. CSV/TSV Export
-  - [ ] 66.1 Create `src/formats/csv_export.rs`
-  - [ ] 66.2 Add `CsvOptions` struct (delimiter, quote, line_ending, date_format)
-  - [ ] 66.3 Add `Worksheet::to_csv(options) -> String` method
-  - [ ] 66.4 Add `Worksheet::to_csv_file(path, options)` method
-  - [ ] 66.5 Format date cells as ISO 8601 by default
-  - [ ] 66.6 Escape fields containing delimiter, quote, or newlines
-  - [ ] 66.7 Write test: export sheet to CSV, verify output matches expected
-  - [ ] 66.8 Write example (`examples/csv_export.rs`): create workbook, export to CSV, print output
+- [x] 66. CSV/TSV Export
+  - [x] 66.1 Create `src/formats/csv_export.rs`
+  - [x] 66.2 Add `CsvOptions` struct (delimiter, quote, line_ending, date_format)
+  - [x] 66.3 Add `Worksheet::to_csv(options) -> String` method
+  - [x] 66.4 Add `Worksheet::to_csv_file(path, options)` method
+  - [x] 66.5 Format date cells as ISO 8601 by default
+  - [x] 66.6 Escape fields containing delimiter, quote, or newlines
+  - [x] 66.7 Write test: export sheet to CSV, verify output matches expected
+  - [x] 66.8 Write example (`examples/csv_export.rs`): create workbook, export to CSV, print output
 
-- [ ] 67. ODS Read/Write
-  - [ ] 67.1 Create `src/formats/ods.rs` behind `ods` feature flag
-  - [ ] 67.2 Implement ODS reader: parse `content.xml` `<table:table>` elements
-  - [ ] 67.3 Map ODS cell types to `CellValue`
-  - [ ] 67.4 Implement ODS writer: serialize workbook model to ODS XML
-  - [ ] 67.5 Skip unsupported ODS features gracefully
-  - [ ] 67.6 Write test: round-trip simple workbook through ODS format
+- [x] 67. ODS Read/Write
+  - [x] 67.1 Create `src/formats/ods.rs` behind `ods` feature flag
+  - [x] 67.2 Implement ODS reader: parse `content.xml` `<table:table>` elements
+  - [x] 67.3 Map ODS cell types to `CellValue`
+  - [x] 67.4 Implement ODS writer: serialize workbook model to ODS XML
+  - [x] 67.5 Skip unsupported ODS features gracefully
+  - [x] 67.6 Write test: round-trip simple workbook through ODS format
 
-- [ ] 68. Strict OOXML
-  - [ ] 68.1 Create `src/formats/strict_ooxml.rs`
-  - [ ] 68.2 Detect Strict namespace URIs during read
-  - [ ] 68.3 Map Strict URIs to Transitional namespace handlers
-  - [ ] 68.4 Add `Workbook::save_strict(path)` for Strict OOXML output
-  - [ ] 68.5 Write test: read Strict OOXML file, verify cell values
+- [x] 68. Strict OOXML
+  - [x] 68.1 Create `src/formats/strict_ooxml.rs`
+  - [x] 68.2 Detect Strict namespace URIs during read
+  - [x] 68.3 Map Strict URIs to Transitional namespace handlers
+  - [x] 68.4 Add `Workbook::save_strict(path)` for Strict OOXML output
+  - [x] 68.5 Write test: read Strict OOXML file, verify cell values
 
 
 ## Phase 8: Document Features
 
-- [ ] 69. Threaded Comments
-  - [ ] 69.1 Add `ThreadedComment` struct (author, timestamp, text, replies)
-  - [ ] 69.2 Add `Worksheet::add_threaded_comment(row, col, comment)` method
-  - [ ] 69.3 Serialize ThreadedComments XML part (`xl/threadedComments/threadedComment1.xml`)
-  - [ ] 69.4 Add person list XML part (`xl/persons/person.xml`)
-  - [ ] 69.5 Implement threaded comment reading in `comment_reader.rs`
-  - [ ] 69.6 Write test: add threaded comment with reply, read back, verify chain
+- [x] 69. Threaded Comments
+  - [x] 69.1 Add `ThreadedComment` struct (author, timestamp, text, replies)
+  - [x] 69.2 Add `Worksheet::add_threaded_comment(row, col, comment)` method
+  - [x] 69.3 Serialize ThreadedComments XML part (`xl/threadedComments/threadedComment1.xml`)
+  - [x] 69.4 Add person list XML part (`xl/persons/person.xml`)
+  - [x] 69.5 Implement threaded comment reading in `comment_reader.rs`
+  - [x] 69.6 Write test: add threaded comment with reply, read back, verify chain
 
-- [ ] 70. Form Controls
-  - [ ] 70.1 Add `FormControl` enum (Checkbox, Dropdown, Button, Spinner)
-  - [ ] 70.2 Add `Worksheet::add_form_control(row, col, control)` method
-  - [ ] 70.3 Serialize form control XML in VML drawing part
-  - [ ] 70.4 Support cell link for checkbox and spinner
-  - [ ] 70.5 Implement form control reading
-  - [ ] 70.6 Write test: add checkbox with cell link, verify XML
+- [x] 70. Form Controls
+  - [x] 70.1 Add `FormControl` enum (Checkbox, Dropdown, Button, Spinner)
+  - [x] 70.2 Add `Worksheet::add_form_control(row, col, control)` method
+  - [x] 70.3 Serialize form control XML in VML drawing part
+  - [x] 70.4 Support cell link for checkbox and spinner
+  - [x] 70.5 Implement form control reading
+  - [x] 70.6 Write test: add checkbox with cell link, verify XML
 
-- [ ] 71. ActiveX and OLE Preservation
-  - [ ] 71.1 Detect ActiveX parts (`xl/activeX/`) during edit-mode open
-  - [ ] 71.2 Preserve ActiveX binary parts and relationships during save
-  - [ ] 71.3 Detect OLE object parts during edit-mode open
-  - [ ] 71.4 Preserve OLE binary parts and relationships during save
-  - [ ] 71.5 Write test: open file with ActiveX/OLE, modify cells, save, verify parts preserved
+- [x] 71. ActiveX and OLE Preservation
+  - [x] 71.1 Detect ActiveX parts (`xl/activeX/`) during edit-mode open
+  - [x] 71.2 Preserve ActiveX binary parts and relationships during save
+  - [x] 71.3 Detect OLE object parts during edit-mode open
+  - [x] 71.4 Preserve OLE binary parts and relationships during save
+  - [x] 71.5 Write test: open file with ActiveX/OLE, modify cells, save, verify parts preserved
 
-- [ ] 72. Drawing Shapes
-  - [ ] 72.1 Create `src/features/shape.rs` with `Shape` and `ShapeType` structs
-  - [ ] 72.2 Add `Worksheet::add_shape(row, col, shape)` method
-  - [ ] 72.3 Serialize shapes as `<xdr:sp>` elements in drawing XML
-  - [ ] 72.4 Support fill color, outline color, outline width
-  - [ ] 72.5 Support text body with font and paragraph formatting
-  - [ ] 72.6 Write test: add rectangle with text, verify drawing XML
-  - [ ] 72.7 Write example (`examples/drawing_shapes.rs`): add various shapes to a worksheet
+- [x] 72. Drawing Shapes
+  - [x] 72.1 Create `src/features/shape.rs` with `Shape` and `ShapeType` structs
+  - [x] 72.2 Add `Worksheet::add_shape(row, col, shape)` method
+  - [x] 72.3 Serialize shapes as `<xdr:sp>` elements in drawing XML
+  - [x] 72.4 Support fill color, outline color, outline width
+  - [x] 72.5 Support text body with font and paragraph formatting
+  - [x] 72.6 Write test: add rectangle with text, verify drawing XML
+  - [x] 72.7 Write example (`examples/drawing_shapes.rs`): add various shapes to a worksheet
 
-- [ ] 73. SmartArt and Equation Preservation
-  - [ ] 73.1 Detect SmartArt diagram parts (`xl/diagrams/`) during edit-mode open
-  - [ ] 73.2 Preserve SmartArt XML parts and relationships during save
-  - [ ] 73.3 Preserve OMML equation elements during save
-  - [ ] 73.4 Write test: open file with SmartArt, modify cells, save, verify diagram parts preserved
+- [x] 73. SmartArt and Equation Preservation
+  - [x] 73.1 Detect SmartArt diagram parts (`xl/diagrams/`) during edit-mode open
+  - [x] 73.2 Preserve SmartArt XML parts and relationships during save
+  - [x] 73.3 Preserve OMML equation elements during save
+  - [x] 73.4 Write test: open file with SmartArt, modify cells, save, verify diagram parts preserved
 
-- [ ] 74. Digital Signatures
-  - [ ] 74.1 Add `Workbook::sign(certificate)` method behind `crypto` feature flag
-  - [ ] 74.2 Implement XML Digital Signature (XMLDSig) generation
-  - [ ] 74.3 Add `Workbook::verify_signature() -> Result<bool>` method
-  - [ ] 74.4 Invalidate signature when workbook is modified
-  - [ ] 74.5 Write test: sign workbook, verify signature, modify, verify invalidation
+- [x] 74. Digital Signatures
+  - [x] 74.1 Add `Workbook::sign(certificate)` method behind `crypto` feature flag
+  - [x] 74.2 Implement XML Digital Signature (XMLDSig) generation
+  - [x] 74.3 Add `Workbook::verify_signature() -> Result<bool>` method
+  - [x] 74.4 Invalidate signature when workbook is modified
+  - [x] 74.5 Write test: sign workbook, verify signature, modify, verify invalidation
 
-- [ ] 75. Custom XML Parts
-  - [ ] 75.1 Add `Workbook::add_custom_xml(namespace, content)` method
-  - [ ] 75.2 Add `Workbook::read_custom_xml(namespace) -> Option<&[u8]>` method
-  - [ ] 75.3 Serialize custom XML in `customXml/` directory with content type entries
-  - [ ] 75.4 Write test: add custom XML, save, read back, verify content
+- [x] 75. Custom XML Parts
+  - [x] 75.1 Add `Workbook::add_custom_xml(namespace, content)` method
+  - [x] 75.2 Add `Workbook::read_custom_xml(namespace) -> Option<&[u8]>` method
+  - [x] 75.3 Serialize custom XML in `customXml/` directory with content type entries
+  - [x] 75.4 Write test: add custom XML, save, read back, verify content
 
-- [ ] 76. Custom Document Properties
-  - [ ] 76.1 Add `CustomProperty` struct (name, type, value)
-  - [ ] 76.2 Add `Workbook::set_custom_property(name, value)` method
-  - [ ] 76.3 Parse `docProps/custom.xml` in reader
-  - [ ] 76.4 Serialize `docProps/custom.xml` in writer
-  - [ ] 76.5 Write test: set custom properties, read back, verify values
+- [x] 76. Custom Document Properties
+  - [x] 76.1 Add `CustomProperty` struct (name, type, value)
+  - [x] 76.2 Add `Workbook::set_custom_property(name, value)` method
+  - [x] 76.3 Parse `docProps/custom.xml` in reader
+  - [x] 76.4 Serialize `docProps/custom.xml` in writer
+  - [x] 76.5 Write test: set custom properties, read back, verify values
 
 
 ## Phase 9: Security & Compliance
 
-- [ ] 77. File Encryption (Read)
-  - [ ] 77.1 Add `aes`, `sha2`, `hmac`, `cbc`, `pbkdf2` dependencies behind `crypto` feature flag
-  - [ ] 77.2 Create `src/crypto/mod.rs` and `src/crypto/standard.rs`
-  - [ ] 77.3 Detect encrypted files by OLE2 magic bytes (`D0 CF 11 E0`)
-  - [ ] 77.4 Parse EncryptionInfo stream from OLE2 compound document
-  - [ ] 77.5 Implement ECMA-376 Standard Encryption decryption (AES-128-CBC, SHA-1)
-  - [ ] 77.6 Create `src/crypto/agile.rs`
-  - [ ] 77.7 Implement ECMA-376 Agile Encryption decryption (AES-256-CBC, SHA-512, HMAC)
-  - [ ] 77.8 Add `Workbook::open_with_password(path, password)` method
-  - [ ] 77.9 Return `Error::Authentication` for incorrect passwords
-  - [ ] 77.10 Write test: decrypt Standard-encrypted file, verify cell values
-  - [ ] 77.11 Write test: decrypt Agile-encrypted file, verify cell values
-  - [ ] 77.12 Write example (`examples/encrypted_read.rs`): open password-protected file, print cell values
+- [x] 77. File Encryption (Read)
+  - [x] 77.1 Add `aes`, `sha2`, `hmac`, `cbc`, `pbkdf2` dependencies behind `crypto` feature flag
+  - [x] 77.2 Create `src/crypto/mod.rs` and `src/crypto/standard.rs`
+  - [x] 77.3 Detect encrypted files by OLE2 magic bytes (`D0 CF 11 E0`)
+  - [x] 77.4 Parse EncryptionInfo stream from OLE2 compound document
+  - [x] 77.5 Implement ECMA-376 Standard Encryption decryption (AES-128-CBC, SHA-1)
+  - [x] 77.6 Create `src/crypto/agile.rs`
+  - [x] 77.7 Implement ECMA-376 Agile Encryption decryption (AES-256-CBC, SHA-512, HMAC)
+  - [x] 77.8 Add `Workbook::open_with_password(path, password)` method
+  - [x] 77.9 Return `Error::Authentication` for incorrect passwords
+  - [x] 77.10 Write test: decrypt Standard-encrypted file, verify cell values
+  - [x] 77.11 Write test: decrypt Agile-encrypted file, verify cell values
+  - [x] 77.12 Write example (`examples/encrypted_read.rs`): open password-protected file, print cell values
 
-- [ ] 78. File Encryption (Write)
-  - [ ] 78.1 Implement Agile Encryption packaging (encrypt xlsx bytes into OLE2 container)
-  - [ ] 78.2 Add `Workbook::save_encrypted(path, password)` method
-  - [ ] 78.3 Write test: encrypt file, decrypt with same password, verify round-trip
+- [x] 78. File Encryption (Write)
+  - [x] 78.1 Implement Agile Encryption packaging (encrypt xlsx bytes into OLE2 container)
+  - [x] 78.2 Add `Workbook::save_encrypted(path, password)` method
+  - [x] 78.3 Write test: encrypt file, decrypt with same password, verify round-trip
 
-- [ ] 79. Sheet Protection Granularity
-  - [ ] 79.1 Extend `SheetProtection` with individual flags (sort, autoFilter, pivotTables, insertColumns, insertRows, deleteColumns, deleteRows, formatCells, formatColumns, formatRows, insertHyperlinks, selectLockedCells, selectUnlockedCells)
-  - [ ] 79.2 Add builder methods for each flag on `SheetProtection`
-  - [ ] 79.3 Serialize each flag as attribute on `<sheetProtection>` element
-  - [ ] 79.4 Write test: set granular protection flags, verify XML attributes
+- [x] 79. Sheet Protection Granularity
+  - [x] 79.1 Extend `SheetProtection` with individual flags (sort, autoFilter, pivotTables, insertColumns, insertRows, deleteColumns, deleteRows, formatCells, formatColumns, formatRows, insertHyperlinks, selectLockedCells, selectUnlockedCells)
+  - [x] 79.2 Add builder methods for each flag on `SheetProtection`
+  - [x] 79.3 Serialize each flag as attribute on `<sheetProtection>` element
+  - [x] 79.4 Write test: set granular protection flags, verify XML attributes
 
-- [ ] 80. VBA Project Signing
-  - [ ] 80.1 Add `Workbook::sign_vba(certificate)` method behind `crypto` feature flag
-  - [ ] 80.2 Generate digital signature for VBA project binary
-  - [ ] 80.3 Serialize signature in `xl/vbaProjectSignature.bin`
-  - [ ] 80.4 Write test: sign VBA project, verify signature part exists
+- [x] 80. VBA Project Signing
+  - [x] 80.1 Add `Workbook::sign_vba(certificate)` method behind `crypto` feature flag
+  - [x] 80.2 Generate digital signature for VBA project binary
+  - [x] 80.3 Serialize signature in `xl/vbaProjectSignature.bin`
+  - [x] 80.4 Write test: sign VBA project, verify signature part exists
 
-- [ ] 81. IRM Metadata Preservation
-  - [ ] 81.1 Detect IRM-related parts during edit-mode open
-  - [ ] 81.2 Preserve IRM parts and relationships during save
-  - [ ] 81.3 Write test: open IRM file, modify, save, verify IRM parts preserved
+- [x] 81. IRM Metadata Preservation
+  - [x] 81.1 Detect IRM-related parts during edit-mode open
+  - [x] 81.2 Preserve IRM parts and relationships during save
+  - [x] 81.3 Write test: open IRM file, modify, save, verify IRM parts preserved
 
-- [ ] 82. Accessibility Metadata
-  - [ ] 82.1 Add `alt_text: Option<(String, String)>` (title, description) to `Chart`, `Image`, `Table`
-  - [ ] 82.2 Add `set_alt_text(title, description)` methods
-  - [ ] 82.3 Serialize `descr` and `title` attributes on `<xdr:cNvPr>` elements
-  - [ ] 82.4 Write test: set alt text on chart/image/table, verify XML attributes
+- [x] 82. Accessibility Metadata
+  - [x] 82.1 Add `alt_text: Option<(String, String)>` (title, description) to `Chart`, `Image`, `Table`
+  - [x] 82.2 Add `set_alt_text(title, description)` methods
+  - [x] 82.3 Serialize `descr` and `title` attributes on `<xdr:cNvPr>` elements
+  - [x] 82.4 Write test: set alt text on chart/image/table, verify XML attributes
 
 
 ## Phase 10: Ecosystem
 
-- [ ] 83. Serde Integration
-  - [ ] 83.1 Add `serde` and `serde_derive` dependencies behind `serde` feature flag
-  - [ ] 83.2 Create `src/serde_support/mod.rs` and `src/serde_support/ser.rs`
-  - [ ] 83.3 Implement custom `Serializer` that maps struct fields to columns
-  - [ ] 83.4 Add `Workbook::write_rows<T: Serialize>(sheet, data)` method
-  - [ ] 83.5 Auto-generate header row from field names
-  - [ ] 83.6 Create `src/serde_support/de.rs`
-  - [ ] 83.7 Implement custom `Deserializer` that reads rows using header mapping
-  - [ ] 83.8 Add `Workbook::read_rows<T: DeserializeOwned>(sheet) -> Result<Vec<T>>` method
-  - [ ] 83.9 Return descriptive error on type mismatch
-  - [ ] 83.10 Write round-trip property test: serialize Vec<T>, deserialize, verify equality
-  - [ ] 83.11 Write example (`examples/serde_roundtrip.rs`): serialize structs to xlsx, deserialize back, print results
+- [x] 83. Serde Integration
+  - [x] 83.1 Add `serde` and `serde_derive` dependencies behind `serde` feature flag
+  - [x] 83.2 Create `src/serde_support/mod.rs` and `src/serde_support/ser.rs`
+  - [x] 83.3 Implement custom `Serializer` that maps struct fields to columns
+  - [x] 83.4 Add `Workbook::write_rows<T: Serialize>(sheet, data)` method
+  - [x] 83.5 Auto-generate header row from field names
+  - [x] 83.6 Create `src/serde_support/de.rs`
+  - [x] 83.7 Implement custom `Deserializer` that reads rows using header mapping
+  - [x] 83.8 Add `Workbook::read_rows<T: DeserializeOwned>(sheet) -> Result<Vec<T>>` method
+  - [x] 83.9 Return descriptive error on type mismatch
+  - [x] 83.10 Write round-trip property test: serialize Vec<T>, deserialize, verify equality
+  - [x] 83.11 Write example (`examples/serde_roundtrip.rs`): serialize structs to xlsx, deserialize back, print results
 
-- [ ] 84. Derive Macro (#[derive(ExcelRow)])
-  - [ ] 84.1 Create `zavora-xlsx-derive` workspace member crate
-  - [ ] 84.2 Implement proc macro parsing struct fields and attributes
-  - [ ] 84.3 Support `#[excel(header = "...")]` attribute for column names
-  - [ ] 84.4 Support `#[excel(format = "...")]` attribute for number formats
-  - [ ] 84.5 Handle `Option<T>` fields (empty cells → None)
-  - [ ] 84.6 Generate `Serialize` and `Deserialize` trait implementations
-  - [ ] 84.7 Write test: derive macro on struct, write and read rows, verify
+- [x] 84. Derive Macro (#[derive(ExcelRow)])
+  - [x] 84.1 Create `zavora-xlsx-derive` workspace member crate
+  - [x] 84.2 Implement proc macro parsing struct fields and attributes
+  - [x] 84.3 Support `#[excel(header = "...")]` attribute for column names
+  - [x] 84.4 Support `#[excel(format = "...")]` attribute for number formats
+  - [x] 84.5 Handle `Option<T>` fields (empty cells → None)
+  - [x] 84.6 Generate `Serialize` and `Deserialize` trait implementations
+  - [x] 84.7 Write test: derive macro on struct, write and read rows, verify
 
-- [ ] 85. Async I/O
-  - [ ] 85.1 Add `tokio` dependency behind `async-tokio` feature flag
-  - [ ] 85.2 Add `Workbook::open_async(path).await` method
-  - [ ] 85.3 Add `Workbook::save_async(path).await` method
-  - [ ] 85.4 Perform file I/O on tokio's blocking thread pool
-  - [ ] 85.5 Write test: async open and save, verify file contents
+- [x] 85. Async I/O
+  - [x] 85.1 Add `tokio` dependency behind `async-tokio` feature flag
+  - [x] 85.2 Add `Workbook::open_async(path).await` method
+  - [x] 85.3 Add `Workbook::save_async(path).await` method
+  - [x] 85.4 Perform file I/O on tokio's blocking thread pool
+  - [x] 85.5 Write test: async open and save, verify file contents
 
-- [ ] 86. WASM Target
-  - [ ] 86.1 Add `#[cfg(not(target_arch = "wasm32"))]` guards on file system operations
-  - [ ] 86.2 Ensure `save_to_buffer()` and `open_from_buffer()` work without fs
-  - [ ] 86.3 Add `wasm-bindgen` exports for buffer-based API behind `wasm` feature flag
-  - [ ] 86.4 Verify compilation: `cargo build --target wasm32-unknown-unknown --no-default-features`
-  - [ ] 86.5 Write test: WASM build succeeds, buffer round-trip works
+- [x] 86. WASM Target
+  - [x] 86.1 Add `#[cfg(not(target_arch = "wasm32"))]` guards on file system operations
+  - [x] 86.2 Ensure `save_to_buffer()` and `open_from_buffer()` work without fs
+  - [x] 86.3 Add `wasm-bindgen` exports for buffer-based API behind `wasm` feature flag
+  - [x] 86.4 Verify compilation: `cargo build --target wasm32-unknown-unknown --no-default-features`
+  - [x] 86.5 Write test: WASM build succeeds, buffer round-trip works
 
-- [ ] 87. Python Bindings (PyO3)
-  - [ ] 87.1 Create `zavora-xlsx-python` workspace member crate with PyO3
-  - [ ] 87.2 Expose `Workbook`, `Worksheet`, `Format`, `Chart`, `Table` Python classes
-  - [ ] 87.3 Implement cell writing methods (write_string, write_number, write_formula)
-  - [ ] 87.4 Implement format application methods
-  - [ ] 87.5 Implement save to file and save to bytes
-  - [ ] 87.6 Configure `maturin` for `pip install` packaging
-  - [ ] 87.7 Write Python test: create workbook, write data, save, verify
+- [x] 87. Python Bindings (PyO3)
+  - [x] 87.1 Create `zavora-xlsx-python` workspace member crate with PyO3
+  - [x] 87.2 Expose `Workbook`, `Worksheet`, `Format`, `Chart`, `Table` Python classes
+  - [x] 87.3 Implement cell writing methods (write_string, write_number, write_formula)
+  - [x] 87.4 Implement format application methods
+  - [x] 87.5 Implement save to file and save to bytes
+  - [x] 87.6 Configure `maturin` for `pip install` packaging
+  - [x] 87.7 Write Python test: create workbook, write data, save, verify
 
-- [ ] 88. Node.js Bindings (napi-rs)
-  - [ ] 88.1 Create `zavora-xlsx-node` workspace member crate with napi-rs
-  - [ ] 88.2 Expose `Workbook`, `Worksheet`, `Format`, `Chart`, `Table` JS classes
-  - [ ] 88.3 Implement cell writing methods
-  - [ ] 88.4 Implement save to file and save to Buffer
-  - [ ] 88.5 Configure `napi-build` for `npm install` packaging
-  - [ ] 88.6 Write Node.js test: create workbook, write data, save, verify
+- [x] 88. Node.js Bindings (napi-rs)
+  - [x] 88.1 Create `zavora-xlsx-node` workspace member crate with napi-rs
+  - [x] 88.2 Expose `Workbook`, `Worksheet`, `Format`, `Chart`, `Table` JS classes
+  - [x] 88.3 Implement cell writing methods
+  - [x] 88.4 Implement save to file and save to Buffer
+  - [x] 88.5 Configure `napi-build` for `npm install` packaging
+  - [x] 88.6 Write Node.js test: create workbook, write data, save, verify
 
-- [ ] 89. C FFI
-  - [ ] 89.1 Create `src/cffi.rs` behind `cffi` feature flag
-  - [ ] 89.2 Implement opaque pointer handle pattern for Workbook
-  - [ ] 89.3 Expose `zavora_workbook_new`, `zavora_worksheet_write_*`, `zavora_workbook_save`, `zavora_workbook_free`
-  - [ ] 89.4 Implement `zavora_last_error()` for error message retrieval
-  - [ ] 89.5 Generate C header file using `cbindgen`
-  - [ ] 89.6 Write C test: create workbook, write cells, save
+- [x] 89. C FFI
+  - [x] 89.1 Create `src/cffi.rs` behind `cffi` feature flag
+  - [x] 89.2 Implement opaque pointer handle pattern for Workbook
+  - [x] 89.3 Expose `zavora_workbook_new`, `zavora_worksheet_write_*`, `zavora_workbook_save`, `zavora_workbook_free`
+  - [x] 89.4 Implement `zavora_last_error()` for error message retrieval
+  - [x] 89.5 Generate C header file using `cbindgen`
+  - [x] 89.6 Write C test: create workbook, write cells, save
 
-- [ ] 90. CLI Tool
-  - [ ] 90.1 Create `zavora-xlsx-cli` workspace member crate with `clap`
-  - [ ] 90.2 Implement `inspect` subcommand (sheet names, row/col counts, metadata)
-  - [ ] 90.3 Implement `export` subcommand (sheet to CSV with options)
-  - [ ] 90.4 Implement `convert` subcommand (xlsx ↔ xlsm ↔ csv)
-  - [ ] 90.5 Print descriptive errors to stderr, exit with non-zero status
-  - [ ] 90.6 Write integration test: CLI inspect and export commands
-  - [ ] 90.7 Write example usage in CLI README: demonstrate inspect, export, convert commands
+- [x] 90. CLI Tool
+  - [x] 90.1 Create `zavora-xlsx-cli` workspace member crate with `clap`
+  - [x] 90.2 Implement `inspect` subcommand (sheet names, row/col counts, metadata)
+  - [x] 90.3 Implement `export` subcommand (sheet to CSV with options)
+  - [x] 90.4 Implement `convert` subcommand (xlsx ↔ xlsm ↔ csv)
+  - [x] 90.5 Print descriptive errors to stderr, exit with non-zero status
+  - [x] 90.6 Write integration test: CLI inspect and export commands
+  - [x] 90.7 Write example usage in CLI README: demonstrate inspect, export, convert commands

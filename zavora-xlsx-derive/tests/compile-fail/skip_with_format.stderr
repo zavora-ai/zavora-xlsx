@@ -1,0 +1,5 @@
+error: 'skip' cannot be combined with other excel attributes
+ --> tests/compile-fail/skip_with_format.rs:5:5
+  |
+5 |     #[excel(skip, format = "0.00")]
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

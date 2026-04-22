@@ -1,10 +1,10 @@
-use std::sync::{Arc, Mutex};
-use napi::{Env, JsUnknown};
-use napi_derive::napi;
+use crate::chart::Chart;
 use crate::error::IntoNapi;
 use crate::format::Format;
-use crate::chart::Chart;
 use crate::table::Table;
+use napi::{Env, JsUnknown};
+use napi_derive::napi;
+use std::sync::{Arc, Mutex};
 
 #[napi]
 pub struct Worksheet {
@@ -44,7 +44,7 @@ impl Worksheet {
         let ws = wb.worksheet(self.index).into_napi()?;
         match format {
             Some(fmt) => {
-                ws.write_with_format(row, col, value.as_str(), &*fmt.inner.borrow())
+                ws.write_with_format(row, col, value.as_str(), &fmt.inner.borrow())
                     .into_napi()?;
             }
             None => {
@@ -66,7 +66,7 @@ impl Worksheet {
         let ws = wb.worksheet(self.index).into_napi()?;
         match format {
             Some(fmt) => {
-                ws.write_with_format(row, col, value, &*fmt.inner.borrow())
+                ws.write_with_format(row, col, value, &fmt.inner.borrow())
                     .into_napi()?;
             }
             None => {
@@ -88,7 +88,7 @@ impl Worksheet {
         let ws = wb.worksheet(self.index).into_napi()?;
         match format {
             Some(fmt) => {
-                ws.write_with_format(row, col, value, &*fmt.inner.borrow())
+                ws.write_with_format(row, col, value, &fmt.inner.borrow())
                     .into_napi()?;
             }
             None => {
@@ -110,7 +110,8 @@ impl Worksheet {
         let ws = wb.worksheet(self.index).into_napi()?;
         ws.write_formula(row, col, &formula).into_napi()?;
         if let Some(fmt) = format {
-            ws.set_cell_format(row, col, &*fmt.inner.borrow()).into_napi()?;
+            ws.set_cell_format(row, col, &fmt.inner.borrow())
+                .into_napi()?;
         }
         Ok(())
     }
@@ -119,7 +120,8 @@ impl Worksheet {
     pub fn write_blank(&self, row: u32, col: u16, format: &Format) -> napi::Result<()> {
         let mut wb = self.lock()?;
         let ws = wb.worksheet(self.index).into_napi()?;
-        ws.write_blank(row, col, &*format.inner.borrow()).into_napi()?;
+        ws.write_blank(row, col, &format.inner.borrow())
+            .into_napi()?;
         Ok(())
     }
 
@@ -228,7 +230,8 @@ impl Worksheet {
     pub fn insert_chart(&self, row: u32, col: u16, chart: &Chart) -> napi::Result<()> {
         let mut wb = self.lock()?;
         let ws = wb.worksheet(self.index).into_napi()?;
-        ws.insert_chart(row, col, &*chart.inner.borrow()).into_napi()?;
+        ws.insert_chart(row, col, &chart.inner.borrow())
+            .into_napi()?;
         Ok(())
     }
 
@@ -243,8 +246,14 @@ impl Worksheet {
     ) -> napi::Result<()> {
         let mut wb = self.lock()?;
         let ws = wb.worksheet(self.index).into_napi()?;
-        ws.add_table(first_row, first_col, last_row, last_col, &*table.inner.borrow())
-            .into_napi()?;
+        ws.add_table(
+            first_row,
+            first_col,
+            last_row,
+            last_col,
+            &table.inner.borrow(),
+        )
+        .into_napi()?;
         Ok(())
     }
 
@@ -289,9 +298,9 @@ impl Worksheet {
 
 impl Worksheet {
     fn lock(&self) -> napi::Result<std::sync::MutexGuard<'_, zavora_xlsx::Workbook>> {
-        self.workbook.lock().map_err(|_| {
-            napi::Error::new(napi::Status::GenericFailure, "lock poisoned")
-        })
+        self.workbook
+            .lock()
+            .map_err(|_| napi::Error::new(napi::Status::GenericFailure, "lock poisoned"))
     }
 }
 

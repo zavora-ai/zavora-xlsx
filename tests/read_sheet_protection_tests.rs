@@ -49,7 +49,10 @@ fn test_protection_roundtrip_with_password() {
     let ws = wb.worksheet_ref(0).unwrap();
     let prot = ws.protection().expect("protection should be present");
     assert!(prot.sheet);
-    assert!(prot.password_hash().is_some(), "password hash should be present");
+    assert!(
+        prot.password_hash().is_some(),
+        "password hash should be present"
+    );
     // The hash should be a 4-character hex string
     let hash = prot.password_hash().unwrap();
     assert_eq!(hash.len(), 4, "legacy hash should be 4 hex chars");
@@ -67,7 +70,10 @@ fn test_no_protection_returns_none() {
     }
     let wb = Workbook::open_readonly(path).unwrap();
     let ws = wb.worksheet_ref(0).unwrap();
-    assert!(ws.protection().is_none(), "unprotected sheet should return None");
+    assert!(
+        ws.protection().is_none(),
+        "unprotected sheet should return None"
+    );
     std::fs::remove_file(path).ok();
 }
 
@@ -91,7 +97,9 @@ fn test_protection_roundtrip_edit_mode() {
     }
     let wb = Workbook::open_readonly(path2).unwrap();
     let ws = wb.worksheet_ref(0).unwrap();
-    let prot = ws.protection().expect("protection should survive edit mode");
+    let prot = ws
+        .protection()
+        .expect("protection should survive edit mode");
     assert!(prot.sheet);
     assert!(prot.password_hash().is_some());
     std::fs::remove_file(path).ok();

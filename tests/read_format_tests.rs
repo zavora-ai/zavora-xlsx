@@ -40,10 +40,26 @@ fn test_font_color() {
 fn test_border_styles() {
     let fmt = Format::new().border(BorderStyle::Thin);
     let read = roundtrip_format(&fmt).expect("expected Some(Format) for bordered cell");
-    assert_eq!(read.get_border_left(), BorderStyle::Thin, "border_left should be Thin");
-    assert_eq!(read.get_border_right(), BorderStyle::Thin, "border_right should be Thin");
-    assert_eq!(read.get_border_top(), BorderStyle::Thin, "border_top should be Thin");
-    assert_eq!(read.get_border_bottom(), BorderStyle::Thin, "border_bottom should be Thin");
+    assert_eq!(
+        read.get_border_left(),
+        BorderStyle::Thin,
+        "border_left should be Thin"
+    );
+    assert_eq!(
+        read.get_border_right(),
+        BorderStyle::Thin,
+        "border_right should be Thin"
+    );
+    assert_eq!(
+        read.get_border_top(),
+        BorderStyle::Thin,
+        "border_top should be Thin"
+    );
+    assert_eq!(
+        read.get_border_bottom(),
+        BorderStyle::Thin,
+        "border_bottom should be Thin"
+    );
 }
 
 #[test]
@@ -67,7 +83,11 @@ fn test_fill_background_color() {
 fn test_number_format() {
     let fmt = Format::new().num_format("#,##0.00");
     let read = roundtrip_format(&fmt).expect("expected Some(Format) for num_format cell");
-    assert_eq!(read.get_num_format(), "#,##0.00", "num_format should be '#,##0.00'");
+    assert_eq!(
+        read.get_num_format(),
+        "#,##0.00",
+        "num_format should be '#,##0.00'"
+    );
 }
 
 #[test]

@@ -23,11 +23,13 @@ fn round_trip_bar_chart_two_series() {
     ws.write(3, 2, 35).unwrap();
 
     let mut chart = Chart::new(ChartType::Bar);
-    chart.add_series()
+    chart
+        .add_series()
         .set_values("Sheet1!$B$2:$B$4")
         .set_categories("Sheet1!$A$2:$A$4")
         .set_name("Series 1");
-    chart.add_series()
+    chart
+        .add_series()
         .set_values("Sheet1!$C$2:$C$4")
         .set_categories("Sheet1!$A$2:$A$4")
         .set_name("Series 2");
@@ -69,7 +71,8 @@ fn round_trip_line_chart_with_title() {
     chart.set_x_axis_name("X Axis");
     chart.set_y_axis_name("Y Axis");
     chart.set_legend_position(LegendPosition::Top);
-    chart.add_series()
+    chart
+        .add_series()
         .set_values("Sheet1!$B$2:$B$3")
         .set_categories("Sheet1!$A$2:$A$3")
         .set_name("Data");
@@ -108,7 +111,8 @@ fn round_trip_multiple_charts_on_one_sheet() {
     // Chart 1: Pie
     let mut chart1 = Chart::new(ChartType::Pie);
     chart1.set_title("Pie Chart");
-    chart1.add_series()
+    chart1
+        .add_series()
         .set_values("Sheet1!$B$2:$B$3")
         .set_categories("Sheet1!$A$2:$A$3");
     ws.insert_chart(5, 0, &chart1).unwrap();
@@ -116,14 +120,16 @@ fn round_trip_multiple_charts_on_one_sheet() {
     // Chart 2: Column
     let mut chart2 = Chart::new(ChartType::Column);
     chart2.set_title("Column Chart");
-    chart2.add_series()
+    chart2
+        .add_series()
         .set_values("Sheet1!$B$2:$B$3")
         .set_categories("Sheet1!$A$2:$A$3");
     ws.insert_chart(20, 0, &chart2).unwrap();
 
     // Chart 3: Scatter
     let mut chart3 = Chart::new(ChartType::Scatter);
-    chart3.add_series()
+    chart3
+        .add_series()
         .set_values("Sheet1!$B$2:$B$3")
         .set_categories("Sheet1!$A$2:$A$3");
     ws.insert_chart(35, 0, &chart3).unwrap();

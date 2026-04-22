@@ -161,10 +161,7 @@ fn test_custom_formula_validation_roundtrip() {
 fn test_multiple_validations_roundtrip() {
     let mut wb = roundtrip_workbook(|ws| {
         // List validation on A1:A10
-        let mut dv1 = DataValidation::new(ValidationRule::List(vec![
-            "Yes".into(),
-            "No".into(),
-        ]));
+        let mut dv1 = DataValidation::new(ValidationRule::List(vec!["Yes".into(), "No".into()]));
         dv1.set_input_message("Answer", "Pick yes or no");
         ws.add_data_validation(0, 0, 9, 0, &dv1).unwrap();
 

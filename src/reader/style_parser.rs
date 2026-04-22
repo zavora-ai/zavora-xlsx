@@ -68,7 +68,7 @@ pub struct ParsedBorder {
 }
 
 /// Alignment record parsed from `<alignment>` elements inside `<xf>`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ParsedAlignment {
     pub horizontal: u8,
     pub vertical: u8,
@@ -78,39 +78,14 @@ pub struct ParsedAlignment {
     pub rotation: i16,
 }
 
-impl Default for ParsedAlignment {
-    fn default() -> Self {
-        Self {
-            horizontal: 0,
-            vertical: 0,
-            wrap_text: false,
-            shrink_to_fit: false,
-            indent: 0,
-            rotation: 0,
-        }
-    }
-}
-
 /// Full xf record: references into fonts, fills, borders plus alignment and number format.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct XfRecord {
     pub font_id: usize,
     pub fill_id: usize,
     pub border_id: usize,
     pub num_fmt_id: u16,
     pub alignment: ParsedAlignment,
-}
-
-impl Default for XfRecord {
-    fn default() -> Self {
-        Self {
-            font_id: 0,
-            fill_id: 0,
-            border_id: 0,
-            num_fmt_id: 0,
-            alignment: ParsedAlignment::default(),
-        }
-    }
 }
 
 /// Differential formatting record parsed from `<dxf>` elements (used by conditional formatting).
@@ -256,7 +231,13 @@ fn builtin_num_format(id: u16) -> Option<&'static str> {
 fn parse_rgb_color(val: &[u8]) -> Option<[u8; 3]> {
     let s = std::str::from_utf8(val).ok()?;
     // Expect at least 6 hex chars; if 8, skip first 2 (alpha)
-    let hex = if s.len() >= 8 { &s[2..8] } else if s.len() >= 6 { &s[0..6] } else { return None };
+    let hex = if s.len() >= 8 {
+        &s[2..8]
+    } else if s.len() >= 6 {
+        &s[0..6]
+    } else {
+        return None;
+    };
     let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
     let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
     let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
@@ -327,8 +308,26 @@ fn parse_v_align(s: &str) -> u8 {
 }
 
 /// Helper: read a `<color>` element's rgb attribute from the current event.
+/// Also handles theme color references by resolving them to RGB.
 fn parse_color_from_event(event: &quick_xml::events::BytesStart<'_>) -> Option<[u8; 3]> {
-    get_attr(event.attributes(), b"rgb").and_then(|v| parse_rgb_color(v))
+    // First check for rgb attribute
+    if let Some(rgb) = get_attr(event.attributes(), b"rgb").and_then(parse_rgb_color) {
+        return Some(rgb);
+    }
+    // Then check for theme color reference
+    if let Some(theme_idx) = get_attr(event.attributes(), b"theme")
+        .and_then(|v| std::str::from_utf8(v).ok())
+        .and_then(|v| v.parse::<u8>().ok())
+        && let Some(idx) = crate::format::ThemeColorIndex::from_index(theme_idx)
+    {
+        let base_rgb = idx.default_rgb();
+        let tint = get_attr(event.attributes(), b"tint")
+            .and_then(|v| std::str::from_utf8(v).ok())
+            .and_then(|v| v.parse::<f64>().ok())
+            .unwrap_or(0.0);
+        return Some(crate::format::apply_tint(base_rgb, tint));
+    }
+    None
 }
 
 /// Helper: extract a usize attribute value.
@@ -363,42 +362,40 @@ fn parse_single_font(reader: &mut Reader<&[u8]>, buf: &mut Vec<u8>) -> crate::Re
     loop {
         buf.clear();
         match reader.read_event_into(buf)? {
-            Event::Start(e) | Event::Empty(e) => {
-                match e.local_name().as_ref() {
-                    b"b" => font.bold = true,
-                    b"i" => font.italic = true,
-                    b"u" => {
-                        let val = get_attr(e.attributes(), b"val")
-                            .and_then(|v| std::str::from_utf8(v).ok())
-                            .unwrap_or("single");
-                        font.underline = match val {
-                            "double" => Underline::Double,
-                            "none" => Underline::None,
-                            _ => Underline::Single,
-                        };
-                    }
-                    b"strike" => font.strikethrough = true,
-                    b"sz" => {
-                        if let Some(v) = get_attr(e.attributes(), b"val")
-                            .and_then(|v| std::str::from_utf8(v).ok())
-                            .and_then(|v| v.parse::<f64>().ok())
-                        {
-                            font.size = v;
-                        }
-                    }
-                    b"name" => {
-                        if let Some(v) = get_attr(e.attributes(), b"val")
-                            .and_then(|v| std::str::from_utf8(v).ok())
-                        {
-                            font.name = v.to_string();
-                        }
-                    }
-                    b"color" => {
-                        font.color = parse_color_from_event(&e);
-                    }
-                    _ => {}
+            Event::Start(e) | Event::Empty(e) => match e.local_name().as_ref() {
+                b"b" => font.bold = true,
+                b"i" => font.italic = true,
+                b"u" => {
+                    let val = get_attr(e.attributes(), b"val")
+                        .and_then(|v| std::str::from_utf8(v).ok())
+                        .unwrap_or("single");
+                    font.underline = match val {
+                        "double" => Underline::Double,
+                        "none" => Underline::None,
+                        _ => Underline::Single,
+                    };
                 }
-            }
+                b"strike" => font.strikethrough = true,
+                b"sz" => {
+                    if let Some(v) = get_attr(e.attributes(), b"val")
+                        .and_then(|v| std::str::from_utf8(v).ok())
+                        .and_then(|v| v.parse::<f64>().ok())
+                    {
+                        font.size = v;
+                    }
+                }
+                b"name" => {
+                    if let Some(v) =
+                        get_attr(e.attributes(), b"val").and_then(|v| std::str::from_utf8(v).ok())
+                    {
+                        font.name = v.to_string();
+                    }
+                }
+                b"color" => {
+                    font.color = parse_color_from_event(&e);
+                }
+                _ => {}
+            },
             Event::End(e) if e.local_name().as_ref() == b"font" => break,
             Event::Eof => break,
             _ => {}
@@ -414,32 +411,28 @@ fn parse_single_fill(reader: &mut Reader<&[u8]>, buf: &mut Vec<u8>) -> crate::Re
     loop {
         buf.clear();
         match reader.read_event_into(buf)? {
-            Event::Start(e) | Event::Empty(e) => {
-                match e.local_name().as_ref() {
-                    b"patternFill" => {
-                        in_pattern_fill = true;
-                        if let Some(pt) = get_attr(e.attributes(), b"patternType")
-                            .and_then(|v| std::str::from_utf8(v).ok())
-                        {
-                            fill.pattern = parse_pattern_type(pt);
-                        }
+            Event::Start(e) | Event::Empty(e) => match e.local_name().as_ref() {
+                b"patternFill" => {
+                    in_pattern_fill = true;
+                    if let Some(pt) = get_attr(e.attributes(), b"patternType")
+                        .and_then(|v| std::str::from_utf8(v).ok())
+                    {
+                        fill.pattern = parse_pattern_type(pt);
                     }
-                    b"fgColor" if in_pattern_fill => {
-                        fill.fg_color = parse_color_from_event(&e);
-                    }
-                    b"bgColor" if in_pattern_fill => {
-                        fill.bg_color = parse_color_from_event(&e);
-                    }
-                    _ => {}
                 }
-            }
-            Event::End(e) => {
-                match e.local_name().as_ref() {
-                    b"patternFill" => in_pattern_fill = false,
-                    b"fill" => break,
-                    _ => {}
+                b"fgColor" if in_pattern_fill => {
+                    fill.fg_color = parse_color_from_event(&e);
                 }
-            }
+                b"bgColor" if in_pattern_fill => {
+                    fill.bg_color = parse_color_from_event(&e);
+                }
+                _ => {}
+            },
+            Event::End(e) => match e.local_name().as_ref() {
+                b"patternFill" => in_pattern_fill = false,
+                b"fill" => break,
+                _ => {}
+            },
             Event::Eof => break,
             _ => {}
         }
@@ -449,7 +442,12 @@ fn parse_single_fill(reader: &mut Reader<&[u8]>, buf: &mut Vec<u8>) -> crate::Re
 
 /// Parse a single border side element (e.g. `<left style="thin"><color rgb="..."/></left>`).
 /// Called when we encounter a Start event for left/right/top/bottom/diagonal.
-fn parse_border_side(reader: &mut Reader<&[u8]>, buf: &mut Vec<u8>, end_tag: &[u8], style_attr: Option<BorderStyle>) -> crate::Result<ParsedBorderSide> {
+fn parse_border_side(
+    reader: &mut Reader<&[u8]>,
+    buf: &mut Vec<u8>,
+    end_tag: &[u8],
+    style_attr: Option<BorderStyle>,
+) -> crate::Result<ParsedBorderSide> {
     let mut side = ParsedBorderSide {
         style: style_attr.unwrap_or(BorderStyle::None),
         color: None,
@@ -471,7 +469,10 @@ fn parse_border_side(reader: &mut Reader<&[u8]>, buf: &mut Vec<u8>, end_tag: &[u
 }
 
 /// Parse a single `<border>` element.
-fn parse_single_border(reader: &mut Reader<&[u8]>, buf: &mut Vec<u8>) -> crate::Result<ParsedBorder> {
+fn parse_single_border(
+    reader: &mut Reader<&[u8]>,
+    buf: &mut Vec<u8>,
+) -> crate::Result<ParsedBorder> {
     let mut border = ParsedBorder::default();
     loop {
         buf.clear();
@@ -485,8 +486,12 @@ fn parse_single_border(reader: &mut Reader<&[u8]>, buf: &mut Vec<u8>) -> crate::
                     b"left" => border.left = parse_border_side(reader, buf, b"left", style_val)?,
                     b"right" => border.right = parse_border_side(reader, buf, b"right", style_val)?,
                     b"top" => border.top = parse_border_side(reader, buf, b"top", style_val)?,
-                    b"bottom" => border.bottom = parse_border_side(reader, buf, b"bottom", style_val)?,
-                    b"diagonal" => border.diagonal = parse_border_side(reader, buf, b"diagonal", style_val)?,
+                    b"bottom" => {
+                        border.bottom = parse_border_side(reader, buf, b"bottom", style_val)?
+                    }
+                    b"diagonal" => {
+                        border.diagonal = parse_border_side(reader, buf, b"diagonal", style_val)?
+                    }
                     _ => {}
                 }
             }
@@ -520,23 +525,23 @@ fn parse_single_border(reader: &mut Reader<&[u8]>, buf: &mut Vec<u8>) -> crate::
 /// Parse an `<alignment>` element's attributes into a `ParsedAlignment`.
 fn parse_alignment_attrs(event: &quick_xml::events::BytesStart<'_>) -> ParsedAlignment {
     let mut align = ParsedAlignment::default();
-    if let Some(h) = get_attr(event.attributes(), b"horizontal")
-        .and_then(|v| std::str::from_utf8(v).ok())
+    if let Some(h) =
+        get_attr(event.attributes(), b"horizontal").and_then(|v| std::str::from_utf8(v).ok())
     {
         align.horizontal = parse_h_align(h);
     }
-    if let Some(v) = get_attr(event.attributes(), b"vertical")
-        .and_then(|v| std::str::from_utf8(v).ok())
+    if let Some(v) =
+        get_attr(event.attributes(), b"vertical").and_then(|v| std::str::from_utf8(v).ok())
     {
         align.vertical = parse_v_align(v);
     }
-    if let Some(v) = get_attr(event.attributes(), b"wrapText")
-        .and_then(|v| std::str::from_utf8(v).ok())
+    if let Some(v) =
+        get_attr(event.attributes(), b"wrapText").and_then(|v| std::str::from_utf8(v).ok())
     {
         align.wrap_text = v == "1" || v == "true";
     }
-    if let Some(v) = get_attr(event.attributes(), b"shrinkToFit")
-        .and_then(|v| std::str::from_utf8(v).ok())
+    if let Some(v) =
+        get_attr(event.attributes(), b"shrinkToFit").and_then(|v| std::str::from_utf8(v).ok())
     {
         align.shrink_to_fit = v == "1" || v == "true";
     }
@@ -561,19 +566,17 @@ fn parse_single_dxf(reader: &mut Reader<&[u8]>, buf: &mut Vec<u8>) -> crate::Res
     loop {
         buf.clear();
         match reader.read_event_into(buf)? {
-            Event::Start(e) => {
-                match e.local_name().as_ref() {
-                    b"font" => dxf.font = Some(parse_single_font(reader, buf)?),
-                    b"fill" => dxf.fill = Some(parse_single_fill(reader, buf)?),
-                    b"border" => dxf.border = Some(parse_single_border(reader, buf)?),
-                    b"numFmt" => {
-                        let id = get_attr_u16(&e, b"numFmtId");
-                        let code = get_attr_string(&e, b"formatCode");
-                        dxf.num_fmt = Some((id, code));
-                    }
-                    _ => {}
+            Event::Start(e) => match e.local_name().as_ref() {
+                b"font" => dxf.font = Some(parse_single_font(reader, buf)?),
+                b"fill" => dxf.fill = Some(parse_single_fill(reader, buf)?),
+                b"border" => dxf.border = Some(parse_single_border(reader, buf)?),
+                b"numFmt" => {
+                    let id = get_attr_u16(&e, b"numFmtId");
+                    let code = get_attr_string(&e, b"formatCode");
+                    dxf.num_fmt = Some((id, code));
                 }
-            }
+                _ => {}
+            },
             Event::Empty(e) => {
                 if e.local_name().as_ref() == b"numFmt" {
                     let id = get_attr_u16(&e, b"numFmtId");
@@ -724,21 +727,19 @@ pub fn parse_styles(data: &[u8]) -> crate::Result<ParsedStyles> {
                     _ => {}
                 }
             }
-            Event::End(e) => {
-                match e.local_name().as_ref() {
-                    b"fonts" => in_fonts = false,
-                    b"fills" => in_fills = false,
-                    b"borders" => in_borders = false,
-                    b"cellXfs" => in_cell_xfs = false,
-                    b"dxfs" => in_dxfs = false,
-                    b"xf" if in_cell_xfs => {
-                        if let Some(xf) = current_xf.take() {
-                            xf_records.push(xf);
-                        }
+            Event::End(e) => match e.local_name().as_ref() {
+                b"fonts" => in_fonts = false,
+                b"fills" => in_fills = false,
+                b"borders" => in_borders = false,
+                b"cellXfs" => in_cell_xfs = false,
+                b"dxfs" => in_dxfs = false,
+                b"xf" if in_cell_xfs => {
+                    if let Some(xf) = current_xf.take() {
+                        xf_records.push(xf);
                     }
-                    _ => {}
                 }
-            }
+                _ => {}
+            },
             Event::Eof => break,
             _ => {}
         }

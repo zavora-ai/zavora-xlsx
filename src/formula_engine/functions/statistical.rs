@@ -40,7 +40,7 @@ fn collect_numbers(args: &[Value]) -> Result<Vec<f64>, ErrorKind> {
 // STDEV (sample standard deviation)
 // ---------------------------------------------------------------------------
 
-/// STDEV(number1, [number2], ...)
+/// STDEV(`number1`, \[`number2`\], ...)
 /// Returns the sample standard deviation. Requires at least 2 data points.
 pub fn fn_stdev(args: &[Value]) -> Value {
     let nums = match collect_numbers(args) {
@@ -59,7 +59,7 @@ pub fn fn_stdev(args: &[Value]) -> Value {
 // VAR (sample variance)
 // ---------------------------------------------------------------------------
 
-/// VAR(number1, [number2], ...)
+/// VAR(`number1`, \[`number2`\], ...)
 /// Returns the sample variance. Requires at least 2 data points.
 pub fn fn_var(args: &[Value]) -> Value {
     let nums = match collect_numbers(args) {
@@ -78,7 +78,7 @@ pub fn fn_var(args: &[Value]) -> Value {
 // MEDIAN
 // ---------------------------------------------------------------------------
 
-/// MEDIAN(number1, [number2], ...)
+/// MEDIAN(`number1`, \[`number2`\], ...)
 /// Returns the median of the given numbers.
 pub fn fn_median(args: &[Value]) -> Value {
     let mut nums = match collect_numbers(args) {
@@ -138,7 +138,7 @@ pub fn fn_percentile(args: &[Value]) -> Value {
 // RANK
 // ---------------------------------------------------------------------------
 
-/// RANK(number, ref, [order])
+/// RANK(`number`, `ref`, \[`order`\])
 /// Returns the rank of a number in a list. order=0 (default) descending, order=1 ascending.
 pub fn fn_rank(args: &[Value]) -> Value {
     if args.len() < 2 || args.len() > 3 {
@@ -190,7 +190,10 @@ pub fn fn_countif(args: &[Value]) -> Value {
     let range = flatten_values(&args[0]);
     let criteria = parse_criteria(&args[1]);
 
-    let count = range.iter().filter(|v| matches_criteria(v, &criteria)).count();
+    let count = range
+        .iter()
+        .filter(|v| matches_criteria(v, &criteria))
+        .count();
     Value::Number(count as f64)
 }
 
@@ -198,7 +201,7 @@ pub fn fn_countif(args: &[Value]) -> Value {
 // SUMIF
 // ---------------------------------------------------------------------------
 
-/// SUMIF(range, criteria, [sum_range])
+/// SUMIF(`range`, `criteria`, \[`sum_range`\])
 /// Sums cells that meet a criteria. If sum_range is omitted, sums the range itself.
 pub fn fn_sumif(args: &[Value]) -> Value {
     if args.is_empty() || args.len() > 3 {
@@ -214,12 +217,11 @@ pub fn fn_sumif(args: &[Value]) -> Value {
 
     let mut total = 0.0;
     for (i, val) in range.iter().enumerate() {
-        if matches_criteria(val, &criteria) {
-            if let Some(sum_val) = sum_range.get(i) {
-                if let Ok(n) = sum_val.to_number() {
-                    total += n;
-                }
-            }
+        if matches_criteria(val, &criteria)
+            && let Some(sum_val) = sum_range.get(i)
+            && let Ok(n) = sum_val.to_number()
+        {
+            total += n;
         }
     }
     Value::Number(total)
@@ -244,29 +246,29 @@ fn parse_criteria(val: &Value) -> Criteria {
     match val {
         Value::String(s) => {
             let trimmed = s.trim();
-            if let Some(rest) = trimmed.strip_prefix(">=") {
-                if let Ok(n) = rest.trim().parse::<f64>() {
-                    return Criteria::GreaterEqual(n);
-                }
+            if let Some(rest) = trimmed.strip_prefix(">=")
+                && let Ok(n) = rest.trim().parse::<f64>()
+            {
+                return Criteria::GreaterEqual(n);
             }
-            if let Some(rest) = trimmed.strip_prefix("<=") {
-                if let Ok(n) = rest.trim().parse::<f64>() {
-                    return Criteria::LessEqual(n);
-                }
+            if let Some(rest) = trimmed.strip_prefix("<=")
+                && let Ok(n) = rest.trim().parse::<f64>()
+            {
+                return Criteria::LessEqual(n);
             }
             if let Some(rest) = trimmed.strip_prefix("<>") {
                 let cmp_val = parse_criteria_value(rest.trim());
                 return Criteria::NotEqual(cmp_val);
             }
-            if let Some(rest) = trimmed.strip_prefix('>') {
-                if let Ok(n) = rest.trim().parse::<f64>() {
-                    return Criteria::GreaterThan(n);
-                }
+            if let Some(rest) = trimmed.strip_prefix('>')
+                && let Ok(n) = rest.trim().parse::<f64>()
+            {
+                return Criteria::GreaterThan(n);
             }
-            if let Some(rest) = trimmed.strip_prefix('<') {
-                if let Ok(n) = rest.trim().parse::<f64>() {
-                    return Criteria::LessThan(n);
-                }
+            if let Some(rest) = trimmed.strip_prefix('<')
+                && let Ok(n) = rest.trim().parse::<f64>()
+            {
+                return Criteria::LessThan(n);
             }
             if let Some(rest) = trimmed.strip_prefix('=') {
                 let cmp_val = parse_criteria_value(rest.trim());
@@ -298,16 +300,32 @@ fn matches_criteria(val: &Value, criteria: &Criteria) -> bool {
         Criteria::Equal(cmp) => values_equal_criteria(val, cmp),
         Criteria::NotEqual(cmp) => !values_equal_criteria(val, cmp),
         Criteria::GreaterThan(n) => {
-            if let Ok(v) = val.to_number() { v > *n } else { false }
+            if let Ok(v) = val.to_number() {
+                v > *n
+            } else {
+                false
+            }
         }
         Criteria::GreaterEqual(n) => {
-            if let Ok(v) = val.to_number() { v >= *n } else { false }
+            if let Ok(v) = val.to_number() {
+                v >= *n
+            } else {
+                false
+            }
         }
         Criteria::LessThan(n) => {
-            if let Ok(v) = val.to_number() { v < *n } else { false }
+            if let Ok(v) = val.to_number() {
+                v < *n
+            } else {
+                false
+            }
         }
         Criteria::LessEqual(n) => {
-            if let Ok(v) = val.to_number() { v <= *n } else { false }
+            if let Ok(v) = val.to_number() {
+                v <= *n
+            } else {
+                false
+            }
         }
         Criteria::Wildcard(pattern) => {
             if let Ok(s) = val.to_string_val() {
@@ -480,7 +498,12 @@ mod tests {
 
     #[test]
     fn test_countif_wildcard() {
-        let range = Value::Array(vec![vec![s("apple"), s("banana"), s("apricot"), s("cherry")]]);
+        let range = Value::Array(vec![vec![
+            s("apple"),
+            s("banana"),
+            s("apricot"),
+            s("cherry"),
+        ]]);
         assert_eq!(fn_countif(&[range, s("ap*")]), num(2.0));
     }
 
@@ -495,10 +518,7 @@ mod tests {
     fn test_sumif_with_sum_range() {
         let criteria_range = Value::Array(vec![vec![s("A"), s("B"), s("A"), s("B")]]);
         let sum_range = nums_array(&[10.0, 20.0, 30.0, 40.0]);
-        assert_eq!(
-            fn_sumif(&[criteria_range, s("A"), sum_range]),
-            num(40.0)
-        );
+        assert_eq!(fn_sumif(&[criteria_range, s("A"), sum_range]), num(40.0));
     }
 
     #[test]

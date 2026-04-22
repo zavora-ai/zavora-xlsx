@@ -1,0 +1,13 @@
+[package]
+name = "zavora-xlsx-python"
+version = "0.1.0"
+edition = "2024"
+description = "Python bindings for zavora-xlsx"
+
+[lib]
+name = "zavora_xlsx"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.22", features = ["extension-module"] }
+zavora-xlsx = { path = ".." }

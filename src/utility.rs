@@ -14,13 +14,17 @@ pub fn col_from_letter(s: &str) -> crate::Result<ColNum> {
     let mut n: u32 = 0;
     for b in s.bytes() {
         if !b.is_ascii_alphabetic() {
-            return Err(crate::Error::InvalidCellRef(format!("invalid column char in '{s}'")));
+            return Err(crate::Error::InvalidCellRef(format!(
+                "invalid column char in '{s}'"
+            )));
         }
         n = n * 26 + (b.to_ascii_uppercase() - b'A') as u32 + 1;
     }
     let idx = n - 1;
     if idx > MAX_COL {
-        return Err(crate::Error::InvalidCellRef(format!("column '{s}' exceeds XFD")));
+        return Err(crate::Error::InvalidCellRef(format!(
+            "column '{s}' exceeds XFD"
+        )));
     }
     Ok(idx as ColNum)
 }
@@ -49,7 +53,8 @@ pub fn parse_cell_ref(s: &str) -> crate::Result<(RowNum, ColNum)> {
     // Strip all $ signs (absolute reference markers)
     let clean: String = s.chars().filter(|&c| c != '$').collect();
     let s = &clean;
-    let split = s.find(|c: char| c.is_ascii_digit())
+    let split = s
+        .find(|c: char| c.is_ascii_digit())
         .ok_or_else(|| crate::Error::InvalidCellRef(format!("no row in '{s}'")))?;
     if split == 0 {
         return Err(crate::Error::InvalidCellRef(format!("no column in '{s}'")));
@@ -57,10 +62,13 @@ pub fn parse_cell_ref(s: &str) -> crate::Result<(RowNum, ColNum)> {
     let col_str = &s[..split];
     let row_str = &s[split..];
     let col = col_from_letter(col_str)?;
-    let row_1: u32 = row_str.parse()
+    let row_1: u32 = row_str
+        .parse()
         .map_err(|_| crate::Error::InvalidCellRef(format!("bad row '{row_str}'")))?;
     if row_1 == 0 || row_1 - 1 > MAX_ROW {
-        return Err(crate::Error::InvalidCellRef(format!("row {row_1} out of range")));
+        return Err(crate::Error::InvalidCellRef(format!(
+            "row {row_1} out of range"
+        )));
     }
     Ok((row_1 - 1, col))
 }
@@ -87,9 +95,13 @@ pub fn parse_cell_attr(bytes: &[u8]) -> Option<(RowNum, ColNum)> {
         col = col * 26 + (bytes[i].to_ascii_uppercase() - b'A') as u32 + 1;
         i += 1;
     }
-    if i == 0 || i == bytes.len() { return None; }
+    if i == 0 || i == bytes.len() {
+        return None;
+    }
     let row: u32 = atoi_simd::parse(&bytes[i..]).ok()?;
-    if row == 0 { return None; }
+    if row == 0 {
+        return None;
+    }
     Some((row - 1, (col - 1) as ColNum))
 }
 

@@ -131,7 +131,7 @@ pub fn fn_sqrt(args: &[Value]) -> Value {
     }
 }
 
-/// LOG(number, [base])
+/// LOG(`number`, \[`base`\])
 /// Default base is 10.
 pub fn fn_log(args: &[Value]) -> Value {
     if args.is_empty() || args.len() > 2 {
@@ -255,10 +255,7 @@ mod tests {
         assert_eq!(fn_mod(&[num(3.0), num(2.0)]), num(1.0));
         assert_eq!(fn_mod(&[num(-3.0), num(2.0)]), num(1.0));
         assert_eq!(fn_mod(&[num(3.0), num(-2.0)]), num(-1.0));
-        assert_eq!(
-            fn_mod(&[num(5.0), num(0.0)]),
-            Value::Error(ErrorKind::Div0)
-        );
+        assert_eq!(fn_mod(&[num(5.0), num(0.0)]), Value::Error(ErrorKind::Div0));
     }
 
     #[test]

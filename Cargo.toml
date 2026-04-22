@@ -53,6 +53,7 @@ cffi = []
 calamine = "0.34"
 tempfile = "3"
 serde = { version = "1", features = ["derive"] }
+zavora-xlsx-derive = { path = "zavora-xlsx-derive" }
 
 [workspace]
-members = ["zavora-xlsx-cli", "zavora-xlsx-node"]
+members = ["zavora-xlsx-cli", "zavora-xlsx-node", "zavora-xlsx-derive", "zavora-xlsx-python"]

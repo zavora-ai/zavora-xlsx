@@ -25,16 +25,40 @@ fn test_row_grouping_roundtrip() {
         let row_levels = ws.row_outline_levels();
 
         // Rows 1-3 should be level 1
-        assert_eq!(row_levels.get(&1), Some(&1), "Row 1 should have outline level 1");
-        assert_eq!(row_levels.get(&2), Some(&1), "Row 2 should have outline level 1");
-        assert_eq!(row_levels.get(&3), Some(&1), "Row 3 should have outline level 1");
+        assert_eq!(
+            row_levels.get(&1),
+            Some(&1),
+            "Row 1 should have outline level 1"
+        );
+        assert_eq!(
+            row_levels.get(&2),
+            Some(&1),
+            "Row 2 should have outline level 1"
+        );
+        assert_eq!(
+            row_levels.get(&3),
+            Some(&1),
+            "Row 3 should have outline level 1"
+        );
 
         // Rows 4-5 should be level 2
-        assert_eq!(row_levels.get(&4), Some(&2), "Row 4 should have outline level 2");
-        assert_eq!(row_levels.get(&5), Some(&2), "Row 5 should have outline level 2");
+        assert_eq!(
+            row_levels.get(&4),
+            Some(&2),
+            "Row 4 should have outline level 2"
+        );
+        assert_eq!(
+            row_levels.get(&5),
+            Some(&2),
+            "Row 5 should have outline level 2"
+        );
 
         // Row 0 should have no outline level
-        assert_eq!(row_levels.get(&0), None, "Row 0 should have no outline level");
+        assert_eq!(
+            row_levels.get(&0),
+            None,
+            "Row 0 should have no outline level"
+        );
     }
 
     std::fs::remove_file(path).ok();
@@ -66,16 +90,40 @@ fn test_col_grouping_roundtrip() {
         let col_levels = ws.col_outline_levels();
 
         // Columns 1-3 should be level 1
-        assert_eq!(col_levels.get(&1), Some(&1), "Col B should have outline level 1");
-        assert_eq!(col_levels.get(&2), Some(&1), "Col C should have outline level 1");
-        assert_eq!(col_levels.get(&3), Some(&1), "Col D should have outline level 1");
+        assert_eq!(
+            col_levels.get(&1),
+            Some(&1),
+            "Col B should have outline level 1"
+        );
+        assert_eq!(
+            col_levels.get(&2),
+            Some(&1),
+            "Col C should have outline level 1"
+        );
+        assert_eq!(
+            col_levels.get(&3),
+            Some(&1),
+            "Col D should have outline level 1"
+        );
 
         // Columns 4-5 should be level 2
-        assert_eq!(col_levels.get(&4), Some(&2), "Col E should have outline level 2");
-        assert_eq!(col_levels.get(&5), Some(&2), "Col F should have outline level 2");
+        assert_eq!(
+            col_levels.get(&4),
+            Some(&2),
+            "Col E should have outline level 2"
+        );
+        assert_eq!(
+            col_levels.get(&5),
+            Some(&2),
+            "Col F should have outline level 2"
+        );
 
         // Column 0 should have no outline level
-        assert_eq!(col_levels.get(&0), None, "Col A should have no outline level");
+        assert_eq!(
+            col_levels.get(&0),
+            None,
+            "Col A should have no outline level"
+        );
     }
 
     std::fs::remove_file(path).ok();

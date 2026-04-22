@@ -27,22 +27,35 @@ fn test_defined_names_with_scope_roundtrip() {
         let wb = Workbook::open_readonly(path).unwrap();
         let scoped = wb.defined_names_with_scope();
 
-        assert_eq!(scoped.len(), 3, "Expected 3 defined names, got {}", scoped.len());
+        assert_eq!(
+            scoped.len(),
+            3,
+            "Expected 3 defined names, got {}",
+            scoped.len()
+        );
 
         // Verify global name
-        let tax = scoped.iter().find(|dn| dn.name == "TaxRate").expect("TaxRate not found");
+        let tax = scoped
+            .iter()
+            .find(|dn| dn.name == "TaxRate")
+            .expect("TaxRate not found");
         assert_eq!(tax.formula, "0.08");
         assert_eq!(tax.scope, DefinedNameScope::Workbook);
 
         // Verify sheet-scoped names (both named "DataRange" but different scopes)
-        let data_ranges: Vec<&DefinedName> = scoped.iter().filter(|dn| dn.name == "DataRange").collect();
+        let data_ranges: Vec<&DefinedName> =
+            scoped.iter().filter(|dn| dn.name == "DataRange").collect();
         assert_eq!(data_ranges.len(), 2, "Expected 2 DataRange names");
 
-        let sales_range = data_ranges.iter().find(|dn| dn.scope == DefinedNameScope::Sheet(1))
+        let sales_range = data_ranges
+            .iter()
+            .find(|dn| dn.scope == DefinedNameScope::Sheet(1))
             .expect("DataRange scoped to sheet 1 not found");
         assert_eq!(sales_range.formula, "'Sales'!$A$1:$D$100");
 
-        let budget_range = data_ranges.iter().find(|dn| dn.scope == DefinedNameScope::Sheet(2))
+        let budget_range = data_ranges
+            .iter()
+            .find(|dn| dn.scope == DefinedNameScope::Sheet(2))
             .expect("DataRange scoped to sheet 2 not found");
         assert_eq!(budget_range.formula, "'Budget'!$A$1:$C$50");
 

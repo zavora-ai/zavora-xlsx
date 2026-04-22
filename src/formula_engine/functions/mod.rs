@@ -3,12 +3,12 @@
 //! Dispatches function calls by name to their implementations.
 
 pub mod core;
-pub mod math;
-pub mod text;
 pub mod date;
-pub mod lookup;
-pub mod statistical;
 pub mod logical;
+pub mod lookup;
+pub mod math;
+pub mod statistical;
+pub mod text;
 
 use crate::formula_engine::evaluator::{ErrorKind, Value};
 

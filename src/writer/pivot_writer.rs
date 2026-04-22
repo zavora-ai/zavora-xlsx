@@ -1,7 +1,7 @@
-use std::collections::{BTreeMap, BTreeSet};
 use crate::cell::CellValue;
-use crate::features::pivot::{PivotTable, PivotAggregation, PivotLayout};
+use crate::features::pivot::{FieldGrouping, PivotAggregation, PivotLayout, PivotTable};
 use crate::xml::xml_writer::XmlWriter;
+use std::collections::{BTreeMap, BTreeSet};
 
 /// Scanned cache data from source worksheet.
 pub(crate) struct PivotCacheData {
@@ -11,9 +11,16 @@ pub(crate) struct PivotCacheData {
 }
 
 pub(crate) enum CacheFieldData {
-    String { unique_values: Vec<String> },
-    Number { min: f64, max: f64, has_int: bool },
-    #[allow(dead_code)] Mixed,
+    String {
+        unique_values: Vec<String>,
+    },
+    Number {
+        min: f64,
+        max: f64,
+        has_int: bool,
+    },
+    #[allow(dead_code)]
+    Mixed,
 }
 
 pub(crate) enum CacheValue {
@@ -24,49 +31,71 @@ pub(crate) enum CacheValue {
 
 /// Scan source data from worksheet cells to build cache.
 pub(crate) fn scan_source_data(
-    cells: &std::collections::BTreeMap<u32, std::collections::BTreeMap<u16, (crate::cell::CellType, u32)>>,
+    cells: &std::collections::BTreeMap<
+        u32,
+        std::collections::BTreeMap<u16, (crate::cell::CellType, u32)>,
+    >,
     sst: &crate::model::shared_strings::SharedStringTable,
-    r1: u32, c1: u16, r2: u32, c2: u16,
+    r1: u32,
+    c1: u16,
+    r2: u32,
+    c2: u16,
 ) -> PivotCacheData {
     let col_count = (c2 - c1 + 1) as usize;
 
     // Read headers from first row
-    let headers: Vec<String> = (c1..=c2).map(|c| {
-        cells.get(&r1).and_then(|row| row.get(&c)).map(|(cell, _)| {
-            match cell {
-                crate::cell::CellType::InlineString(s) | crate::cell::CellType::Error(s) => s.clone(),
-                crate::cell::CellType::SharedString(idx) => sst.get(*idx).unwrap_or("").to_string(),
-                crate::cell::CellType::Number(n) => format!("{n}"),
-                _ => format!("Col{}", c - c1 + 1),
-            }
-        }).unwrap_or_else(|| format!("Col{}", c - c1 + 1))
-    }).collect();
+    let headers: Vec<String> = (c1..=c2)
+        .map(|c| {
+            cells
+                .get(&r1)
+                .and_then(|row| row.get(&c))
+                .map(|(cell, _)| match cell {
+                    crate::cell::CellType::InlineString(s) | crate::cell::CellType::Error(s) => {
+                        s.clone()
+                    }
+                    crate::cell::CellType::SharedString(idx) => {
+                        sst.get(*idx).unwrap_or("").to_string()
+                    }
+                    crate::cell::CellType::Number(n) => format!("{n}"),
+                    _ => format!("Col{}", c - c1 + 1),
+                })
+                .unwrap_or_else(|| format!("Col{}", c - c1 + 1))
+        })
+        .collect();
 
     // Collect values per column
     let mut col_values: Vec<Vec<CellValue>> = vec![Vec::new(); col_count];
     for r in (r1 + 1)..=r2 {
         for (ci, c) in (c1..=c2).enumerate() {
-            let val = cells.get(&r).and_then(|row| row.get(&c)).map(|(cell, _)| {
-                match cell {
+            let val = cells
+                .get(&r)
+                .and_then(|row| row.get(&c))
+                .map(|(cell, _)| match cell {
                     crate::cell::CellType::Number(n) => CellValue::Number(*n),
                     crate::cell::CellType::InlineString(s) => CellValue::String(s.clone()),
                     crate::cell::CellType::SharedString(idx) => {
                         CellValue::String(sst.get(*idx).unwrap_or("").to_string())
                     }
-                    crate::cell::CellType::Bool(b) => CellValue::String(if *b { "TRUE" } else { "FALSE" }.into()),
+                    crate::cell::CellType::Bool(b) => {
+                        CellValue::String(if *b { "TRUE" } else { "FALSE" }.into())
+                    }
                     _ => CellValue::Empty,
-                }
-            }).unwrap_or(CellValue::Empty);
+                })
+                .unwrap_or(CellValue::Empty);
             col_values[ci].push(val);
         }
     }
 
     // Build field metadata + records
     let mut fields = Vec::with_capacity(col_count);
-    let mut records: Vec<Vec<CacheValue>> = (0..(r2 - r1) as usize).map(|_| Vec::with_capacity(col_count)).collect();
+    let mut records: Vec<Vec<CacheValue>> = (0..(r2 - r1) as usize)
+        .map(|_| Vec::with_capacity(col_count))
+        .collect();
 
-    for (_ci, values) in col_values.iter().enumerate() {
-        let all_numeric = values.iter().all(|v| matches!(v, CellValue::Number(_) | CellValue::Empty));
+    for values in col_values.iter() {
+        let all_numeric = values
+            .iter()
+            .all(|v| matches!(v, CellValue::Number(_) | CellValue::Empty));
 
         if all_numeric {
             let mut min = f64::MAX;
@@ -74,11 +103,17 @@ pub(crate) fn scan_source_data(
             let mut has_int = true;
             for v in values {
                 if let CellValue::Number(n) = v {
-                    min = min.min(*n); max = max.max(*n);
-                    if *n != n.floor() { has_int = false; }
+                    min = min.min(*n);
+                    max = max.max(*n);
+                    if *n != n.floor() {
+                        has_int = false;
+                    }
                 }
             }
-            if min == f64::MAX { min = 0.0; max = 0.0; }
+            if min == f64::MAX {
+                min = 0.0;
+                max = 0.0;
+            }
             fields.push(CacheFieldData::Number { min, max, has_int });
             for (ri, v) in values.iter().enumerate() {
                 records[ri].push(match v {
@@ -95,62 +130,110 @@ pub(crate) fn scan_source_data(
                     CellValue::Number(n) => format!("{n}"),
                     _ => String::new(),
                 };
-                if !s.is_empty() && seen.insert(s.clone()) { unique.push(s); }
+                if !s.is_empty() && seen.insert(s.clone()) {
+                    unique.push(s);
+                }
             }
-            let index_map: BTreeMap<&str, u32> = unique.iter().enumerate().map(|(i, s)| (s.as_str(), i as u32)).collect();
+            let index_map: BTreeMap<&str, u32> = unique
+                .iter()
+                .enumerate()
+                .map(|(i, s)| (s.as_str(), i as u32))
+                .collect();
             for (ri, v) in values.iter().enumerate() {
                 let s = match v {
                     CellValue::String(s) => s.as_str(),
-                    CellValue::Number(n) => { records[ri].push(CacheValue::Number(*n)); continue; }
-                    _ => { records[ri].push(CacheValue::Blank); continue; }
+                    CellValue::Number(n) => {
+                        records[ri].push(CacheValue::Number(*n));
+                        continue;
+                    }
+                    _ => {
+                        records[ri].push(CacheValue::Blank);
+                        continue;
+                    }
                 };
                 records[ri].push(CacheValue::StringIndex(*index_map.get(s).unwrap_or(&0)));
             }
-            fields.push(CacheFieldData::String { unique_values: unique });
+            fields.push(CacheFieldData::String {
+                unique_values: unique,
+            });
         }
     }
 
-    PivotCacheData { headers, fields, records }
+    PivotCacheData {
+        headers,
+        fields,
+        records,
+    }
 }
 
 /// Write pivotCacheDefinition XML.
-pub(crate) fn write_cache_definition(cache: &PivotCacheData, source_ref: &str, source_sheet: &str, _cache_id: usize) -> Vec<u8> {
+pub(crate) fn write_cache_definition_with_groupings(
+    cache: &PivotCacheData,
+    source_ref: &str,
+    source_sheet: &str,
+    _cache_id: usize,
+    groupings: &[(String, FieldGrouping)],
+) -> Vec<u8> {
     let clean_ref = source_ref.replace('$', "");
     let mut w = XmlWriter::new();
     w.declaration();
     let rec_count = cache.records.len().to_string();
-    w.start_tag("pivotCacheDefinition", &[
-        ("xmlns", "http://schemas.openxmlformats.org/spreadsheetml/2006/main"),
-        ("xmlns:r", "http://schemas.openxmlformats.org/officeDocument/2006/relationships"),
-        ("r:id", "rId1"),
-        ("refreshedBy", "zavora-xlsx"),
-        ("createdVersion", "8"), ("refreshedVersion", "8"), ("minRefreshableVersion", "3"),
-        ("refreshOnLoad", "1"),
-        ("recordCount", &rec_count),
-    ]);
+    w.start_tag(
+        "pivotCacheDefinition",
+        &[
+            (
+                "xmlns",
+                "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
+            ),
+            (
+                "xmlns:r",
+                "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+            ),
+            ("r:id", "rId1"),
+            ("refreshedBy", "zavora-xlsx"),
+            ("createdVersion", "8"),
+            ("refreshedVersion", "8"),
+            ("minRefreshableVersion", "3"),
+            ("refreshOnLoad", "1"),
+            ("recordCount", &rec_count),
+        ],
+    );
 
     w.start_tag("cacheSource", &[("type", "worksheet")]);
-    w.empty_tag("worksheetSource", &[("ref", &clean_ref), ("sheet", source_sheet)]);
+    w.empty_tag(
+        "worksheetSource",
+        &[("ref", &clean_ref), ("sheet", source_sheet)],
+    );
     w.end_tag("cacheSource");
 
     let fc = cache.fields.len().to_string();
     w.start_tag("cacheFields", &[("count", &fc)]);
     for (i, field) in cache.fields.iter().enumerate() {
-        w.start_tag("cacheField", &[("name", &cache.headers[i]), ("numFmtId", "0")]);
+        let header = &cache.headers[i];
+        // Check if this field has a grouping
+        let grouping = groupings.iter().find(|(name, _)| name == header);
+
+        w.start_tag("cacheField", &[("name", header), ("numFmtId", "0")]);
         match field {
             CacheFieldData::String { unique_values } => {
                 let count = unique_values.len().to_string();
                 w.start_tag("sharedItems", &[("count", &count)]);
-                for v in unique_values { w.empty_tag("s", &[("v", v)]); }
+                for v in unique_values {
+                    w.empty_tag("s", &[("v", v)]);
+                }
                 w.end_tag("sharedItems");
             }
             CacheFieldData::Number { min, max, has_int } => {
-                let min_s = format!("{min}"); let max_s = format!("{max}");
+                let min_s = format!("{min}");
+                let max_s = format!("{max}");
                 let mut attrs: Vec<(&str, &str)> = vec![
-                    ("containsSemiMixedTypes", "0"), ("containsString", "0"),
+                    ("containsSemiMixedTypes", "0"),
+                    ("containsString", "0"),
                     ("containsNumber", "1"),
                 ];
-                if *has_int { attrs.push(("containsInteger", "1")); }
+                if *has_int {
+                    attrs.push(("containsInteger", "1"));
+                }
                 attrs.push(("minValue", &min_s));
                 attrs.push(("maxValue", &max_s));
                 w.empty_tag("sharedItems", &attrs);
@@ -159,6 +242,45 @@ pub(crate) fn write_cache_definition(cache: &PivotCacheData, source_ref: &str, s
                 w.empty_tag("sharedItems", &[("containsMixedTypes", "1")]);
             }
         }
+
+        // Write fieldGroup if this field has grouping
+        if let Some((_, grp)) = grouping {
+            match grp {
+                FieldGrouping::Date { levels } => {
+                    w.start_tag("fieldGroup", &[]);
+                    let mut range_attrs: Vec<(&str, &str)> = vec![(
+                        "groupBy",
+                        levels.first().map(|l| l.xml_str()).unwrap_or("months"),
+                    )];
+                    range_attrs.push(("autoStart", "1"));
+                    range_attrs.push(("autoEnd", "1"));
+                    w.empty_tag("rangePr", &range_attrs);
+                    w.end_tag("fieldGroup");
+                }
+                FieldGrouping::Range {
+                    start,
+                    end,
+                    interval,
+                } => {
+                    let start_s = format!("{start}");
+                    let end_s = format!("{end}");
+                    let interval_s = format!("{interval}");
+                    w.start_tag("fieldGroup", &[]);
+                    w.empty_tag(
+                        "rangePr",
+                        &[
+                            ("autoStart", "0"),
+                            ("autoEnd", "0"),
+                            ("startNum", &start_s),
+                            ("endNum", &end_s),
+                            ("groupInterval", &interval_s),
+                        ],
+                    );
+                    w.end_tag("fieldGroup");
+                }
+            }
+        }
+
         w.end_tag("cacheField");
     }
     w.end_tag("cacheFields");
@@ -171,18 +293,35 @@ pub(crate) fn write_cache_records(cache: &PivotCacheData) -> Vec<u8> {
     let mut w = XmlWriter::new();
     w.declaration();
     let count = cache.records.len().to_string();
-    w.start_tag("pivotCacheRecords", &[
-        ("xmlns", "http://schemas.openxmlformats.org/spreadsheetml/2006/main"),
-        ("xmlns:r", "http://schemas.openxmlformats.org/officeDocument/2006/relationships"),
-        ("count", &count),
-    ]);
+    w.start_tag(
+        "pivotCacheRecords",
+        &[
+            (
+                "xmlns",
+                "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
+            ),
+            (
+                "xmlns:r",
+                "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+            ),
+            ("count", &count),
+        ],
+    );
     for record in &cache.records {
         w.start_tag("r", &[]);
         for val in record {
             match val {
-                CacheValue::StringIndex(idx) => { let s = idx.to_string(); w.empty_tag("x", &[("v", &s)]); }
-                CacheValue::Number(n) => { let s = format!("{n}"); w.empty_tag("n", &[("v", &s)]); }
-                CacheValue::Blank => { w.empty_tag("m", &[]); }
+                CacheValue::StringIndex(idx) => {
+                    let s = idx.to_string();
+                    w.empty_tag("x", &[("v", &s)]);
+                }
+                CacheValue::Number(n) => {
+                    let s = format!("{n}");
+                    w.empty_tag("n", &[("v", &s)]);
+                }
+                CacheValue::Blank => {
+                    w.empty_tag("m", &[]);
+                }
             }
         }
         w.end_tag("r");
@@ -192,41 +331,85 @@ pub(crate) fn write_cache_records(cache: &PivotCacheData) -> Vec<u8> {
 }
 
 /// Write pivotTableDefinition XML.
-pub(crate) fn write_pivot_table(pt: &PivotTable, cache: &PivotCacheData, cache_id: usize) -> Vec<u8> {
+pub(crate) fn write_pivot_table(
+    pt: &PivotTable,
+    cache: &PivotCacheData,
+    cache_id: usize,
+) -> Vec<u8> {
     let mut w = XmlWriter::new();
     w.declaration();
 
     let cache_id_s = cache_id.to_string();
     let mut pt_attrs: Vec<(&str, &str)> = vec![
-        ("xmlns", "http://schemas.openxmlformats.org/spreadsheetml/2006/main"),
-        ("name", &pt.name), ("cacheId", &cache_id_s),
+        (
+            "xmlns",
+            "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
+        ),
+        ("name", &pt.name),
+        ("cacheId", &cache_id_s),
         ("dataCaption", "Values"),
-        ("updatedVersion", "8"), ("createdVersion", "8"), ("minRefreshableVersion", "3"),
-        ("useAutoFormatting", "1"), ("itemPrintTitles", "1"),
-        ("indent", "0"), ("outline", "1"), ("outlineData", "1"),
+        ("updatedVersion", "8"),
+        ("createdVersion", "8"),
+        ("minRefreshableVersion", "3"),
+        ("useAutoFormatting", "1"),
+        ("itemPrintTitles", "1"),
+        ("indent", "0"),
+        ("outline", "1"),
+        ("outlineData", "1"),
         ("multipleFieldFilters", "0"),
     ];
-    if !pt.show_row_grand_total { pt_attrs.push(("rowGrandTotals", "0")); }
-    if !pt.show_col_grand_total { pt_attrs.push(("colGrandTotals", "0")); }
+    if !pt.show_row_grand_total {
+        pt_attrs.push(("rowGrandTotals", "0"));
+    }
+    if !pt.show_col_grand_total {
+        pt_attrs.push(("colGrandTotals", "0"));
+    }
     let compact = matches!(pt.layout, PivotLayout::Compact);
-    if !compact { pt_attrs.push(("compact", "0")); pt_attrs.push(("compactData", "0")); }
+    if !compact {
+        pt_attrs.push(("compact", "0"));
+        pt_attrs.push(("compactData", "0"));
+    }
     let chart_fmt_s;
-    if pt.has_chart { chart_fmt_s = "1".to_string(); pt_attrs.push(("chartFormat", &chart_fmt_s)); }
+    if pt.has_chart {
+        chart_fmt_s = "1".to_string();
+        pt_attrs.push(("chartFormat", &chart_fmt_s));
+    }
     w.start_tag("pivotTableDefinition", &pt_attrs);
 
     // Compute location
     let data_cols = pt.value_fields.len().max(1);
-    let n_col_items = pt.column_fields.iter().filter_map(|f| {
-        let idx = cache.headers.iter().position(|h| h == f)?;
-        match &cache.fields[idx] { CacheFieldData::String { unique_values } => Some(unique_values.len()), _ => None }
-    }).product::<usize>().max(1);
+    let n_col_items = pt
+        .column_fields
+        .iter()
+        .filter_map(|f| {
+            let idx = cache.headers.iter().position(|h| h == f)?;
+            match &cache.fields[idx] {
+                CacheFieldData::String { unique_values } => Some(unique_values.len()),
+                _ => None,
+            }
+        })
+        .product::<usize>()
+        .max(1);
     let total_cols = pt.row_fields.len() + n_col_items * data_cols;
-    let page_rows = if pt.filter_fields.is_empty() { 0 } else { pt.filter_fields.len() + 1 };
-    let loc_ref = format!("{}{}:{}{}", crate::utility::col_to_letter(pt.col),
+    let page_rows = if pt.filter_fields.is_empty() {
+        0
+    } else {
+        pt.filter_fields.len() + 1
+    };
+    let loc_ref = format!(
+        "{}{}:{}{}",
+        crate::utility::col_to_letter(pt.col),
         pt.row + 1 + page_rows as u32,
-        crate::utility::col_to_letter(pt.col + total_cols as u16), pt.row + 5 + page_rows as u32);
+        crate::utility::col_to_letter(pt.col + total_cols as u16),
+        pt.row + 5 + page_rows as u32
+    );
     let first_data_col = pt.row_fields.len().to_string();
-    let mut loc_attrs: Vec<(&str, &str)> = vec![("ref", &loc_ref), ("firstHeaderRow", "1"), ("firstDataRow", "1"), ("firstDataCol", &first_data_col)];
+    let mut loc_attrs: Vec<(&str, &str)> = vec![
+        ("ref", &loc_ref),
+        ("firstHeaderRow", "1"),
+        ("firstDataRow", "1"),
+        ("firstDataCol", &first_data_col),
+    ];
     let page_count;
     if !pt.filter_fields.is_empty() {
         page_count = pt.filter_fields.len().to_string();
@@ -245,12 +428,19 @@ pub(crate) fn write_pivot_table(pt: &PivotTable, cache: &PivotCacheData, cache_i
         let is_data = pt.value_fields.iter().any(|vf| vf.source_field == *header);
 
         let mut attrs: Vec<(&str, &str)> = Vec::new();
-        if is_row { attrs.push(("axis", "axisRow")); }
-        else if is_col { attrs.push(("axis", "axisCol")); }
-        else if is_filter { attrs.push(("axis", "axisPage")); }
-        if is_data { attrs.push(("dataField", "1")); }
+        if is_row {
+            attrs.push(("axis", "axisRow"));
+        } else if is_col {
+            attrs.push(("axis", "axisCol"));
+        } else if is_filter {
+            attrs.push(("axis", "axisPage"));
+        }
+        if is_data {
+            attrs.push(("dataField", "1"));
+        }
         if !compact && (is_row || is_col) {
-            attrs.push(("compact", "0")); attrs.push(("outline", "0"));
+            attrs.push(("compact", "0"));
+            attrs.push(("outline", "0"));
         }
         attrs.push(("showAll", "0"));
 
@@ -291,38 +481,44 @@ pub(crate) fn write_pivot_table(pt: &PivotTable, cache: &PivotCacheData, cache_i
 
     // rowItems — one per unique value in first row field + grand total
     if !pt.row_fields.is_empty() {
-        if let Some(first_row_field) = pt.row_fields.first() {
-            if let Some(idx) = cache.headers.iter().position(|h| h == first_row_field) {
-                if let CacheFieldData::String { unique_values } = &cache.fields[idx] {
-                    let count = (unique_values.len() + 1).to_string();
-                    w.start_tag("rowItems", &[("count", &count)]);
-                    for vi in 0..unique_values.len() {
-                        w.start_tag("i", &[]);
-                        let vs = vi.to_string();
-                        w.empty_tag("x", &[("v", &vs)]);
-                        w.end_tag("i");
-                    }
-                    w.start_tag("i", &[("t", "grand")]);
-                    w.empty_tag("x", &[]);
+        if let Some(first_row_field) = pt.row_fields.first()
+            && let Some(idx) = cache.headers.iter().position(|h| h == first_row_field)
+        {
+            if let CacheFieldData::String { unique_values } = &cache.fields[idx] {
+                let count = (unique_values.len() + 1).to_string();
+                w.start_tag("rowItems", &[("count", &count)]);
+                for vi in 0..unique_values.len() {
+                    w.start_tag("i", &[]);
+                    let vs = vi.to_string();
+                    w.empty_tag("x", &[("v", &vs)]);
                     w.end_tag("i");
-                    w.end_tag("rowItems");
-                } else {
-                    w.start_tag("rowItems", &[("count", "1")]);
-                    w.start_tag("i", &[("t", "grand")]); w.empty_tag("x", &[]); w.end_tag("i");
-                    w.end_tag("rowItems");
                 }
+                w.start_tag("i", &[("t", "grand")]);
+                w.empty_tag("x", &[]);
+                w.end_tag("i");
+                w.end_tag("rowItems");
+            } else {
+                w.start_tag("rowItems", &[("count", "1")]);
+                w.start_tag("i", &[("t", "grand")]);
+                w.empty_tag("x", &[]);
+                w.end_tag("i");
+                w.end_tag("rowItems");
             }
         }
     } else {
         w.start_tag("rowItems", &[("count", "1")]);
-        w.start_tag("i", &[("t", "grand")]); w.empty_tag("x", &[]); w.end_tag("i");
+        w.start_tag("i", &[("t", "grand")]);
+        w.empty_tag("x", &[]);
+        w.end_tag("i");
         w.end_tag("rowItems");
     }
 
     // colFields
     if !pt.column_fields.is_empty() || pt.value_fields.len() > 1 {
         let mut col_count = pt.column_fields.len();
-        if pt.value_fields.len() > 1 { col_count += 1; }
+        if pt.value_fields.len() > 1 {
+            col_count += 1;
+        }
         let cc = col_count.to_string();
         w.start_tag("colFields", &[("count", &cc)]);
         for f in &pt.column_fields {
@@ -386,7 +582,9 @@ pub(crate) fn write_pivot_table(pt: &PivotTable, cache: &PivotCacheData, cache_i
             let fld = idx.to_string();
             let mut attrs: Vec<(&str, &str)> = vec![("name", &vf.name), ("fld", &fld)];
             let sub = vf.aggregation.xml_str();
-            if !matches!(vf.aggregation, PivotAggregation::Sum) { attrs.push(("subtotal", sub)); }
+            if !matches!(vf.aggregation, PivotAggregation::Sum) {
+                attrs.push(("subtotal", sub));
+            }
             attrs.push(("baseField", "0"));
             attrs.push(("baseItem", "0"));
             if vf.num_format.is_some() {
@@ -397,16 +595,48 @@ pub(crate) fn write_pivot_table(pt: &PivotTable, cache: &PivotCacheData, cache_i
     }
     w.end_tag("dataFields");
 
+    // calculatedItems
+    if !pt.calculated_items.is_empty() {
+        let ci_count = pt.calculated_items.len().to_string();
+        w.start_tag("calculatedItems", &[("count", &ci_count)]);
+        for ci in &pt.calculated_items {
+            w.start_tag(
+                "calculatedItem",
+                &[("name", &ci.name), ("formula", &ci.formula)],
+            );
+            w.empty_tag("pivotArea", &[("type", "normal")]);
+            w.end_tag("calculatedItem");
+        }
+        w.end_tag("calculatedItems");
+    }
+
     // Style
-    let style_name = match &pt.style { PivotStyle::Named(n) => n.as_str() };
-    w.empty_tag("pivotTableStyleInfo", &[
-        ("name", style_name),
-        ("showRowHeaders", if pt.show_row_headers { "1" } else { "0" }),
-        ("showColHeaders", if pt.show_col_headers { "1" } else { "0" }),
-        ("showRowStripes", if pt.show_row_stripes { "1" } else { "0" }),
-        ("showColStripes", if pt.show_col_stripes { "1" } else { "0" }),
-        ("showLastColumn", "1"),
-    ]);
+    let style_name = match &pt.style {
+        PivotStyle::Named(n) => n.as_str(),
+    };
+    w.empty_tag(
+        "pivotTableStyleInfo",
+        &[
+            ("name", style_name),
+            (
+                "showRowHeaders",
+                if pt.show_row_headers { "1" } else { "0" },
+            ),
+            (
+                "showColHeaders",
+                if pt.show_col_headers { "1" } else { "0" },
+            ),
+            (
+                "showRowStripes",
+                if pt.show_row_stripes { "1" } else { "0" },
+            ),
+            (
+                "showColStripes",
+                if pt.show_col_stripes { "1" } else { "0" },
+            ),
+            ("showLastColumn", "1"),
+        ],
+    );
 
     w.end_tag("pivotTableDefinition");
     w.into_bytes()
@@ -421,8 +651,11 @@ pub(crate) fn compute_pivot_chart_series(
     cache: &PivotCacheData,
 ) -> Vec<crate::features::chart::PivotChartSeriesData> {
     // Find the first row field index (categories)
-    let cat_field_idx = match pt.row_fields.first()
-        .and_then(|name| cache.headers.iter().position(|h| h == name)) {
+    let cat_field_idx = match pt
+        .row_fields
+        .first()
+        .and_then(|name| cache.headers.iter().position(|h| h == name))
+    {
         Some(idx) => idx,
         None => return Vec::new(),
     };
@@ -452,21 +685,33 @@ pub(crate) fn compute_pivot_chart_series(
                 CacheValue::StringIndex(i) => *i as usize,
                 _ => continue,
             };
-            if cat_idx >= categories.len() { continue; }
+            if cat_idx >= categories.len() {
+                continue;
+            }
             let val = match &record[val_field_idx] {
                 CacheValue::Number(n) => *n,
                 _ => continue,
             };
             sums[cat_idx] += val;
             counts[cat_idx] += 1;
-            if val < mins[cat_idx] { mins[cat_idx] = val; }
-            if val > maxs[cat_idx] { maxs[cat_idx] = val; }
+            if val < mins[cat_idx] {
+                mins[cat_idx] = val;
+            }
+            if val > maxs[cat_idx] {
+                maxs[cat_idx] = val;
+            }
         }
 
         let values: Vec<f64> = match vf.aggregation {
             PivotAggregation::Sum => sums,
-            PivotAggregation::Count | PivotAggregation::CountNums => counts.iter().map(|c| *c as f64).collect(),
-            PivotAggregation::Average => sums.iter().zip(counts.iter()).map(|(s, c)| if *c > 0 { s / *c as f64 } else { 0.0 }).collect(),
+            PivotAggregation::Count | PivotAggregation::CountNums => {
+                counts.iter().map(|c| *c as f64).collect()
+            }
+            PivotAggregation::Average => sums
+                .iter()
+                .zip(counts.iter())
+                .map(|(s, c)| if *c > 0 { s / *c as f64 } else { 0.0 })
+                .collect(),
             PivotAggregation::Min => mins,
             PivotAggregation::Max => maxs,
             _ => sums, // default to sum for other types
@@ -495,13 +740,20 @@ pub(crate) fn compute_pivot_chart_series(
     result
 }
 
-fn goto_default_col_items(w: &mut XmlWriter, value_fields: &[crate::features::pivot::PivotValueField]) {
+fn goto_default_col_items(
+    w: &mut XmlWriter,
+    value_fields: &[crate::features::pivot::PivotValueField],
+) {
     let n = value_fields.len().max(1);
     let cc = n.to_string();
     w.start_tag("colItems", &[("count", &cc)]);
     for vi in 0..n {
         let vs = vi.to_string();
-        if vi == 0 { w.start_tag("i", &[]); } else { w.start_tag("i", &[("i", &vs)]); }
+        if vi == 0 {
+            w.start_tag("i", &[]);
+        } else {
+            w.start_tag("i", &[("i", &vs)]);
+        }
         w.empty_tag("x", &[("v", &vs)]);
         w.end_tag("i");
     }

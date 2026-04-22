@@ -12,12 +12,17 @@ pub enum CellValue {
     Bool(bool),
     DateTime(ExcelDateTime),
     Error(String),
-    Formula { formula: String, cached_value: Box<CellValue> },
+    Formula {
+        formula: String,
+        cached_value: Box<CellValue>,
+    },
     RichText(RichText),
 }
 
 impl CellValue {
-    pub fn is_empty(&self) -> bool { matches!(self, CellValue::Empty) }
+    pub fn is_empty(&self) -> bool {
+        matches!(self, CellValue::Empty)
+    }
 
     pub fn as_str(&self) -> Option<&str> {
         match self {
@@ -40,13 +45,22 @@ impl CellValue {
 pub(crate) enum CellType {
     Empty,
     Number(f64),
-    SharedString(u32),   // index into SST
+    SharedString(u32), // index into SST
     InlineString(String),
     Bool(bool),
-    Formula { text: String, cached_number: Option<f64> },
-    ArrayFormula { text: String, range: String },
-    DynamicFormula { text: String, range: String },
-    DateTime(f64),       // serial date
+    Formula {
+        text: String,
+        cached_number: Option<f64>,
+    },
+    ArrayFormula {
+        text: String,
+        range: String,
+    },
+    DynamicFormula {
+        text: String,
+        range: String,
+    },
+    DateTime(f64), // serial date
     Error(String),
     RichText(RichText),
 }
@@ -54,7 +68,13 @@ pub(crate) enum CellType {
 /// Trait for types that can be written to a cell.
 pub trait IntoExcelData {
     fn write_cell(self, ws: &mut Worksheet, row: RowNum, col: ColNum) -> crate::Result<()>;
-    fn write_cell_with_format(self, ws: &mut Worksheet, row: RowNum, col: ColNum, fmt: &Format) -> crate::Result<()>;
+    fn write_cell_with_format(
+        self,
+        ws: &mut Worksheet,
+        row: RowNum,
+        col: ColNum,
+        fmt: &Format,
+    ) -> crate::Result<()>;
 }
 
 macro_rules! impl_into_excel_number {
@@ -78,7 +98,13 @@ impl IntoExcelData for &str {
     fn write_cell(self, ws: &mut Worksheet, row: RowNum, col: ColNum) -> crate::Result<()> {
         ws.write_string_internal(row, col, self, None)
     }
-    fn write_cell_with_format(self, ws: &mut Worksheet, row: RowNum, col: ColNum, fmt: &Format) -> crate::Result<()> {
+    fn write_cell_with_format(
+        self,
+        ws: &mut Worksheet,
+        row: RowNum,
+        col: ColNum,
+        fmt: &Format,
+    ) -> crate::Result<()> {
         ws.write_string_internal(row, col, self, Some(fmt))
     }
 }
@@ -87,7 +113,13 @@ impl IntoExcelData for String {
     fn write_cell(self, ws: &mut Worksheet, row: RowNum, col: ColNum) -> crate::Result<()> {
         ws.write_string_internal(row, col, &self, None)
     }
-    fn write_cell_with_format(self, ws: &mut Worksheet, row: RowNum, col: ColNum, fmt: &Format) -> crate::Result<()> {
+    fn write_cell_with_format(
+        self,
+        ws: &mut Worksheet,
+        row: RowNum,
+        col: ColNum,
+        fmt: &Format,
+    ) -> crate::Result<()> {
         ws.write_string_internal(row, col, &self, Some(fmt))
     }
 }
@@ -96,7 +128,13 @@ impl IntoExcelData for bool {
     fn write_cell(self, ws: &mut Worksheet, row: RowNum, col: ColNum) -> crate::Result<()> {
         ws.write_bool_internal(row, col, self, None)
     }
-    fn write_cell_with_format(self, ws: &mut Worksheet, row: RowNum, col: ColNum, fmt: &Format) -> crate::Result<()> {
+    fn write_cell_with_format(
+        self,
+        ws: &mut Worksheet,
+        row: RowNum,
+        col: ColNum,
+        fmt: &Format,
+    ) -> crate::Result<()> {
         ws.write_bool_internal(row, col, self, Some(fmt))
     }
 }
@@ -105,7 +143,13 @@ impl IntoExcelData for ExcelDateTime {
     fn write_cell(self, ws: &mut Worksheet, row: RowNum, col: ColNum) -> crate::Result<()> {
         ws.write_datetime_internal(row, col, self, None)
     }
-    fn write_cell_with_format(self, ws: &mut Worksheet, row: RowNum, col: ColNum, fmt: &Format) -> crate::Result<()> {
+    fn write_cell_with_format(
+        self,
+        ws: &mut Worksheet,
+        row: RowNum,
+        col: ColNum,
+        fmt: &Format,
+    ) -> crate::Result<()> {
         ws.write_datetime_internal(row, col, self, Some(fmt))
     }
 }
@@ -117,20 +161,49 @@ pub struct RichText {
 }
 
 impl RichText {
-    pub fn new() -> Self { Self { runs: Vec::new() } }
+    pub fn new() -> Self {
+        Self { runs: Vec::new() }
+    }
 
     pub fn add_run(mut self, text: &str) -> Self {
-        self.runs.push(RichTextRun { text: text.to_string(), bold: false, italic: false, font_size: None, font_name: None, color: None, superscript: false, subscript: false });
+        self.runs.push(RichTextRun {
+            text: text.to_string(),
+            bold: false,
+            italic: false,
+            font_size: None,
+            font_name: None,
+            color: None,
+            superscript: false,
+            subscript: false,
+        });
         self
     }
 
     pub fn add_bold(mut self, text: &str) -> Self {
-        self.runs.push(RichTextRun { text: text.to_string(), bold: true, italic: false, font_size: None, font_name: None, color: None, superscript: false, subscript: false });
+        self.runs.push(RichTextRun {
+            text: text.to_string(),
+            bold: true,
+            italic: false,
+            font_size: None,
+            font_name: None,
+            color: None,
+            superscript: false,
+            subscript: false,
+        });
         self
     }
 
     pub fn add_italic(mut self, text: &str) -> Self {
-        self.runs.push(RichTextRun { text: text.to_string(), bold: false, italic: true, font_size: None, font_name: None, color: None, superscript: false, subscript: false });
+        self.runs.push(RichTextRun {
+            text: text.to_string(),
+            bold: false,
+            italic: true,
+            font_size: None,
+            font_name: None,
+            color: None,
+            superscript: false,
+            subscript: false,
+        });
         self
     }
 
@@ -148,7 +221,9 @@ impl RichText {
 }
 
 impl Default for RichText {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 /// A single styled run within rich text.
@@ -166,17 +241,49 @@ pub struct RichTextRun {
 
 impl RichTextRun {
     pub fn new() -> Self {
-        Self { text: String::new(), bold: false, italic: false, font_size: None, font_name: None, color: None, superscript: false, subscript: false }
+        Self {
+            text: String::new(),
+            bold: false,
+            italic: false,
+            font_size: None,
+            font_name: None,
+            color: None,
+            superscript: false,
+            subscript: false,
+        }
     }
-    pub fn bold(mut self) -> Self { self.bold = true; self }
-    pub fn italic(mut self) -> Self { self.italic = true; self }
-    pub fn font_size(mut self, size: f64) -> Self { self.font_size = Some(size); self }
-    pub fn font_name(mut self, name: &str) -> Self { self.font_name = Some(name.to_string()); self }
-    pub fn color(mut self, hex: &str) -> Self { self.color = Some(hex.to_string()); self }
-    pub fn superscript(mut self) -> Self { self.superscript = true; self }
-    pub fn subscript(mut self) -> Self { self.subscript = true; self }
+    pub fn bold(mut self) -> Self {
+        self.bold = true;
+        self
+    }
+    pub fn italic(mut self) -> Self {
+        self.italic = true;
+        self
+    }
+    pub fn font_size(mut self, size: f64) -> Self {
+        self.font_size = Some(size);
+        self
+    }
+    pub fn font_name(mut self, name: &str) -> Self {
+        self.font_name = Some(name.to_string());
+        self
+    }
+    pub fn color(mut self, hex: &str) -> Self {
+        self.color = Some(hex.to_string());
+        self
+    }
+    pub fn superscript(mut self) -> Self {
+        self.superscript = true;
+        self
+    }
+    pub fn subscript(mut self) -> Self {
+        self.subscript = true;
+        self
+    }
 }
 
 impl Default for RichTextRun {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
