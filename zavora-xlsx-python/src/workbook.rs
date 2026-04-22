@@ -50,7 +50,7 @@ impl Workbook {
             .lock()
             .map_err(|_| PyRuntimeError::new_err("lock poisoned"))?;
         let bytes = wb.save_to_buffer().into_pyresult()?;
-        Ok(PyBytes::new_bound(py, &bytes))
+        Ok(PyBytes::new(py, &bytes))
     }
 
     pub fn worksheet(&self, index: usize) -> PyResult<Worksheet> {
@@ -148,7 +148,7 @@ impl Workbook {
             .lock()
             .map_err(|_| PyRuntimeError::new_err("lock poisoned"))?;
         let p = wb.properties();
-        let dict = PyDict::new_bound(py);
+        let dict = PyDict::new(py);
         if let Some(ref v) = p.title {
             dict.set_item("title", v)?;
         }

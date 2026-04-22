@@ -2,12 +2,19 @@
 name = "zavora-xlsx-python"
 version = "0.1.0"
 edition = "2024"
+license = "Apache-2.0"
 description = "Python bindings for zavora-xlsx"
+repository = "https://github.com/zavora-ai/zavora-xlsx"
+homepage = "https://zavora.ai"
+authors = ["James Karanja Maina"]
+readme = "README.md"
+keywords = ["excel", "xlsx", "python", "pyo3"]
+categories = ["api-bindings"]
 
 [lib]
 name = "zavora_xlsx"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.22", features = ["extension-module"] }
+pyo3 = { version = "0.24", features = ["extension-module"] }
 zavora-xlsx = { path = ".." }

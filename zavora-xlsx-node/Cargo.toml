@@ -2,7 +2,14 @@
 name = "zavora-xlsx-node"
 version = "0.1.0"
 edition = "2024"
+license = "Apache-2.0"
 description = "Node.js bindings for zavora-xlsx"
+repository = "https://github.com/zavora-ai/zavora-xlsx"
+homepage = "https://zavora.ai"
+authors = ["James Karanja Maina"]
+readme = "README.md"
+keywords = ["excel", "xlsx", "node", "napi"]
+categories = ["api-bindings"]
 
 [lib]
 crate-type = ["cdylib"]

@@ -129,7 +129,7 @@ impl Worksheet {
         let wb = self.lock()?;
         let ws = wb.worksheet_ref(self.index).into_pyresult()?;
         Ok(ws.used_range().map(|(r1, c1, r2, c2)| {
-            let dict = PyDict::new_bound(py);
+            let dict = PyDict::new(py);
             dict.set_item("first_row", r1).unwrap();
             dict.set_item("first_col", c1).unwrap();
             dict.set_item("last_row", r2).unwrap();
@@ -268,24 +268,33 @@ impl Worksheet {
 // ── Private helpers ──
 
 fn cell_value_to_py(py: Python<'_>, value: &zavora_xlsx::CellValue) -> PyObject {
-    use pyo3::ToPyObject;
     match value {
         zavora_xlsx::CellValue::Empty => py.None(),
-        zavora_xlsx::CellValue::String(s) => s.to_object(py),
-        zavora_xlsx::CellValue::Number(n) => n.to_object(py),
-        zavora_xlsx::CellValue::Bool(b) => b.to_object(py),
-        zavora_xlsx::CellValue::DateTime(dt) => dt.serial().to_object(py),
-        zavora_xlsx::CellValue::Error(e) => e.to_object(py),
-        zavora_xlsx::CellValue::RichText(rt) => rt.plain_text().to_object(py),
+        zavora_xlsx::CellValue::String(s) => s.into_pyobject(py).unwrap().into_any().unbind(),
+        zavora_xlsx::CellValue::Number(n) => n.into_pyobject(py).unwrap().into_any().unbind(),
+        zavora_xlsx::CellValue::Bool(b) => pyo3::types::PyBool::new(py, *b)
+            .to_owned()
+            .into_any()
+            .unbind(),
+        zavora_xlsx::CellValue::DateTime(dt) => {
+            dt.serial().into_pyobject(py).unwrap().into_any().unbind()
+        }
+        zavora_xlsx::CellValue::Error(e) => e.into_pyobject(py).unwrap().into_any().unbind(),
+        zavora_xlsx::CellValue::RichText(rt) => rt
+            .plain_text()
+            .into_pyobject(py)
+            .unwrap()
+            .into_any()
+            .unbind(),
         zavora_xlsx::CellValue::Formula {
             formula,
             cached_value,
         } => {
-            let dict = PyDict::new_bound(py);
+            let dict = PyDict::new(py);
             dict.set_item("formula", formula).unwrap();
             dict.set_item("cached_value", cell_value_to_py(py, cached_value))
                 .unwrap();
-            dict.to_object(py)
+            dict.into_any().unbind()
         }
     }
 }

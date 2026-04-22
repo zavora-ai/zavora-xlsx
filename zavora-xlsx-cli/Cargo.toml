@@ -2,7 +2,14 @@
 name = "zavora-xlsx-cli"
 version = "0.1.0"
 edition = "2024"
+license = "Apache-2.0"
 description = "CLI tool for inspecting, exporting, and converting Excel xlsx files"
+repository = "https://github.com/zavora-ai/zavora-xlsx"
+homepage = "https://zavora.ai"
+authors = ["James Karanja Maina"]
+readme = "README.md"
+keywords = ["excel", "xlsx", "cli", "csv"]
+categories = ["command-line-utilities"]
 
 [[bin]]
 name = "zavora-xlsx"
