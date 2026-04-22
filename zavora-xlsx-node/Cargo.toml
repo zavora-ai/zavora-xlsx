@@ -1,0 +1,16 @@
+[package]
+name = "zavora-xlsx-node"
+version = "0.1.0"
+edition = "2024"
+description = "Node.js bindings for zavora-xlsx"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = { version = "2", features = ["napi4"] }
+napi-derive = "2"
+zavora-xlsx = { path = ".." }
+
+[build-dependencies]
+napi-build = "2"

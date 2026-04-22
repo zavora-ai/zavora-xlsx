@@ -1,0 +1,6 @@
+{
+  "name": "zavora-xlsx",
+  "version": "0.1.0",
+  "main": "index.js",
+  "napi": { "name": "zavora-xlsx", "triples": {} }
+}

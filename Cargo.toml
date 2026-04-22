@@ -10,13 +10,49 @@ repository = "https://github.com/zavora-ai/zavora-xlsx"
 homepage = "https://zavora.ai"
 authors = ["James Karanja Maina"]
 readme = "README.md"
+exclude = [
+    "output/",
+    ".kiro/",
+    ".DS_Store",
+    "*.xlsx",
+    "*.xls",
+    "target/",
+]
 
 [dependencies]
 quick-xml = { version = "0.37", features = ["encoding"] }
 zip = { version = "2", default-features = false, features = ["deflate"] }
 atoi_simd = "0.16"
 fast-float2 = "0.2"
+memmap2 = { version = "0.9", optional = true }
+serde = { version = "1", features = ["derive"], optional = true }
+tokio = { version = "1", features = ["rt", "fs"], optional = true }
+
+[features]
+default = []
+## Memory-mapped file I/O via `memmap2`
+mmap = ["dep:memmap2"]
+## XLSB format reading (experimental)
+xlsb = []
+## Legacy XLS format reading (experimental)
+xls = []
+## ODS format support (experimental)
+ods = []
+## Encrypted workbook support (experimental)
+crypto = []
+## Serialize/deserialize rows via `serde`
+serde-support = ["dep:serde"]
+## Async file I/O via `tokio`
+async-tokio = ["dep:tokio"]
+## WASM target support
+wasm = []
+## C FFI bindings
+cffi = []
 
 [dev-dependencies]
 calamine = "0.34"
 tempfile = "3"
+serde = { version = "1", features = ["derive"] }
+
+[workspace]
+members = ["zavora-xlsx-cli", "zavora-xlsx-node"]
