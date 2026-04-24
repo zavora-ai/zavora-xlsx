@@ -809,6 +809,86 @@ impl Workbook {
         self.save(path)
     }
 
+    /// Recalculate all formula cells across all worksheets.
+    ///
+    /// Parses every formula cell into an AST, builds a dependency graph,
+    /// detects circular references, and evaluates cells in topological order.
+    /// Volatile functions (`RAND`, `NOW`, `TODAY`, `INDIRECT`) and their
+    /// dependents are re-evaluated automatically.
+    ///
+    /// Returns the number of cells evaluated, or an error if a circular
+    /// reference is detected.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use zavora_xlsx::Workbook;
+    ///
+    /// let mut wb = Workbook::new();
+    /// let ws = wb.worksheet(0).unwrap();
+    /// ws.write(0, 0, 10.0).unwrap();
+    /// ws.write(0, 1, 20.0).unwrap();
+    /// ws.write_formula(0, 2, "A1+B1").unwrap();
+    ///
+    /// let count = wb.recalculate().unwrap();
+    /// assert_eq!(count, 1);
+    ///
+    /// let ws = wb.worksheet(0).unwrap();
+    /// let val = ws.read_cell(0, 2);
+    /// // val is now CellValue::Number(30.0) (via cached formula result)
+    /// ```
+    pub fn recalculate(&mut self) -> crate::Result<usize> {
+        use crate::cell::CellType;
+        use crate::formula_engine::recalc;
+        use crate::formula_engine::{CellAddr, parse, tokenize};
+
+        // Ensure all worksheets are deserialized so we can read their cells
+        for i in 0..self.worksheets.len() {
+            // Access each worksheet mutably to trigger lazy deserialization
+            let _ = self.worksheet(i);
+        }
+
+        // Collect all formula cells across all sheets
+        let mut formulas = Vec::new();
+        for (sheet_idx, ws) in self.worksheets.iter().enumerate() {
+            for (&row, cols) in &ws.cells {
+                for (&col, (cell, _)) in cols {
+                    let formula_text = match cell {
+                        CellType::Formula { text, .. } => Some(text.as_str()),
+                        CellType::ArrayFormula { text, .. } => Some(text.as_str()),
+                        CellType::DynamicFormula { text, .. } => Some(text.as_str()),
+                        _ => None,
+                    };
+                    if let Some(text) = formula_text
+                        && let Ok(tokens) = tokenize(text)
+                        && let Ok(ast) = parse(&tokens)
+                    {
+                        formulas.push((
+                            CellAddr {
+                                sheet: sheet_idx,
+                                row,
+                                col,
+                            },
+                            ast,
+                        ));
+                    }
+                }
+            }
+        }
+
+        if formulas.is_empty() {
+            return Ok(0);
+        }
+
+        // Build a mutable context that reads/writes from the worksheets
+        let mut ctx = WorkbookCellContext {
+            worksheets: &mut self.worksheets,
+        };
+
+        recalc::recalculate(&formulas, &mut ctx)
+            .map_err(|e| crate::Error::InvalidData(e.to_string()))
+    }
+
     /// Access the passthrough entries (preserved ZIP entries from the original file).
     pub fn passthrough_entries(&self) -> &[(String, Vec<u8>)] {
         &self.passthrough_entries
@@ -1001,6 +1081,72 @@ impl Workbook {
 impl Default for Workbook {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+// ── Recalculation context ──────────────────────────────────────────────────────
+
+/// A cell context that reads/writes directly from/to Workbook worksheets.
+/// Used by `Workbook::recalculate()` to bridge the formula engine to live cell data.
+struct WorkbookCellContext<'a> {
+    worksheets: &'a mut Vec<Worksheet>,
+}
+
+impl crate::formula_engine::CellContext for WorkbookCellContext<'_> {
+    fn get_cell(&self, sheet: usize, row: u32, col: u16) -> crate::formula_engine::Value {
+        if let Some(ws) = self.worksheets.get(sheet) {
+            let cv = ws.read_cell(row, col);
+            cell_value_to_engine_value(&cv)
+        } else {
+            crate::formula_engine::Value::Error(crate::formula_engine::ErrorKind::Ref)
+        }
+    }
+}
+
+impl crate::formula_engine::MutableCellContext for WorkbookCellContext<'_> {
+    fn set_cell(&mut self, sheet: usize, row: u32, col: u16, val: crate::formula_engine::Value) {
+        if let Some(ws) = self.worksheets.get_mut(sheet) {
+            match val {
+                crate::formula_engine::Value::Number(n) => {
+                    // Update the cached value in the formula cell
+                    if let Some(cols) = ws.cells.get_mut(&row)
+                        && let Some((cell, _)) = cols.get_mut(&col)
+                        && let crate::cell::CellType::Formula { cached_number, .. } = cell
+                    {
+                        *cached_number = Some(n);
+                        return;
+                    }
+                    let _ = ws.write(row, col, n);
+                }
+                crate::formula_engine::Value::String(s) => {
+                    let _ = ws.write(row, col, s.as_str());
+                }
+                crate::formula_engine::Value::Bool(b) => {
+                    let _ = ws.write(row, col, b);
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
+/// Convert a `CellValue` (from worksheet) to a formula engine `Value`.
+fn cell_value_to_engine_value(cv: &crate::cell::CellValue) -> crate::formula_engine::Value {
+    match cv {
+        crate::cell::CellValue::Number(n) => crate::formula_engine::Value::Number(*n),
+        crate::cell::CellValue::String(s) => crate::formula_engine::Value::String(s.clone()),
+        crate::cell::CellValue::Bool(b) => crate::formula_engine::Value::Bool(*b),
+        crate::cell::CellValue::DateTime(dt) => crate::formula_engine::Value::Number(dt.serial()),
+        crate::cell::CellValue::Error(_) => {
+            crate::formula_engine::Value::Error(crate::formula_engine::ErrorKind::Value)
+        }
+        crate::cell::CellValue::Formula { cached_value, .. } => {
+            cell_value_to_engine_value(cached_value)
+        }
+        crate::cell::CellValue::RichText(rt) => {
+            crate::formula_engine::Value::String(rt.plain_text())
+        }
+        crate::cell::CellValue::Empty => crate::formula_engine::Value::Empty,
     }
 }
 
