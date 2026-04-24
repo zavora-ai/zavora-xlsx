@@ -483,6 +483,24 @@ ws.write(0, 0, "Updated")?;
 wb.save("modified.xlsx")?;
 ```
 
+### Formula Recalculation
+
+Evaluate all formula cells programmatically:
+
+```rust
+let mut wb = Workbook::new();
+let ws = wb.worksheet(0)?;
+ws.write(0, 0, 10.0)?;
+ws.write(0, 1, 20.0)?;
+ws.write_formula(0, 2, "A1+B1")?;
+ws.write_formula(0, 3, "SUM(A1:C1)")?;
+
+let count = wb.recalculate()?;                         // Evaluates in dependency order
+println!("Evaluated {} cells", count);                 // 2
+```
+
+Handles dependency graphs, circular reference detection, and volatile functions (`RAND`, `NOW`, `TODAY`).
+
 ---
 
 ## Colors

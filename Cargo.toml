@@ -1,6 +1,6 @@
 [package]
 name = "zavora-xlsx"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 license = "Apache-2.0"
 description = "High-performance Excel xlsx reader, writer, and editor"
@@ -53,7 +53,7 @@ cffi = []
 calamine = "0.34"
 tempfile = "3"
 serde = { version = "1", features = ["derive"] }
-zavora-xlsx-derive = { path = "zavora-xlsx-derive", version = "0.1.0" }
+zavora-xlsx-derive = { path = "zavora-xlsx-derive", version = "0.1.1" }
 
 [workspace]
 members = ["zavora-xlsx-cli", "zavora-xlsx-node", "zavora-xlsx-derive", "zavora-xlsx-python"]
