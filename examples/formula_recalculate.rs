@@ -140,7 +140,10 @@ fn main() -> Result<()> {
     let total_revenue = ws.read_cell(1, 5);
     if let CellValue::Formula { cached_value, .. } = &total_revenue {
         if let CellValue::Number(n) = **cached_value {
-            assert_eq!(n, 241000.0, "Total Revenue should be 50000+62000+58000+71000");
+            assert_eq!(
+                n, 241000.0,
+                "Total Revenue should be 50000+62000+58000+71000"
+            );
             println!("✓ Total Revenue = ${:.0} (correct)", n);
         }
     }
