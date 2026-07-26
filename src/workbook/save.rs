@@ -769,8 +769,9 @@ impl Workbook {
             )?;
         }
 
+        // Last, and only where this save has not already written that part itself.
         for (name, data) in &self.passthrough_entries {
-            zip.add_file(name, data)?;
+            zip.add_file_if_absent(name, data)?;
         }
 
         zip.finish()

@@ -558,6 +558,19 @@ impl Chart {
         (self.row, self.col)
     }
 
+    /// Record where the sheet's drawing anchors this chart.
+    ///
+    /// Set by the reader, because the position lives in the drawing rather than in the chart
+    /// itself. Absent values leave the existing position alone.
+    pub fn place_at(&mut self, row: Option<RowNum>, col: Option<ColNum>) {
+        if let Some(row) = row {
+            self.row = row;
+        }
+        if let Some(col) = col {
+            self.col = col;
+        }
+    }
+
     /// How big it is, in pixels as the file records it.
     pub fn size(&self) -> (u32, u32) {
         (self.width, self.height)

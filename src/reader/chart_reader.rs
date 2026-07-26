@@ -16,6 +16,12 @@ use crate::xml::xml_reader::get_attr_str;
 /// Discovered chart reference from a drawing XML part.
 #[derive(Debug)]
 pub struct DrawingChartRef {
+    /// The cell the chart's top-left corner sits over, from the drawing's `<xdr:from>`.
+    ///
+    /// Absent when the drawing does not say. This used to be dropped entirely, so every chart
+    /// read back as anchored at A1 and an application could not put one where the file puts it.
+    pub from_row: Option<u32>,
+    pub from_col: Option<u16>,
     /// Relationship ID (e.g. "rId1") pointing to the chart part.
     pub r_id: String,
     /// Whether this is a ChartEx reference (`cx:chart`) vs standard (`c:chart`).
@@ -24,12 +30,25 @@ pub struct DrawingChartRef {
 
 /// Parse a drawing XML (`xl/drawings/drawing{N}.xml`) to discover chart
 /// relationship IDs embedded in `<xdr:graphicFrame>` anchors.
+/// A chart part, and where on the sheet it sits.
+#[derive(Debug, Clone)]
+pub struct ResolvedChart {
+    pub path: String,
+    pub is_chartex: bool,
+    pub from_row: Option<u32>,
+    pub from_col: Option<u16>,
+}
+
 pub fn parse_drawing_chart_refs(data: &[u8]) -> Vec<DrawingChartRef> {
     let mut reader = Reader::from_reader(data);
     reader.config_mut().check_end_names = false;
     reader.config_mut().expand_empty_elements = true;
     let mut buf = Vec::with_capacity(1024);
     let mut refs = Vec::new();
+    let mut in_from = false;
+    let mut reading: Option<Vec<u8>> = None;
+    let mut from_row: Option<u32> = None;
+    let mut from_col: Option<u16> = None;
 
     loop {
         buf.clear();
@@ -37,6 +56,14 @@ pub fn parse_drawing_chart_refs(data: &[u8]) -> Vec<DrawingChartRef> {
             Ok(Event::Start(ref e)) | Ok(Event::Empty(ref e)) => {
                 let local = e.local_name();
                 let name = local.as_ref();
+                // The anchor comes before the chart it belongs to, so the position seen most
+                // recently is this chart's.
+                match name {
+                    b"from" => in_from = true,
+                    b"to" => in_from = false,
+                    b"col" | b"row" if in_from => reading = Some(name.to_vec()),
+                    _ => {}
+                }
                 // Standard chart: <c:chart r:id="rIdN" .../>
                 if name == b"chart" {
                     // Distinguish c:chart vs cx:chart by checking namespace prefix
@@ -47,9 +74,33 @@ pub fn parse_drawing_chart_refs(data: &[u8]) -> Vec<DrawingChartRef> {
                         refs.push(DrawingChartRef {
                             r_id: rid.to_string(),
                             is_chartex: is_cx,
+                            from_row,
+                            from_col,
                         });
+                        // Cleared so a second chart in the same drawing cannot inherit the
+                        // first one's position when its own anchor is missing.
+                        from_row = None;
+                        from_col = None;
                     }
                 }
+            }
+            Ok(Event::Text(ref text)) => {
+                if let Some(which) = reading.take()
+                    && let Ok(read) = text.unescape()
+                {
+                    let number = read.trim().parse::<u32>().ok();
+                    if which == b"row" {
+                        from_row = number;
+                    } else {
+                        from_col = number.and_then(|value| u16::try_from(value).ok());
+                    }
+                }
+            }
+            Ok(Event::End(ref e)) => {
+                if e.local_name().as_ref() == b"from" {
+                    in_from = false;
+                }
+                reading = None;
             }
             Ok(Event::Eof) => break,
             Err(_) => break,
@@ -63,11 +114,11 @@ pub fn parse_drawing_chart_refs(data: &[u8]) -> Vec<DrawingChartRef> {
 /// Resolve drawing relationship IDs to chart part paths using the drawing
 /// rels file (`xl/drawings/_rels/drawing{N}.xml.rels`).
 ///
-/// Returns `(path, is_chartex)` tuples.
+/// Returns each chart's path, whether it is a chartex, and where it is anchored.
 pub fn resolve_chart_paths(
     drawing_refs: &[DrawingChartRef],
     rels_data: &[u8],
-) -> Vec<(String, bool)> {
+) -> Vec<ResolvedChart> {
     let rels = match crate::reader::rel_parser::parse_rels(rels_data) {
         Ok(r) => r,
         Err(_) => return Vec::new(),
@@ -87,7 +138,12 @@ pub fn resolve_chart_paths(
             } else {
                 format!("xl/charts/{target}")
             };
-            paths.push((full_path, dref.is_chartex));
+            paths.push(ResolvedChart {
+                path: full_path,
+                is_chartex: dref.is_chartex,
+                from_row: dref.from_row,
+                from_col: dref.from_col,
+            });
         }
     }
     paths

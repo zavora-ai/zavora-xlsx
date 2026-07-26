@@ -433,6 +433,15 @@ impl Workbook {
                 2 => crate::worksheet::SheetVisibility::VeryHidden,
                 _ => crate::worksheet::SheetVisibility::Visible,
             };
+            // Charts, on the editing path as well as the reading one. Without this a workbook
+            // opened for editing held its charts only as carried-over parts, so saving after
+            // adding one wrote a second `drawing1.xml` and failed the whole save — and the
+            // charts already in the file were invisible to anything that asked for them.
+            if let (Some(rels), Some(raw)) = (ws.original_rels.clone(), ws.raw_xml.clone())
+                && let Some(drawing_rid) = drawing_rid_in(&raw)
+            {
+                read_charts_for_worksheet(&mut ws, zip, &drawing_rid, &rels);
+            }
             worksheets.push(ws);
         }
         let known_prefixes = [
@@ -1289,6 +1298,19 @@ fn col_letter_to_num(s: &str) -> Option<u16> {
 /// 2. Parse the drawing XML to find chart relationship IDs
 /// 3. Resolve chart rIds to chart part paths via the drawing rels
 /// 4. Read and parse each chart XML into Chart / TreemapChart structs
+/// The relationship id of a sheet's drawing, from `<drawing r:id="rIdN"/>`.
+///
+/// Read from the raw XML rather than from parsed metadata, because the editing path holds the
+/// sheet as bytes and has not parsed it yet.
+fn drawing_rid_in(raw: &[u8]) -> Option<String> {
+    let text = String::from_utf8_lossy(raw);
+    let at = text.find("<drawing ")?;
+    let rest = &text[at..];
+    let id_at = rest.find("r:id=\"")? + 6;
+    let end = rest[id_at..].find('"')?;
+    Some(rest[id_at..id_at + end].to_string())
+}
+
 fn read_charts_for_worksheet<R: std::io::Read + std::io::Seek>(
     ws: &mut Worksheet,
     zip: &mut crate::zip::zip_reader::ZipReader<R>,
@@ -1339,13 +1361,17 @@ fn read_charts_for_worksheet<R: std::io::Read + std::io::Seek>(
     let chart_paths = chart_reader::resolve_chart_paths(&chart_refs, &drawing_rels_data);
 
     // Step 4: Read and parse each chart
-    for (chart_path, is_chartex) in &chart_paths {
+    for resolved in &chart_paths {
+        let chart_path = &resolved.path;
         if let Some(Ok(chart_data)) = zip.read_entry(chart_path) {
-            if *is_chartex {
+            if resolved.is_chartex {
                 if let Ok(tc) = chart_reader::read_chartex(&chart_data) {
                     ws.treemap_charts.push(tc);
                 }
-            } else if let Ok(chart) = chart_reader::read_chart(&chart_data) {
+            } else if let Ok(mut chart) = chart_reader::read_chart(&chart_data) {
+                // Where the file puts it. The chart part itself says nothing about position; the
+                // drawing that references it does.
+                chart.place_at(resolved.from_row, resolved.from_col);
                 ws.charts.push(chart);
             }
         }
