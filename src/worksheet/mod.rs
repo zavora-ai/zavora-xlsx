@@ -247,10 +247,16 @@ impl Worksheet {
         if let Some(raw_cells) = self.read_cells.take() {
             for rc in raw_cells {
                 let cell_type = cell_value_to_type(&rc.value);
+                // A value already in `cells` was written by the caller after this sheet was
+                // opened, so it must win over what was parsed from the file. Inserting
+                // unconditionally clobbered it: a cell that was empty in the original could
+                // be written, but a cell that already had a value silently reverted on save
+                // while the save reported success.
                 self.cells
                     .entry(rc.row)
                     .or_default()
-                    .insert(rc.col, (cell_type, rc.xf_index));
+                    .entry(rc.col)
+                    .or_insert((cell_type, rc.xf_index));
             }
         }
     }
