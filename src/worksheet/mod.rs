@@ -46,6 +46,14 @@ pub struct Worksheet {
     pub(crate) freeze_row: RowNum,
     pub(crate) freeze_col: ColNum,
     pub(crate) read_cells: Option<Vec<RawCell>>,
+    /// Whether the cells parsed from the file have already been taken into `cells`.
+    ///
+    /// `read_cells` being `None` means two different things — never parsed, and parsed then
+    /// consumed — and the lazy parse in `Workbook::worksheet` could not tell them apart. So a
+    /// second call after any edit re-parsed the original XML and put the file's own cells back
+    /// at their original positions: inserting a row left a copy of it behind, and a deleted cell
+    /// came back from the dead.
+    pub(crate) deserialized: bool,
     pub(crate) read_cells_map: Option<BTreeMap<(RowNum, ColNum), CellValue>>,
     pub(crate) raw_xml: Option<Vec<u8>>,
     pub(crate) original_rels: Option<Vec<u8>>,
@@ -107,6 +115,7 @@ impl Worksheet {
             freeze_row: 0,
             freeze_col: 0,
             read_cells: None,
+            deserialized: false,
             read_cells_map: None,
             raw_xml: None,
             original_rels: None,
@@ -244,6 +253,7 @@ impl Worksheet {
     }
 
     pub(crate) fn ensure_deserialized(&mut self) {
+        self.deserialized = true;
         if let Some(raw_cells) = self.read_cells.take() {
             for rc in raw_cells {
                 let cell_type = cell_value_to_type(&rc.value);

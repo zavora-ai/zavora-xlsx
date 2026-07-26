@@ -542,7 +542,9 @@ impl Workbook {
             .worksheets
             .get_mut(index)
             .ok_or_else(|| crate::Error::SheetNotFound(format!("index {index}")))?;
-        if ws.raw_xml.is_some() && ws.read_cells.is_none() {
+        // `!ws.deserialized` is the part that matters: without it this re-parses a sheet whose
+        // cells have already been taken into memory and edited, undoing the edit.
+        if ws.raw_xml.is_some() && ws.read_cells.is_none() && !ws.deserialized {
             let raw = ws.raw_xml.as_ref().unwrap();
             let (cells, meta) =
                 crate::reader::sheet_reader::read_sheet_full(raw, &self.sst, &styles_for_parse)?;

@@ -25,7 +25,9 @@ fn a_formatted_workbook(path: &str) {
     let _ = std::fs::remove_file(path);
     let mut book = Workbook::new();
     {
-        let sheet = book.add_worksheet();
+        // `Workbook::new` already has a sheet. Adding another and writing to it, then reading
+        // the first, is a fixture that tests nothing.
+        let sheet = book.worksheet(0).unwrap();
         sheet.write(0, 0, "Heading").unwrap();
         sheet
             .set_cell_format(0, 0, &Format::new().bold().background_color("#FFF3C4"))
