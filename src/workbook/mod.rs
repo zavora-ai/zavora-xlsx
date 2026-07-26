@@ -389,7 +389,14 @@ impl Workbook {
             worksheets,
             chart_sheets: Vec::new(),
             sst: data.sst,
-            styles: StyleRegistry::new(),
+            // Seeded from the file's own style table, so the indices every cell already
+            // carries still mean what they meant. Without this, saving rebuilt styles.xml from
+            // an empty registry and the workbook lost all its formatting.
+            styles: {
+                let mut registry = StyleRegistry::new();
+                registry.import_parsed(&parsed_styles);
+                registry
+            },
             defined_names: data.defined_names,
             scoped_defined_names: data.scoped_defined_names,
             properties: data.properties,
@@ -461,7 +468,14 @@ impl Workbook {
             worksheets,
             chart_sheets: Vec::new(),
             sst: data.sst,
-            styles: StyleRegistry::new(),
+            // Seeded from the file's own style table, so the indices every cell already
+            // carries still mean what they meant. Without this, saving rebuilt styles.xml from
+            // an empty registry and the workbook lost all its formatting.
+            styles: {
+                let mut registry = StyleRegistry::new();
+                registry.import_parsed(&parsed_styles);
+                registry
+            },
             defined_names: data.defined_names,
             scoped_defined_names: data.scoped_defined_names,
             properties: data.properties,

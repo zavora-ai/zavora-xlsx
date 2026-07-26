@@ -231,6 +231,168 @@ impl StyleRegistry {
     }
 
     /// Register a Format and return its xf index.
+    /// Adopt the style table a file was read with, keeping every index where it was.
+    ///
+    /// Cells remember the `xf` index they were parsed with, but the table those indices point
+    /// into was thrown away: saving rebuilt `styles.xml` from whatever this registry happened to
+    /// hold, so a workbook that was opened, changed in one cell and saved came back with all of
+    /// its formatting gone — bold headings plain, shaded totals white — while the save reported
+    /// success. Editing a formatted file destroyed the formatting.
+    ///
+    /// Indices are preserved rather than remapped, because they are already written into every
+    /// cell of every sheet. Anything registered afterwards appends, and deduplicates against
+    /// what the file already had, so formatting something the way an existing cell is formatted
+    /// reuses that entry rather than growing a second identical one.
+    pub fn import_parsed(&mut self, parsed: &crate::reader::style_parser::ParsedStyles) {
+        if parsed.xf_records.is_empty() {
+            // Nothing to adopt. The defaults from `new` are the right answer for a file that
+            // carried no style table of its own.
+            return;
+        }
+
+        self.fonts = parsed
+            .fonts
+            .iter()
+            .map(|font| FontData {
+                bold: font.bold,
+                italic: font.italic,
+                underline: font.underline as u8,
+                strikethrough: font.strikethrough,
+                size_x100: (font.size * 100.0) as u32,
+                name: font.name.clone(),
+                color_rgb: font.color,
+                theme_color: None,
+                shadow: false,
+                outline: false,
+                emboss: false,
+                engrave: false,
+            })
+            .collect();
+
+        self.fills = parsed
+            .fills
+            .iter()
+            .map(|fill| FillData {
+                pattern: fill.pattern as u8,
+                fg_rgb: fill.fg_color,
+                bg_rgb: fill.bg_color,
+                gradient: None,
+            })
+            .collect();
+
+        self.borders = parsed
+            .borders
+            .iter()
+            .map(|border| BorderData {
+                top: border.top.style as u8,
+                bottom: border.bottom.style as u8,
+                left: border.left.style as u8,
+                right: border.right.style as u8,
+                color_rgb: border.top.color.or(border.left.color),
+                top_color: border.top.color,
+                bottom_color: border.bottom.color,
+                left_color: border.left.color,
+                right_color: border.right.color,
+                ..Default::default()
+            })
+            .collect();
+
+        // A file may legally have no fonts, fills or borders of its own while still having xf
+        // records that point at index 0. The minimum table has to exist or those point nowhere.
+        if self.fonts.is_empty() {
+            self.fonts.push(FontData {
+                size_x100: 1100,
+                name: "Calibri".into(),
+                ..Default::default()
+            });
+        }
+        while self.fills.len() < 2 {
+            self.fills.push(FillData::default());
+        }
+        if self.borders.is_empty() {
+            self.borders.push(BorderData::default());
+        }
+
+        self.num_formats = parsed.num_formats.clone();
+        self.xf_records = parsed
+            .xf_records
+            .iter()
+            .map(|record| XfRecord {
+                font_id: record.font_id,
+                fill_id: record.fill_id,
+                border_id: record.border_id,
+                num_fmt_id: record.num_fmt_id,
+                // Only kept when it says something. An alignment of all defaults would write a
+                // redundant <alignment/> into every style the file has.
+                alignment: if record.alignment.horizontal == 0
+                    && record.alignment.vertical == 0
+                    && !record.alignment.wrap_text
+                    && !record.alignment.shrink_to_fit
+                    && record.alignment.indent == 0
+                    && record.alignment.rotation == 0
+                {
+                    None
+                } else {
+                    Some(AlignmentData {
+                        horizontal: record.alignment.horizontal,
+                        vertical: record.alignment.vertical,
+                        wrap_text: record.alignment.wrap_text,
+                        shrink: record.alignment.shrink_to_fit,
+                        indent: record.alignment.indent,
+                        rotation: record.alignment.rotation,
+                    })
+                },
+                locked: None,
+                formula_hidden: false,
+                quote_prefix: false,
+            })
+            .collect();
+        // The number format each xf uses lives beside the records when parsed, so it is folded
+        // back in; without it every cell keeps its font and loses its "1,234.00".
+        for (index, record) in self.xf_records.iter_mut().enumerate() {
+            if let Some(&num_fmt_id) = parsed.xf_num_fmt_ids.get(index) {
+                record.num_fmt_id = num_fmt_id;
+            }
+        }
+        self.xf_style_ids = vec![0; self.xf_records.len()];
+
+        // Rebuilt so that anything registered from here on deduplicates against the file's own
+        // entries instead of adding a second copy of a format the file already has.
+        self.font_map = self
+            .fonts
+            .iter()
+            .enumerate()
+            .map(|(index, font)| (font.clone(), index))
+            .collect();
+        self.fill_map = self
+            .fills
+            .iter()
+            .enumerate()
+            .map(|(index, fill)| (fill.clone(), index))
+            .collect();
+        self.border_map = self
+            .borders
+            .iter()
+            .enumerate()
+            .map(|(index, border)| (border.clone(), index))
+            .collect();
+        self.xf_map = self
+            .xf_records
+            .iter()
+            .enumerate()
+            .map(|(index, record)| (record.clone(), index as u32))
+            .collect();
+
+        // A custom number format id must not collide with one the file already uses.
+        let highest = self
+            .num_formats
+            .iter()
+            .map(|(id, _)| *id)
+            .max()
+            .unwrap_or(163);
+        self.next_custom_num_fmt_id = highest.max(163) + 1;
+    }
+
     pub fn register_format(&mut self, fmt: &crate::format::Format) -> u32 {
         let font = FontData {
             bold: fmt.bold,
