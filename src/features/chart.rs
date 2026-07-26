@@ -512,8 +512,59 @@ pub struct PivotChartSource {
     pub(crate) show_expand_collapse: bool,
 }
 
+impl ChartSeries {
+    /// The range the numbers come from, as written in the file: "Sheet1!$B$2:$B$9".
+    pub fn values_range(&self) -> &str {
+        &self.values
+    }
+
+    /// The range the labels come from, if the series has one.
+    pub fn categories_range(&self) -> Option<&str> {
+        self.categories.as_deref()
+    }
+
+    /// What the series is called, if it is named.
+    pub fn series_name(&self) -> Option<&str> {
+        self.name.as_deref()
+    }
+}
+
 impl Chart {
+    /// What kind of chart this is.
+    ///
+    /// These accessors exist because an application that reads a workbook needs to know what is
+    /// in it. Everything about a chart was crate-private, so a caller could be handed a list of
+    /// charts and learn nothing from them — not even how many series there were.
+    pub fn kind(&self) -> ChartType {
+        self.chart_type
+    }
+
+    /// Its title, if it has one.
+    pub fn heading(&self) -> Option<&str> {
+        self.title.as_deref()
+    }
+
+    pub fn axis_names(&self) -> (Option<&str>, Option<&str>) {
+        (self.x_axis_name.as_deref(), self.y_axis_name.as_deref())
+    }
+
+    /// The series it draws.
+    pub fn series_list(&self) -> &[ChartSeries] {
+        &self.series
+    }
+
+    /// The cell the chart's top-left corner sits over.
+    pub fn anchor(&self) -> (RowNum, ColNum) {
+        (self.row, self.col)
+    }
+
+    /// How big it is, in pixels as the file records it.
+    pub fn size(&self) -> (u32, u32) {
+        (self.width, self.height)
+    }
+
     pub fn new(chart_type: ChartType) -> Self {
+
         Self {
             chart_type,
             series: Vec::new(),
