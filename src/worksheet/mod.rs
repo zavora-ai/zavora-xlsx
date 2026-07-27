@@ -200,6 +200,15 @@ impl Worksheet {
     pub fn comments(&self) -> &[Comment] {
         &self.comments
     }
+    /// Where the panes are frozen: the first row and column that scroll.
+    ///
+    /// (0, 0) means nothing is frozen. Read from the file, so an application can hold the same
+    /// rows in place that the file says are held — freezing the headings and seeing them scroll
+    /// away anyway is the User doing something and being ignored.
+    pub fn frozen_at(&self) -> (RowNum, ColNum) {
+        (self.freeze_row, self.freeze_col)
+    }
+
     pub fn conditional_formats(&self) -> &[StoredCf] {
         &self.conditional_formats
     }
