@@ -1,7 +1,44 @@
-use quick_xml::events::Event;
 use quick_xml::events::attributes::Attributes;
+use quick_xml::events::{BytesRef, BytesText, Event};
 use quick_xml::name::QName;
 use quick_xml::reader::Reader as XmlReaderInner;
+
+/// Compatibility helper for decoding and unescaping text events.
+///
+/// `quick-xml` 0.41 resolves entities while reading and replaced the former
+/// `BytesText::unescape` operation with encoding-aware decoding. Keeping the
+/// compatibility name here avoids duplicating that migration across readers.
+pub(crate) trait BytesTextExt {
+    fn unescape(&self) -> Result<String, String>;
+}
+
+impl BytesTextExt for BytesText<'_> {
+    fn unescape(&self) -> Result<String, String> {
+        self.decode()
+            .map(std::borrow::Cow::into_owned)
+            .map_err(|error| error.to_string())
+    }
+}
+
+/// Resolve a character or general entity-reference event into text.
+pub(crate) fn decode_xml_ref(reference: &BytesRef<'_>) -> Result<String, String> {
+    if let Some(character) = reference
+        .resolve_char_ref()
+        .map_err(|error| error.to_string())?
+    {
+        return Ok(character.to_string());
+    }
+
+    let name = reference.decode().map_err(|error| error.to_string())?;
+    Ok(match name.as_ref() {
+        "lt" => "<".to_string(),
+        "gt" => ">".to_string(),
+        "amp" => "&".to_string(),
+        "apos" => "'".to_string(),
+        "quot" => "\"".to_string(),
+        other => format!("&{other};"),
+    })
+}
 
 /// Streaming XML reader with buffer reuse.
 #[allow(dead_code)]

@@ -27,7 +27,7 @@ fn main() -> Result<()> {
     let mut wb = Workbook::new();
     let ws = wb.worksheet(0)?;
 
-    let employees = vec![
+    let employees = [
         Employee {
             name: "Alice Johnson".into(),
             department: "Engineering".into(),

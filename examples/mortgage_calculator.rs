@@ -265,7 +265,7 @@ fn main() -> Result<()> {
         ws.set_cell_format(mr, 5, &cell_m)?;
         // Interest = previous balance * monthly rate
         if m == 1 {
-            ws.write_formula(mr, 7, &format!("C8*C9/12"))?;
+            ws.write_formula(mr, 7, "C8*C9/12")?;
         } else {
             ws.write_formula(mr, 7, &format!("I{}*C9/12", mr))?;
         }

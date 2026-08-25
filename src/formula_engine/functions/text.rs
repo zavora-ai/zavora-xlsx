@@ -368,15 +368,21 @@ mod tests {
     fn test_number_coercion() {
         // Numbers should be coerced to strings in text functions
         assert_eq!(fn_upper(&[num(123.0)]), s("123"));
-        assert_eq!(fn_len(&[num(3.14)]), num(4.0));
+        assert_eq!(fn_len(&[num(3.25)]), num(4.0));
         assert_eq!(fn_left(&[num(12345.0), num(3.0)]), s("123"));
     }
 
     #[test]
     fn test_error_propagation() {
         let err = Value::Error(ErrorKind::Ref);
-        assert_eq!(fn_len(&[err.clone()]), Value::Error(ErrorKind::Ref));
-        assert_eq!(fn_upper(&[err.clone()]), Value::Error(ErrorKind::Ref));
+        assert_eq!(
+            fn_len(std::slice::from_ref(&err)),
+            Value::Error(ErrorKind::Ref)
+        );
+        assert_eq!(
+            fn_upper(std::slice::from_ref(&err)),
+            Value::Error(ErrorKind::Ref)
+        );
         assert_eq!(fn_left(&[err, num(1.0)]), Value::Error(ErrorKind::Ref));
     }
 }

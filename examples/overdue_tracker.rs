@@ -44,14 +44,15 @@ fn main() -> Result<()> {
         }
 
         // Sample invoices — mix of overdue, due soon, and paid
-        let invoices: Vec<(
-            &str,
-            &str,
+        type Invoice<'a> = (
+            &'a str,
+            &'a str,
             f64,
             (i32, u32, u32),
             (i32, u32, u32),
             Option<(i32, u32, u32)>,
-        )> = vec![
+        );
+        let invoices: Vec<Invoice<'_>> = vec![
             (
                 "INV-001",
                 "Acme Corp",

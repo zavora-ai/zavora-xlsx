@@ -26,6 +26,8 @@
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
 
+use crate::xml::xml_reader::{BytesTextExt, decode_xml_ref};
+
 use crate::features::sparkline::{Sparkline, SparklineType};
 use crate::utility::parse_cell_ref;
 use crate::xml::xml_reader::get_attr;
@@ -188,6 +190,15 @@ fn parse_single_sparkline(
                     }
                 } else if in_sqref && let Ok(s) = t.unescape() {
                     location.push_str(&s);
+                }
+            }
+            Ok(Event::GeneralRef(ref reference)) => {
+                if let Ok(text) = decode_xml_ref(reference) {
+                    if in_f {
+                        data_range.push_str(&text);
+                    } else if in_sqref {
+                        location.push_str(&text);
+                    }
                 }
             }
             Ok(Event::End(ref e)) => {

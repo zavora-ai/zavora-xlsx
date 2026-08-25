@@ -330,15 +330,24 @@ mod tests {
     #[test]
     fn test_error_propagation() {
         let err = Value::Error(ErrorKind::Ref);
-        assert_eq!(fn_and(&[err.clone()]), Value::Error(ErrorKind::Ref));
-        assert_eq!(fn_or(&[err.clone()]), Value::Error(ErrorKind::Ref));
-        assert_eq!(fn_not(&[err.clone()]), Value::Error(ErrorKind::Ref));
+        assert_eq!(
+            fn_and(std::slice::from_ref(&err)),
+            Value::Error(ErrorKind::Ref)
+        );
+        assert_eq!(
+            fn_or(std::slice::from_ref(&err)),
+            Value::Error(ErrorKind::Ref)
+        );
+        assert_eq!(
+            fn_not(std::slice::from_ref(&err)),
+            Value::Error(ErrorKind::Ref)
+        );
     }
 
     #[test]
     fn test_and_or_with_arrays() {
         let arr = Value::Array(vec![vec![Value::Bool(true), Value::Bool(false)]]);
-        assert_eq!(fn_and(&[arr.clone()]), Value::Bool(false));
+        assert_eq!(fn_and(std::slice::from_ref(&arr)), Value::Bool(false));
         assert_eq!(fn_or(&[arr]), Value::Bool(true));
     }
 

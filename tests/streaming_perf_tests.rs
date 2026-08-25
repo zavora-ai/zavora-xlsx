@@ -26,10 +26,10 @@ fn streaming_read_basic() {
     assert_eq!(reader.sheet_count(), 1);
     assert_eq!(reader.sheet_names(), vec!["Sheet1"]);
 
-    let mut rows = reader.sheet_rows(0).unwrap();
+    let rows = reader.sheet_rows(0).unwrap();
     let mut row_count = 0;
     let mut collected: Vec<StreamingRow> = Vec::new();
-    while let Some(row) = rows.next() {
+    for row in rows {
         collected.push(row);
         row_count += 1;
     }

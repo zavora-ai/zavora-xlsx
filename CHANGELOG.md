@@ -5,6 +5,21 @@ All notable changes to zavora-xlsx will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] — 2026-08-25
+
+### Fixed
+
+- Preserve edits to cells that already contained a parsed value when saving an
+  opened workbook.
+- Preserve workbook formatting and chart placement across read-edit-save
+  round trips.
+- Upgrade the XML parser and Python bindings to patched releases, including
+  correct handling of entity-reference events introduced by `quick-xml` 0.41.
+
+### Added
+
+- Expose parsed chart metadata and frozen-pane locations to callers.
+
 ## [0.1.1] — 2025-04-22
 
 ### Added
@@ -138,4 +153,5 @@ Initial public release.
 - Chainable Format builder via PyRefMut pattern
 
 [0.1.1]: https://github.com/zavora-ai/zavora-xlsx/releases/tag/v0.1.1
+[0.1.2]: https://github.com/zavora-ai/zavora-xlsx/compare/v0.1.1...v0.1.2
 [0.1.0]: https://github.com/zavora-ai/zavora-xlsx/releases/tag/v0.1.0

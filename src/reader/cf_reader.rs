@@ -11,7 +11,7 @@ use crate::features::conditional::*;
 use crate::format::Format;
 use crate::reader::style_parser::DxfRecord;
 use crate::utility::{ColNum, RowNum, parse_range};
-use crate::xml::xml_reader::get_attr;
+use crate::xml::xml_reader::{BytesTextExt, decode_xml_ref, get_attr};
 
 /// Parse all `<conditionalFormatting>` elements from sheet XML into
 /// [`StoredCf`] structs.
@@ -211,6 +211,11 @@ fn parse_cf_rule_children(reader: &mut Reader<&[u8]>, buf: &mut Vec<u8>) -> CfRu
             Ok(Event::Text(ref t)) => {
                 if in_formula && let Ok(s) = t.unescape() {
                     formula_text.push_str(&s);
+                }
+            }
+            Ok(Event::GeneralRef(ref reference)) => {
+                if in_formula && let Ok(text) = decode_xml_ref(reference) {
+                    formula_text.push_str(&text);
                 }
             }
             Ok(Event::End(ref e)) => match e.local_name().as_ref() {

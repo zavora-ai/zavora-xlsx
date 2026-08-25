@@ -2,7 +2,7 @@ use quick_xml::events::Event;
 use quick_xml::reader::Reader;
 
 use crate::utility::{ColNum, RowNum};
-use crate::xml::xml_reader::get_attr;
+use crate::xml::xml_reader::{BytesTextExt, decode_xml_ref, get_attr};
 
 /// A comment parsed from the comment XML part.
 #[derive(Debug, Clone)]
@@ -100,27 +100,33 @@ fn parse_comments_inner(data: &[u8]) -> crate::Result<Vec<ParsedComment>> {
                     cur_text.push_str(&t);
                 }
             }
+            Event::GeneralRef(reference) => {
+                if let Ok(text) = decode_xml_ref(&reference) {
+                    if in_author {
+                        author_text.push_str(&text);
+                    }
+                    if in_t {
+                        cur_text.push_str(&text);
+                    }
+                }
+            }
             Event::End(e) => match e.local_name().as_ref() {
                 b"authors" => {
                     in_authors = false;
                 }
-                b"author" => {
-                    if in_author {
-                        authors.push(author_text.clone());
-                        in_author = false;
-                    }
+                b"author" if in_author => {
+                    authors.push(author_text.clone());
+                    in_author = false;
                 }
-                b"comment" => {
-                    if in_comment {
-                        let author = authors.get(cur_author_id).cloned().unwrap_or_default();
-                        comments.push(ParsedComment {
-                            row: cur_row,
-                            col: cur_col,
-                            text: cur_text.clone(),
-                            author,
-                        });
-                        in_comment = false;
-                    }
+                b"comment" if in_comment => {
+                    let author = authors.get(cur_author_id).cloned().unwrap_or_default();
+                    comments.push(ParsedComment {
+                        row: cur_row,
+                        col: cur_col,
+                        text: cur_text.clone(),
+                        author,
+                    });
+                    in_comment = false;
                 }
                 b"text" => {
                     in_text = false;

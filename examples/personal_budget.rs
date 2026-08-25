@@ -498,7 +498,7 @@ fn main() -> Result<()> {
         ws.write(src + i as u32, 1, *name)?;
     }
     // Savings amount
-    ws.write_formula(src, 2, &format!("{savings_total}"))?;
+    ws.write_formula(src, 2, &savings_total)?;
     // Expense category amounts
     for (i, tc) in cat_total_cells.iter().enumerate() {
         ws.write_formula(src + 1 + i as u32, 2, tc)?;
@@ -525,7 +525,7 @@ fn main() -> Result<()> {
     for (i, (name, color)) in all_cats.iter().zip(all_colors.iter()).enumerate() {
         // Read the formula value — use a representative amount for the cached data
         let amounts = [1800.0, 953.0, 3862.0, 47.0, 597.0, 102.0, 155.0];
-        treemap.add_point_with_color(*name, amounts[i], *color);
+        treemap.add_point_with_color(name, amounts[i], *color);
     }
     ws.insert_treemap(chart_row + 1, 1, &treemap)?;
 

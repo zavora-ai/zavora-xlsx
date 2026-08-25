@@ -17,7 +17,7 @@ use crate::model::style_registry::StyleRegistry;
 use crate::reader::sst_parser;
 use crate::reader::style_parser::ParsedStyles;
 use crate::utility::{ColNum, RowNum};
-use crate::xml::xml_reader::get_attr;
+use crate::xml::xml_reader::{BytesTextExt, decode_xml_ref, get_attr};
 use crate::zip::zip_reader::ZipReader;
 
 /// A row yielded by the streaming reader.
@@ -330,6 +330,15 @@ fn parse_sheet_rows_sax(
                     f_text.push_str(&t);
                 }
             }
+            Event::GeneralRef(reference) => {
+                if let Ok(text) = decode_xml_ref(&reference) {
+                    if in_v {
+                        v_text.push_str(&text);
+                    } else if in_f {
+                        f_text.push_str(&text);
+                    }
+                }
+            }
             Event::End(e) => {
                 match e.local_name().as_ref() {
                     b"v" => {
@@ -472,20 +481,18 @@ fn parse_sheet_list<R: Read + Seek>(
         loop {
             buf.clear();
             match reader.read_event_into(&mut buf)? {
-                Event::Start(e) | Event::Empty(e) => {
-                    if e.local_name().as_ref() == b"sheet" {
-                        let name = get_attr(e.attributes(), b"name")
-                            .and_then(|v| std::str::from_utf8(v).ok())
-                            .unwrap_or("")
-                            .to_string();
-                        let rid = get_attr(e.attributes(), b"r:id")
-                            .and_then(|v| std::str::from_utf8(v).ok())
-                            .unwrap_or("")
-                            .to_string();
-                        if let Some(target) = rels_map.get(&rid) {
-                            let path = normalize_sheet_path(target);
-                            sheets.push(StreamingSheetInfo { name, path });
-                        }
+                Event::Start(e) | Event::Empty(e) if e.local_name().as_ref() == b"sheet" => {
+                    let name = get_attr(e.attributes(), b"name")
+                        .and_then(|v| std::str::from_utf8(v).ok())
+                        .unwrap_or("")
+                        .to_string();
+                    let rid = get_attr(e.attributes(), b"r:id")
+                        .and_then(|v| std::str::from_utf8(v).ok())
+                        .unwrap_or("")
+                        .to_string();
+                    if let Some(target) = rels_map.get(&rid) {
+                        let path = normalize_sheet_path(target);
+                        sheets.push(StreamingSheetInfo { name, path });
                     }
                 }
                 Event::Eof => break,

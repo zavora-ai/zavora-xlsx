@@ -185,13 +185,13 @@ pub fn fn_xlookup(args: &[Value]) -> Value {
                     Some(std::cmp::Ordering::Equal) => {
                         return get_return_value(&return_array, i);
                     }
-                    Some(std::cmp::Ordering::Less) => {
-                        if best.is_none()
-                            || compare_values(cell, &lookup_array[best.unwrap()])
+                    Some(std::cmp::Ordering::Less)
+                        if best.is_none_or(|best_index| {
+                            compare_values(cell, &lookup_array[best_index])
                                 == Some(std::cmp::Ordering::Greater)
-                        {
-                            best = Some(i);
-                        }
+                        }) =>
+                    {
+                        best = Some(i);
                     }
                     _ => {}
                 }
@@ -208,13 +208,13 @@ pub fn fn_xlookup(args: &[Value]) -> Value {
                     Some(std::cmp::Ordering::Equal) => {
                         return get_return_value(&return_array, i);
                     }
-                    Some(std::cmp::Ordering::Greater) => {
-                        if best.is_none()
-                            || compare_values(cell, &lookup_array[best.unwrap()])
+                    Some(std::cmp::Ordering::Greater)
+                        if best.is_none_or(|best_index| {
+                            compare_values(cell, &lookup_array[best_index])
                                 == Some(std::cmp::Ordering::Less)
-                        {
-                            best = Some(i);
-                        }
+                        }) =>
+                    {
+                        best = Some(i);
                     }
                     _ => {}
                 }

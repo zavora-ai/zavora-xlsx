@@ -9,7 +9,7 @@ use crate::model::shared_strings::SharedStringTable;
 use crate::properties::{self, DocProperties};
 use crate::reader::style_parser::ParsedStyles;
 use crate::reader::{rel_parser, sheet_reader, sst_parser, style_parser};
-use crate::xml::xml_reader::get_attr;
+use crate::xml::xml_reader::{BytesTextExt, decode_xml_ref, get_attr};
 use crate::zip::zip_reader::ZipReader;
 
 use crate::workbook::{DefinedName, DefinedNameScope};
@@ -123,6 +123,11 @@ pub fn read_xlsx_from_zip<R: std::io::Read + std::io::Seek>(
                 Event::Text(e) if in_defined_name => {
                     if let Ok(t) = e.unescape() {
                         dn_value.push_str(&t);
+                    }
+                }
+                Event::GeneralRef(reference) if in_defined_name => {
+                    if let Ok(text) = decode_xml_ref(&reference) {
+                        dn_value.push_str(&text);
                     }
                 }
                 Event::End(e) if e.local_name().as_ref() == b"definedName" => {

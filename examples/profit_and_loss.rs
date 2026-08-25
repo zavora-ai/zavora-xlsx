@@ -543,7 +543,7 @@ fn main() -> Result<()> {
     chart.set_y_axis_name("USD");
     chart.set_legend_position(LegendPosition::Bottom);
 
-    let cat = format!("'P&L Statement'!$C$6:$N$6"); // month headers
+    let cat = "'P&L Statement'!$C$6:$N$6"; // month headers
 
     let rs = chart.add_series();
     rs.set_values(&format!(
@@ -551,7 +551,7 @@ fn main() -> Result<()> {
         total_rev_row + 1,
         total_rev_row + 1
     ));
-    rs.set_categories(&cat);
+    rs.set_categories(cat);
     rs.set_name("Revenue");
     rs.set_color(green);
 
@@ -561,7 +561,7 @@ fn main() -> Result<()> {
         total_opex_row + 1,
         total_opex_row + 1
     ));
-    es.set_categories(&cat);
+    es.set_categories(cat);
     es.set_name("Expenses");
     es.set_color(red);
 
@@ -571,7 +571,7 @@ fn main() -> Result<()> {
         np_row + 1,
         np_row + 1
     ));
-    ns.set_categories(&cat);
+    ns.set_categories(cat);
     ns.set_name("Net Profit");
     ns.set_color(blue);
     ns.set_chart_type(ChartType::Line);

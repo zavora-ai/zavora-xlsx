@@ -97,15 +97,16 @@ fn main() -> Result<()> {
     }
     ws.set_row_height(r, 22.0)?;
     r += 1;
-    let entries: Vec<(
-        &str,
-        &str,
-        &str,
+    type MaintenanceEntry<'a> = (
+        &'a str,
+        &'a str,
+        &'a str,
         (i32, u32, u32),
         f64,
-        &str,
+        &'a str,
         (i32, u32, u32),
-    )> = vec![
+    );
+    let entries: Vec<MaintenanceEntry<'_>> = vec![
         (
             "EQ-001",
             "CNC Machine #1",

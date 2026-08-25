@@ -46,7 +46,7 @@ fn main() -> zavora_xlsx::Result<()> {
         let scope_str = match &dn.scope {
             DefinedNameScope::Workbook => "Workbook (global)".to_string(),
             DefinedNameScope::Sheet(idx) => {
-                let sheet_name = wb.sheet_names().get(*idx).map(|s| *s).unwrap_or("?");
+                let sheet_name = wb.sheet_names().get(*idx).copied().unwrap_or("?");
                 format!("Sheet {} (\"{}\")", idx, sheet_name)
             }
         };

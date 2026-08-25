@@ -78,11 +78,7 @@ fn the_formatted_cell_itself_keeps_its_look_when_its_value_changes() {
 
     let mut reopened = Workbook::open(path).unwrap();
     // Overwriting the number in a formatted cell must change the number, not the formatting.
-    reopened
-        .worksheet(0)
-        .unwrap()
-        .write(1, 0, 99.0)
-        .unwrap();
+    reopened.worksheet(0).unwrap().write(1, 0, 99.0).unwrap();
     reopened.save(path).unwrap();
 
     let after = styles_of(path);
@@ -109,11 +105,7 @@ fn a_workbook_saved_twice_does_not_grow_a_second_copy_of_every_style() {
 
     for _ in 0..3 {
         let mut reopened = Workbook::open(path).unwrap();
-        reopened
-            .worksheet(0)
-            .unwrap()
-            .write(9, 9, "again")
-            .unwrap();
+        reopened.worksheet(0).unwrap().write(9, 9, "again").unwrap();
         reopened.save(path).unwrap();
     }
 

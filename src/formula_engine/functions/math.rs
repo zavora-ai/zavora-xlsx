@@ -231,16 +231,16 @@ mod tests {
     fn test_roundup() {
         assert_eq!(fn_roundup(&[num(3.2), num(0.0)]), num(4.0));
         assert_eq!(fn_roundup(&[num(76.9), num(0.0)]), num(77.0));
-        assert_eq!(fn_roundup(&[num(3.14159), num(3.0)]), num(3.142));
-        assert_eq!(fn_roundup(&[num(-3.14159), num(1.0)]), num(-3.2));
+        assert_eq!(fn_roundup(&[num(4.14159), num(3.0)]), num(4.142));
+        assert_eq!(fn_roundup(&[num(-4.14159), num(1.0)]), num(-4.2));
     }
 
     #[test]
     fn test_rounddown() {
         assert_eq!(fn_rounddown(&[num(3.2), num(0.0)]), num(3.0));
         assert_eq!(fn_rounddown(&[num(76.9), num(0.0)]), num(76.0));
-        assert_eq!(fn_rounddown(&[num(3.14159), num(3.0)]), num(3.141));
-        assert_eq!(fn_rounddown(&[num(-3.14159), num(1.0)]), num(-3.1));
+        assert_eq!(fn_rounddown(&[num(4.14159), num(3.0)]), num(4.141));
+        assert_eq!(fn_rounddown(&[num(-4.14159), num(1.0)]), num(-4.1));
     }
 
     #[test]
@@ -312,8 +312,14 @@ mod tests {
     #[test]
     fn test_error_propagation() {
         let err = Value::Error(ErrorKind::Ref);
-        assert_eq!(fn_abs(&[err.clone()]), Value::Error(ErrorKind::Ref));
-        assert_eq!(fn_sqrt(&[err.clone()]), Value::Error(ErrorKind::Ref));
+        assert_eq!(
+            fn_abs(std::slice::from_ref(&err)),
+            Value::Error(ErrorKind::Ref)
+        );
+        assert_eq!(
+            fn_sqrt(std::slice::from_ref(&err)),
+            Value::Error(ErrorKind::Ref)
+        );
         assert_eq!(fn_round(&[err, num(1.0)]), Value::Error(ErrorKind::Ref));
     }
 }

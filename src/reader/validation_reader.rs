@@ -9,7 +9,7 @@ use quick_xml::reader::Reader;
 
 use crate::features::validation::{DataValidation, ErrorStyle, ValidationRule};
 use crate::utility::{parse_cell_ref, parse_range};
-use crate::xml::xml_reader::get_attr;
+use crate::xml::xml_reader::{BytesTextExt, decode_xml_ref, get_attr};
 
 /// Parsed attributes from a `<dataValidation>` element.
 struct DvAttrs {
@@ -150,6 +150,13 @@ fn parse_dv_children(
                     && let Ok(s) = t.unescape()
                 {
                     text.push_str(&s);
+                }
+            }
+            Ok(Event::GeneralRef(ref reference)) => {
+                if (in_formula1 || in_formula2)
+                    && let Ok(value) = decode_xml_ref(reference)
+                {
+                    text.push_str(&value);
                 }
             }
             Ok(Event::End(ref child)) => match child.local_name().as_ref() {

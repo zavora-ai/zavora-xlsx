@@ -100,17 +100,18 @@ fn main() -> Result<()> {
     }
     ws.set_row_height(r, 22.0)?;
     r += 1;
-    let shipments: Vec<(
-        &str,
-        &str,
-        &str,
-        &str,
+    type Shipment<'a> = (
+        &'a str,
+        &'a str,
+        &'a str,
+        &'a str,
         (i32, u32, u32),
         (i32, u32, u32),
-        &str,
+        &'a str,
         f64,
         f64,
-    )> = vec![
+    );
+    let shipments: Vec<Shipment<'_>> = vec![
         (
             "TRK-4001",
             "Nairobi",

@@ -241,7 +241,7 @@ fn main() -> Result<()> {
         0,
         last as u32,
         11,
-        &Table::new().set_style(TableStyle::Medium(4)).set_columns(
+        Table::new().set_style(TableStyle::Medium(4)).set_columns(
             &headers
                 .iter()
                 .map(|h| TableColumn::new(h))

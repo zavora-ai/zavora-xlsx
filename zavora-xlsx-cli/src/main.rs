@@ -418,7 +418,7 @@ mod tests {
 
     #[test]
     fn detect_float() {
-        assert_eq!(detect_cell_value("3.14"), CellValueType::Number(3.14));
+        assert_eq!(detect_cell_value("3.25"), CellValueType::Number(3.25));
     }
 
     #[test]

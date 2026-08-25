@@ -1,3 +1,4 @@
+use crate::xml::xml_reader::{BytesTextExt, decode_xml_ref};
 use crate::xml::xml_writer::XmlWriter;
 
 /// Document properties (docProps/core.xml + app.xml).
@@ -119,16 +120,12 @@ pub fn parse_core_xml(data: &[u8]) -> DocProperties {
             }
             Ok(Event::Text(e)) => {
                 if let Ok(text) = e.unescape() {
-                    let text = text.to_string();
-                    match current_tag.as_str() {
-                        "title" => props.title = Some(text),
-                        "subject" => props.subject = Some(text),
-                        "creator" => props.author = Some(text),
-                        "description" => props.description = Some(text),
-                        "keywords" => props.keywords = Some(text),
-                        "category" => props.category = Some(text),
-                        _ => {}
-                    }
+                    append_core_property(&mut props, &current_tag, &text);
+                }
+            }
+            Ok(Event::GeneralRef(reference)) => {
+                if let Ok(text) = decode_xml_ref(&reference) {
+                    append_core_property(&mut props, &current_tag, &text);
                 }
             }
             Ok(Event::End(_)) => {
@@ -139,6 +136,19 @@ pub fn parse_core_xml(data: &[u8]) -> DocProperties {
         }
     }
     props
+}
+
+fn append_core_property(props: &mut DocProperties, tag: &str, text: &str) {
+    let field = match tag {
+        "title" => &mut props.title,
+        "subject" => &mut props.subject,
+        "creator" => &mut props.author,
+        "description" => &mut props.description,
+        "keywords" => &mut props.keywords,
+        "category" => &mut props.category,
+        _ => return,
+    };
+    field.get_or_insert_default().push_str(text);
 }
 
 /// A custom document property (Task 76).
@@ -236,6 +246,7 @@ pub fn parse_custom_xml(data: &[u8]) -> Vec<CustomProperty> {
     let mut props = Vec::new();
     let mut current_name = String::new();
     let mut current_tag = String::new();
+    let mut current_text = String::new();
     let mut in_property = false;
 
     loop {
@@ -253,6 +264,7 @@ pub fn parse_custom_xml(data: &[u8]) -> Vec<CustomProperty> {
                     }
                 } else if in_property {
                     current_tag = local;
+                    current_text.clear();
                 }
             }
             Ok(Event::Text(e)) => {
@@ -260,7 +272,24 @@ pub fn parse_custom_xml(data: &[u8]) -> Vec<CustomProperty> {
                     && !current_tag.is_empty()
                     && let Ok(text) = e.unescape()
                 {
-                    let text = text.to_string();
+                    current_text.push_str(&text);
+                }
+            }
+            Ok(Event::GeneralRef(reference)) => {
+                if in_property
+                    && !current_tag.is_empty()
+                    && let Ok(text) = decode_xml_ref(&reference)
+                {
+                    current_text.push_str(&text);
+                }
+            }
+            Ok(Event::End(e)) => {
+                let local = String::from_utf8_lossy(e.local_name().as_ref()).to_string();
+                if local == "property" {
+                    in_property = false;
+                    current_tag.clear();
+                } else if in_property {
+                    let text = std::mem::take(&mut current_text);
                     let value = match current_tag.as_str() {
                         "lpwstr" => CustomPropertyValue::Text(text),
                         "r8" => CustomPropertyValue::Number(text.parse().unwrap_or(0.0)),
@@ -273,14 +302,6 @@ pub fn parse_custom_xml(data: &[u8]) -> Vec<CustomProperty> {
                         name: current_name.clone(),
                         value,
                     });
-                }
-            }
-            Ok(Event::End(e)) => {
-                let local = String::from_utf8_lossy(e.local_name().as_ref()).to_string();
-                if local == "property" {
-                    in_property = false;
-                    current_tag.clear();
-                } else if in_property {
                     current_tag.clear();
                 }
             }

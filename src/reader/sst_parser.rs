@@ -2,6 +2,7 @@ use quick_xml::events::Event;
 use quick_xml::reader::Reader;
 
 use crate::model::shared_strings::SharedStringTable;
+use crate::xml::xml_reader::{BytesTextExt, decode_xml_ref};
 
 pub fn parse_sst(data: &[u8]) -> crate::Result<SharedStringTable> {
     let mut reader = Reader::from_reader(data);
@@ -57,6 +58,11 @@ pub fn parse_sst(data: &[u8]) -> crate::Result<SharedStringTable> {
             }
             Event::Text(e) if in_si && !in_rph => {
                 if let Ok(text) = e.unescape() {
+                    current.push_str(&text);
+                }
+            }
+            Event::GeneralRef(reference) if in_si && !in_rph => {
+                if let Ok(text) = decode_xml_ref(&reference) {
                     current.push_str(&text);
                 }
             }

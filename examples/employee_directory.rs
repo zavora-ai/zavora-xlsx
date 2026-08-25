@@ -114,18 +114,19 @@ fn main() -> Result<()> {
     ws.set_row_height(r, 22.0)?;
     r += 1;
 
-    let employees: Vec<(
-        &str,
-        &str,
-        &str,
-        &str,
+    type Employee<'a> = (
+        &'a str,
+        &'a str,
+        &'a str,
+        &'a str,
         (i32, u32, u32),
         f64,
-        &str,
-        &str,
-        &str,
-        &str,
-    )> = vec![
+        &'a str,
+        &'a str,
+        &'a str,
+        &'a str,
+    );
+    let employees: Vec<Employee<'_>> = vec![
         (
             "E001",
             "Sarah Kimani",

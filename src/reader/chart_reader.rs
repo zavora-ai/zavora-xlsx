@@ -9,7 +9,7 @@ use quick_xml::reader::Reader;
 
 use crate::features::chart::{Chart, ChartSeries, ChartType, LegendPosition};
 use crate::features::treemap::TreemapChart;
-use crate::xml::xml_reader::get_attr_str;
+use crate::xml::xml_reader::{BytesTextExt, decode_xml_ref, get_attr_str};
 
 // ── Drawing relationship parsing (Task 4.2) ────────────────────────────────
 
@@ -356,6 +356,19 @@ pub fn read_chart(data: &[u8]) -> crate::Result<Chart> {
                     c_v_text.push_str(&s);
                 }
             }
+            Ok(Event::GeneralRef(ref reference)) => {
+                if let Ok(text) = decode_xml_ref(reference) {
+                    if in_f {
+                        f_text.push_str(&text);
+                    }
+                    if in_a_t {
+                        a_t_text.push_str(&text);
+                    }
+                    if in_c_v {
+                        c_v_text.push_str(&text);
+                    }
+                }
+            }
             Ok(Event::End(ref e)) => {
                 let local = e.local_name();
                 let name = local.as_ref();
@@ -402,17 +415,15 @@ pub fn read_chart(data: &[u8]) -> crate::Result<Chart> {
                     b"numRef" => {
                         in_num_ref = false;
                     }
-                    b"f" => {
-                        if in_f {
-                            if in_str_ref && in_tx && in_ser {
-                                cur_series_name = Some(f_text.clone());
-                            } else if in_str_ref && in_cat && in_ser {
-                                cur_series_cats = Some(f_text.clone());
-                            } else if in_num_ref && in_val && in_ser {
-                                cur_series_vals = f_text.clone();
-                            }
-                            in_f = false;
+                    b"f" if in_f => {
+                        if in_str_ref && in_tx && in_ser {
+                            cur_series_name = Some(f_text.clone());
+                        } else if in_str_ref && in_cat && in_ser {
+                            cur_series_cats = Some(f_text.clone());
+                        } else if in_num_ref && in_val && in_ser {
+                            cur_series_vals = f_text.clone();
                         }
+                        in_f = false;
                     }
                     b"v" if in_c_v => {
                         if in_tx && in_ser && cur_series_name.is_none() {
@@ -420,16 +431,14 @@ pub fn read_chart(data: &[u8]) -> crate::Result<Chart> {
                         }
                         in_c_v = false;
                     }
-                    b"t" => {
-                        if in_a_t {
-                            if in_title && !in_ax_title && !a_t_text.is_empty() {
-                                title_text.push_str(&a_t_text);
-                            }
-                            if in_ax_title && !a_t_text.is_empty() {
-                                ax_title_text.push_str(&a_t_text);
-                            }
-                            in_a_t = false;
+                    b"t" if in_a_t => {
+                        if in_title && !in_ax_title && !a_t_text.is_empty() {
+                            title_text.push_str(&a_t_text);
                         }
+                        if in_ax_title && !a_t_text.is_empty() {
+                            ax_title_text.push_str(&a_t_text);
+                        }
+                        in_a_t = false;
                     }
                     b"title" if in_ax_title => {
                         ax_title_depth -= 1;
@@ -606,6 +615,22 @@ pub fn read_chartex(data: &[u8]) -> crate::Result<TreemapChart> {
                 }
                 if in_v && let Ok(s) = t.unescape() {
                     v_text.push_str(&s);
+                }
+            }
+            Ok(Event::GeneralRef(ref reference)) => {
+                if let Ok(text) = decode_xml_ref(reference) {
+                    if in_pt {
+                        pt_text.push_str(&text);
+                    }
+                    if in_f {
+                        f_text.push_str(&text);
+                    }
+                    if in_a_t {
+                        a_t_text.push_str(&text);
+                    }
+                    if in_v {
+                        v_text.push_str(&text);
+                    }
                 }
             }
             Ok(Event::End(ref e)) => {

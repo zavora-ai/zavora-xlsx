@@ -388,7 +388,7 @@ fn main() -> Result<()> {
         0,
         last_row,
         2,
-        &Table::new().set_style(TableStyle::Medium(2)).set_columns(&[
+        Table::new().set_style(TableStyle::Medium(2)).set_columns(&[
             TableColumn::new("Date"),
             TableColumn::new("Event"),
             TableColumn::new("Type"),

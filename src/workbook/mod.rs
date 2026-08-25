@@ -1298,6 +1298,7 @@ fn col_letter_to_num(s: &str) -> Option<u16> {
 /// 2. Parse the drawing XML to find chart relationship IDs
 /// 3. Resolve chart rIds to chart part paths via the drawing rels
 /// 4. Read and parse each chart XML into Chart / TreemapChart structs
+///
 /// The relationship id of a sheet's drawing, from `<drawing r:id="rIdN"/>`.
 ///
 /// Read from the raw XML rather than from parsed metadata, because the editing path holds the

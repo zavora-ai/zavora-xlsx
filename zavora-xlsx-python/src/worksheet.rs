@@ -118,7 +118,7 @@ impl Worksheet {
 
     // ── Cell read methods ──
 
-    pub fn read_cell(&self, py: Python<'_>, row: u32, col: u16) -> PyResult<PyObject> {
+    pub fn read_cell(&self, py: Python<'_>, row: u32, col: u16) -> PyResult<Py<PyAny>> {
         let wb = self.lock()?;
         let ws = wb.worksheet_ref(self.index).into_pyresult()?;
         let cv = ws.read_cell(row, col);
@@ -267,7 +267,7 @@ impl Worksheet {
 
 // ── Private helpers ──
 
-fn cell_value_to_py(py: Python<'_>, value: &zavora_xlsx::CellValue) -> PyObject {
+fn cell_value_to_py(py: Python<'_>, value: &zavora_xlsx::CellValue) -> Py<PyAny> {
     match value {
         zavora_xlsx::CellValue::Empty => py.None(),
         zavora_xlsx::CellValue::String(s) => s.into_pyobject(py).unwrap().into_any().unbind(),

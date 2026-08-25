@@ -1,6 +1,6 @@
 [package]
 name = "zavora-xlsx"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 license = "Apache-2.0"
 description = "High-performance Excel xlsx reader, writer, and editor"
@@ -20,7 +20,7 @@ exclude = [
 ]
 
 [dependencies]
-quick-xml = { version = "0.37", features = ["encoding"] }
+quick-xml = { version = "0.41", features = ["encoding"] }
 zip = { version = "2", default-features = false, features = ["deflate"] }
 atoi_simd = "0.16"
 fast-float2 = "0.2"
@@ -50,7 +50,7 @@ wasm = []
 cffi = []
 
 [dev-dependencies]
-calamine = "0.34"
+calamine = "0.36"
 tempfile = "3"
 serde = { version = "1", features = ["derive"] }
 zavora-xlsx-derive = { path = "zavora-xlsx-derive", version = "0.1.1" }

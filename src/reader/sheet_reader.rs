@@ -7,7 +7,7 @@ use crate::model::shared_strings::SharedStringTable;
 use crate::model::style_registry::StyleRegistry;
 use crate::reader::style_parser::ParsedStyles;
 use crate::utility::{ColNum, RowNum, parse_cell_attr};
-use crate::xml::xml_reader::{get_attr, get_attr_str};
+use crate::xml::xml_reader::{BytesTextExt, decode_xml_ref, get_attr, get_attr_str};
 
 pub struct RawCell {
     pub row: RowNum,
@@ -221,6 +221,15 @@ pub fn read_sheet_full(
                     f_text.push_str(&t);
                 }
             }
+            Event::GeneralRef(reference) => {
+                if let Ok(text) = decode_xml_ref(&reference) {
+                    if in_v {
+                        v_text.push_str(&text);
+                    } else if in_f {
+                        f_text.push_str(&text);
+                    }
+                }
+            }
             Event::End(e) => match e.local_name().as_ref() {
                 b"v" => {
                     in_v = false;
@@ -430,6 +439,15 @@ pub fn read_sheet_full(
                     }
                 } else if in_odd_footer && let Ok(t) = e.unescape() {
                     odd_footer_text.push_str(&t);
+                }
+            }
+            Event::GeneralRef(reference) => {
+                if let Ok(text) = decode_xml_ref(&reference) {
+                    if in_odd_header {
+                        odd_header_text.push_str(&text);
+                    } else if in_odd_footer {
+                        odd_footer_text.push_str(&text);
+                    }
                 }
             }
             Event::End(e) => match e.local_name().as_ref() {

@@ -130,30 +130,30 @@ fn main() -> Result<()> {
 
     // Verify some values
     let profit_q1 = ws.read_cell(3, 1);
-    if let CellValue::Formula { cached_value, .. } = &profit_q1 {
-        if let CellValue::Number(n) = **cached_value {
-            assert_eq!(n, 20000.0, "Q1 Profit should be 50000 - 30000 = 20000");
-            println!("✓ Q1 Profit = ${:.0} (correct)", n);
-        }
+    if let CellValue::Formula { cached_value, .. } = &profit_q1
+        && let CellValue::Number(n) = **cached_value
+    {
+        assert_eq!(n, 20000.0, "Q1 Profit should be 50000 - 30000 = 20000");
+        println!("✓ Q1 Profit = ${:.0} (correct)", n);
     }
 
     let total_revenue = ws.read_cell(1, 5);
-    if let CellValue::Formula { cached_value, .. } = &total_revenue {
-        if let CellValue::Number(n) = **cached_value {
-            assert_eq!(
-                n, 241000.0,
-                "Total Revenue should be 50000+62000+58000+71000"
-            );
-            println!("✓ Total Revenue = ${:.0} (correct)", n);
-        }
+    if let CellValue::Formula { cached_value, .. } = &total_revenue
+        && let CellValue::Number(n) = **cached_value
+    {
+        assert_eq!(
+            n, 241000.0,
+            "Total Revenue should be 50000+62000+58000+71000"
+        );
+        println!("✓ Total Revenue = ${:.0} (correct)", n);
     }
 
     let avg_cost = ws.read_cell(2, 6);
-    if let CellValue::Formula { cached_value, .. } = &avg_cost {
-        if let CellValue::Number(n) = **cached_value {
-            assert_eq!(n, 33750.0, "Avg Cost should be (30000+35000+32000+38000)/4");
-            println!("✓ Average Cost = ${:.0} (correct)", n);
-        }
+    if let CellValue::Formula { cached_value, .. } = &avg_cost
+        && let CellValue::Number(n) = **cached_value
+    {
+        assert_eq!(n, 33750.0, "Avg Cost should be (30000+35000+32000+38000)/4");
+        println!("✓ Average Cost = ${:.0} (correct)", n);
     }
 
     // Save

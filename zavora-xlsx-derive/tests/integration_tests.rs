@@ -37,7 +37,7 @@ fn test_simple_round_trip() {
 
     assert_eq!(read_back.name, "Alice");
     assert_eq!(read_back.value, 42.5);
-    assert_eq!(read_back.active, true);
+    assert!(read_back.active);
 }
 
 #[test]

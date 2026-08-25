@@ -1156,7 +1156,7 @@ fn test_streaming(path: &Path) -> Result<()> {
 
     for row in 1..=100_000u32 {
         wb.write_number(row, 0, row as f64)?;
-        wb.write_number(row, 1, row as f64 * 3.14)?;
+        wb.write_number(row, 1, row as f64 * 3.25)?;
         wb.write_string(row, 2, if row % 2 == 0 { "Even" } else { "Odd" })?;
     }
     wb.save(path)?;
@@ -1685,9 +1685,7 @@ fn test_acme_financial_model(path: &Path) -> Result<()> {
             "Cloud hosting",
         ];
         for r in 1..=500u32 {
-            let dt =
-                ExcelDateTime::from_ymd(2026, 1 + ((r - 1) % 3) as u32, 1 + ((r - 1) % 28) as u32)
-                    .unwrap();
+            let dt = ExcelDateTime::from_ymd(2026, 1 + ((r - 1) % 3), 1 + ((r - 1) % 28)).unwrap();
             ws4.write_with_format(r, 0, dt, &date_fmt)?;
             ws4.write_with_format(r, 1, descs[((r - 1) % 10) as usize], &cell_fmt)?;
             ws4.write_with_format(r, 2, categories[((r - 1) % 5) as usize], &cell_fmt)?;

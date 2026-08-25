@@ -97,17 +97,18 @@ fn main() -> Result<()> {
     ws.set_row_height(r, 22.0)?;
     r += 1;
 
-    let positions: Vec<(
-        &str,
-        &str,
-        &str,
-        &str,
-        &str,
+    type Position<'a> = (
+        &'a str,
+        &'a str,
+        &'a str,
+        &'a str,
+        &'a str,
         (i32, u32, u32),
         u32,
         u32,
         (i32, u32, u32),
-    )> = vec![
+    );
+    let positions: Vec<Position<'_>> = vec![
         (
             "REQ-101",
             "Senior Developer",

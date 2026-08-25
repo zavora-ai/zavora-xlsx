@@ -455,10 +455,8 @@ fn parse_border_side(
     loop {
         buf.clear();
         match reader.read_event_into(buf)? {
-            Event::Start(e) | Event::Empty(e) => {
-                if e.local_name().as_ref() == b"color" {
-                    side.color = parse_color_from_event(&e);
-                }
+            Event::Start(e) | Event::Empty(e) if e.local_name().as_ref() == b"color" => {
+                side.color = parse_color_from_event(&e);
             }
             Event::End(e) if e.local_name().as_ref() == end_tag => break,
             Event::Eof => break,
@@ -577,12 +575,10 @@ fn parse_single_dxf(reader: &mut Reader<&[u8]>, buf: &mut Vec<u8>) -> crate::Res
                 }
                 _ => {}
             },
-            Event::Empty(e) => {
-                if e.local_name().as_ref() == b"numFmt" {
-                    let id = get_attr_u16(&e, b"numFmtId");
-                    let code = get_attr_string(&e, b"formatCode");
-                    dxf.num_fmt = Some((id, code));
-                }
+            Event::Empty(e) if e.local_name().as_ref() == b"numFmt" => {
+                let id = get_attr_u16(&e, b"numFmtId");
+                let code = get_attr_string(&e, b"formatCode");
+                dxf.num_fmt = Some((id, code));
             }
             Event::End(e) if e.local_name().as_ref() == b"dxf" => break,
             Event::Eof => break,

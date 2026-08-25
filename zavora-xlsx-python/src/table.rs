@@ -22,7 +22,7 @@ impl Table {
     ) -> PyResult<PyRefMut<'a, Self>> {
         let mut cols: Vec<TableColumn> = Vec::new();
         for item in columns.iter() {
-            let dict = item.downcast::<PyDict>()?;
+            let dict = item.cast::<PyDict>()?;
             let name: String = dict
                 .get_item("name")?
                 .ok_or_else(|| {

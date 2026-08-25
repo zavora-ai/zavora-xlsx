@@ -577,7 +577,6 @@ impl Chart {
     }
 
     pub fn new(chart_type: ChartType) -> Self {
-
         Self {
             chart_type,
             series: Vec::new(),
