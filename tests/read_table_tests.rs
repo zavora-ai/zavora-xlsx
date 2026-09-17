@@ -126,3 +126,51 @@ fn round_trip_table_no_autofilter() {
     let style = t.style().expect("should have style");
     assert_eq!(style.name(), "TableStyleDark3");
 }
+
+// Regression: opening an xlsx that contains a table and saving it again must preserve the
+// worksheet's table relationship part (xl/worksheets/_rels/sheetN.xml.rels). Previously an
+// unmodified reopened sheet (`!dirty`) had its original `_rels` dropped on save, leaving a
+// dangling `<tablePart r:id=.../>` that strict OOXML readers (e.g. openpyxl) reject.
+#[test]
+fn table_relationship_survives_open_save_roundtrip() {
+    let dir = std::env::temp_dir();
+    let uniq = std::process::id();
+    let p1 = dir.join(format!("zx_rt_a_{uniq}.xlsx"));
+    let p2 = dir.join(format!("zx_rt_b_{uniq}.xlsx"));
+
+    let mut wb = Workbook::new();
+    {
+        let ws = wb.worksheet(0).unwrap();
+        ws.write(0u32, 0u16, "h1").unwrap();
+        ws.write(0u32, 1u16, "h2").unwrap();
+        ws.write(1u32, 0u16, 1.0f64).unwrap();
+        ws.write(1u32, 1u16, 2.0f64).unwrap();
+        let cols = vec![TableColumn::new("h1"), TableColumn::new("h2")];
+        let mut t = Table::new();
+        t.set_columns(&cols);
+        ws.add_table(0u32, 0u16, 1u32, 1u16, &t).unwrap();
+    }
+    wb.save(&p1).unwrap();
+
+    // Reopen and save again without modifying anything (the round-trip that dropped rels).
+    let mut wb2 = Workbook::open(&p1).unwrap();
+    wb2.save(&p2).unwrap();
+
+    // The re-saved sheet still declares <tablePart r:id="rId..."/>, so its _rels part MUST exist,
+    // otherwise the relationship is dangling and strict readers fail to open the workbook.
+    let bytes = std::fs::read(&p2).unwrap();
+    let mut zip = zip::ZipArchive::new(std::io::Cursor::new(bytes)).unwrap();
+    let has_sheet_rels = (0..zip.len()).any(|i| {
+        zip.by_index(i)
+            .map(|f| f.name() == "xl/worksheets/_rels/sheet1.xml.rels")
+            .unwrap_or(false)
+    });
+
+    let _ = std::fs::remove_file(&p1);
+    let _ = std::fs::remove_file(&p2);
+
+    assert!(
+        has_sheet_rels,
+        "worksheet _rels part dropped on open->save round-trip (dangling tablePart relationship)"
+    );
+}
