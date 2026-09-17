@@ -436,7 +436,7 @@ impl Workbook {
                     .map(|(a, b, c)| (a.as_str(), b.as_str(), c.as_str()))
                     .collect();
                 zip.add_file(&rels_path, &rel_writer::write_rels(&refs))?;
-            } else if ws.dirty && ws.original_rels.is_some() {
+            } else if ws.original_rels.is_some() {
                 let rels_path = format!("xl/worksheets/_rels/sheet{}.xml.rels", i + 1);
                 zip.add_file(&rels_path, ws.original_rels.as_ref().unwrap())?;
             }
