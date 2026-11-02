@@ -515,7 +515,13 @@ fn test_chart_all_types(path: &Path) -> Result<()> {
     let file = std::fs::File::open(path)?;
     let mut zip = zip::ZipArchive::new(std::io::BufReader::new(file))?;
     let chart_count = (0..zip.len())
-        .filter(|i| zip.by_index(*i).unwrap().name().starts_with("xl/charts/"))
+        .filter(|i| {
+            zip.by_index(*i)
+                .unwrap()
+                .name()
+                .unwrap()
+                .starts_with("xl/charts/")
+        })
         .count();
     assert_eq!(chart_count, 8, "Expected 8 chart XML files");
     Ok(())
@@ -570,8 +576,13 @@ fn test_table(path: &Path) -> Result<()> {
     // Verify
     let file = std::fs::File::open(path)?;
     let mut zip = zip::ZipArchive::new(std::io::BufReader::new(file))?;
-    let has_table =
-        (0..zip.len()).any(|i| zip.by_index(i).unwrap().name().starts_with("xl/tables/"));
+    let has_table = (0..zip.len()).any(|i| {
+        zip.by_index(i)
+            .unwrap()
+            .name()
+            .unwrap()
+            .starts_with("xl/tables/")
+    });
     assert!(has_table, "Expected table XML in zip");
 
     let mut wb2 = Workbook::open_readonly(path)?;
@@ -602,7 +613,7 @@ fn test_image(path: &Path) -> Result<()> {
     let file = std::fs::File::open(path)?;
     let mut zip = zip::ZipArchive::new(std::io::BufReader::new(file))?;
     let media_files: Vec<String> = (0..zip.len())
-        .map(|i| zip.by_index(i).unwrap().name().to_string())
+        .map(|i| zip.by_index(i).unwrap().name().unwrap().to_string())
         .filter(|n: &String| n.starts_with("xl/media/"))
         .collect();
     assert_eq!(
@@ -613,8 +624,13 @@ fn test_image(path: &Path) -> Result<()> {
     );
     assert!(media_files[0].ends_with(".png"), "Expected PNG extension");
 
-    let has_drawing =
-        (0..zip.len()).any(|i| zip.by_index(i).unwrap().name().starts_with("xl/drawings/"));
+    let has_drawing = (0..zip.len()).any(|i| {
+        zip.by_index(i)
+            .unwrap()
+            .name()
+            .unwrap()
+            .starts_with("xl/drawings/")
+    });
     assert!(has_drawing, "Expected drawing XML");
 
     // Verify data still readable
@@ -965,7 +981,7 @@ fn test_dashboard(path: &Path) -> Result<()> {
     let file = std::fs::File::open(path)?;
     let mut zip = zip::ZipArchive::new(std::io::BufReader::new(file))?;
     let names: Vec<String> = (0..zip.len())
-        .map(|i| zip.by_index(i).unwrap().name().to_string())
+        .map(|i| zip.by_index(i).unwrap().name().unwrap().to_string())
         .collect();
     assert!(
         names.iter().any(|n: &String| n.contains("chart")),
@@ -2272,7 +2288,7 @@ fn list_zip_entries(path: &Path) -> Vec<String> {
     let file = std::fs::File::open(path).unwrap();
     let archive = zip::ZipArchive::new(std::io::BufReader::new(file)).unwrap();
     (0..archive.len())
-        .map(|i| archive.name_for_index(i).unwrap().to_string())
+        .map(|i| archive.name_for_index(i).unwrap().unwrap().to_string())
         .collect()
 }
 

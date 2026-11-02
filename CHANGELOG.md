@@ -5,6 +5,25 @@ All notable changes to zavora-xlsx will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Security
+
+- Upgrade `zip` from 2 to 9.1. `zip` releases before 9.0.5 are affected by
+  CVE-2026-115905 (critical), and releases before 9.0.0 by CVE-2026-115907,
+  CVE-2026-115908 and CVE-2026-115909 (high).
+
+### Changed
+
+- Opening a workbook for editing now returns `Error::Zip` when an entry's name
+  cannot be decoded, instead of leaving that part out of the next save. On the
+  read path such an entry is skipped.
+
+### Fixed
+
+- Tests that write to `output/` or `target/` create the directory first, so the
+  suite passes on a clean checkout and with `CARGO_TARGET_DIR` set elsewhere.
+
 ## [0.1.2] — 2026-08-25
 
 ### Fixed

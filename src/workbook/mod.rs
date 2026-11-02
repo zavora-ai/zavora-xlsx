@@ -456,14 +456,15 @@ impl Workbook {
             "docProps/",
         ];
         let mut passthrough = Vec::new();
-        let entry_names: Vec<String> = (0..zip.archive.len())
-            .filter_map(|i| {
-                zip.archive
-                    .by_index_raw(i)
-                    .ok()
-                    .map(|e| e.name().to_string())
-            })
-            .collect();
+        let mut entry_names: Vec<String> = Vec::with_capacity(zip.archive.len());
+        for i in 0..zip.archive.len() {
+            let Ok(entry) = zip.archive.by_index_raw(i) else {
+                continue;
+            };
+            // A name that does not decode is an error, not a skipped entry: skipping it would
+            // silently drop the part from the file on the next save.
+            entry_names.push(entry.name().map_err(crate::Error::Zip)?.into_owned());
+        }
         for name in &entry_names {
             if !known_prefixes
                 .iter()
@@ -1032,7 +1033,7 @@ impl Workbook {
                 zip.archive
                     .by_index_raw(i)
                     .ok()
-                    .map(|e| e.name().to_string())
+                    .and_then(|e| e.name().ok().map(std::borrow::Cow::into_owned))
             })
             .collect();
         for name in names {

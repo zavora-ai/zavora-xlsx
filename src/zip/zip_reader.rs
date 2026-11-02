@@ -14,8 +14,11 @@ impl<R: Read + Seek> ZipReader<R> {
         let mut archive = ZipArchive::new(reader)?;
         let mut path_cache = HashMap::with_capacity(archive.len());
         for i in 0..archive.len() {
-            if let Ok(entry) = archive.by_index_raw(i) {
-                let name = entry.name().to_string();
+            // An entry that does not open, or whose name does not decode, stays out of the cache.
+            if let Ok(entry) = archive.by_index_raw(i)
+                && let Ok(name) = entry.name()
+            {
+                let name = name.into_owned();
                 let key = name.replace('\\', "/").to_ascii_lowercase();
                 path_cache.insert(key, name);
             }

@@ -122,6 +122,7 @@ fn test_remove_named_range_not_found() {
 /// Test that CRUD operations serialize correctly to XML (round-trip).
 #[test]
 fn test_named_ranges_crud_roundtrip() {
+    std::fs::create_dir_all("output").unwrap();
     let path = "output/test_named_ranges_crud.xlsx";
 
     // Create workbook, add names, update one, remove one, save
@@ -187,6 +188,7 @@ fn test_named_ranges_crud_roundtrip() {
 /// Test that the XML output contains correct definedName elements with localSheetId.
 #[test]
 fn test_named_ranges_xml_serialization() {
+    std::fs::create_dir_all("output").unwrap();
     let path = "output/test_named_ranges_xml.xlsx";
 
     let mut wb = Workbook::new();

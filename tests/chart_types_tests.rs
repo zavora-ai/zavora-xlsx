@@ -425,7 +425,7 @@ fn test_map_chart_in_workbook() {
     let cursor = std::io::Cursor::new(&buf);
     let archive = zip::ZipArchive::new(cursor).unwrap();
     let names: Vec<_> = (0..archive.len())
-        .map(|i| archive.name_for_index(i).unwrap().to_string())
+        .map(|i| archive.name_for_index(i).unwrap().unwrap().to_string())
         .collect();
     assert!(
         names.iter().any(|n| n.contains("chartEx")),

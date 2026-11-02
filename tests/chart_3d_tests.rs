@@ -35,7 +35,7 @@ fn create_3d_chart_xml(chart_type: ChartType, view3d: Option<View3D>) -> String 
     let cursor = std::io::Cursor::new(&buf);
     let mut archive = zip::ZipArchive::new(cursor).unwrap();
     for i in 0..archive.len() {
-        let name = archive.name_for_index(i).unwrap().to_string();
+        let name = archive.name_for_index(i).unwrap().unwrap().to_string();
         if name.contains("chart")
             && name.ends_with(".xml")
             && !name.contains("chartEx")
@@ -261,7 +261,7 @@ fn test_chart_style_serialization() {
     let mut archive = zip::ZipArchive::new(cursor).unwrap();
     let mut chart_xml = String::new();
     for i in 0..archive.len() {
-        let name = archive.name_for_index(i).unwrap().to_string();
+        let name = archive.name_for_index(i).unwrap().unwrap().to_string();
         if name.contains("chart")
             && name.ends_with(".xml")
             && !name.contains("chartEx")
@@ -310,7 +310,7 @@ fn test_chart_style_not_emitted_when_none() {
     let mut archive = zip::ZipArchive::new(cursor).unwrap();
     let mut chart_xml = String::new();
     for i in 0..archive.len() {
-        let name = archive.name_for_index(i).unwrap().to_string();
+        let name = archive.name_for_index(i).unwrap().unwrap().to_string();
         if name.contains("chart")
             && name.ends_with(".xml")
             && !name.contains("chartEx")

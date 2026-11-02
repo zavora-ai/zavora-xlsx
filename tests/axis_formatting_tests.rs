@@ -31,7 +31,7 @@ fn create_chart_with_axis_format(x_fmt: Option<AxisFormat>, y_fmt: Option<AxisFo
     let cursor = std::io::Cursor::new(&buf);
     let mut archive = zip::ZipArchive::new(cursor).unwrap();
     for i in 0..archive.len() {
-        let name = archive.name_for_index(i).unwrap().to_string();
+        let name = archive.name_for_index(i).unwrap().unwrap().to_string();
         if name.contains("chart")
             && name.ends_with(".xml")
             && !name.contains("chartEx")

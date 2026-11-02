@@ -263,6 +263,7 @@ fn parallel_save_produces_valid_output() {
 
 #[test]
 fn parallel_save_identical_to_sequential() {
+    std::fs::create_dir_all("output").unwrap();
     // Create two identical workbooks
     let create_wb = || {
         let mut wb = Workbook::new();
@@ -294,6 +295,7 @@ fn parallel_save_identical_to_sequential() {
 
 #[test]
 fn mmap_reading_basic() {
+    std::fs::create_dir_all("output").unwrap();
     // Create a test file
     let mut wb = Workbook::new();
     {
@@ -322,6 +324,7 @@ fn mmap_reading_basic() {
 
 #[test]
 fn incremental_save_preserves_unmodified_sheets() {
+    std::fs::create_dir_all("output").unwrap();
     // Create a workbook with multiple sheets
     let mut wb = Workbook::new();
     {
