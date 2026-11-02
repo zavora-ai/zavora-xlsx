@@ -56,7 +56,7 @@ fn test_threaded_comment_save_roundtrip() {
     let cursor = std::io::Cursor::new(&buf);
     let mut archive = zip::ZipArchive::new(cursor).unwrap();
     let names: Vec<String> = (0..archive.len())
-        .map(|i| archive.by_index(i).unwrap().name().to_string())
+        .map(|i| archive.by_index(i).unwrap().name().unwrap().to_string())
         .collect();
     assert!(names.iter().any(|n| n.contains("threadedComment")));
     assert!(names.iter().any(|n| n.contains("persons/person.xml")));
@@ -137,7 +137,7 @@ fn test_form_control_save() {
     let cursor = std::io::Cursor::new(&buf);
     let mut archive = zip::ZipArchive::new(cursor).unwrap();
     let names: Vec<String> = (0..archive.len())
-        .map(|i| archive.by_index(i).unwrap().name().to_string())
+        .map(|i| archive.by_index(i).unwrap().name().unwrap().to_string())
         .collect();
     assert!(names.iter().any(|n| n.contains("vmlDrawing")));
 }
@@ -157,7 +157,7 @@ fn test_activex_ole_preservation_via_passthrough() {
     let cursor = std::io::Cursor::new(&buf);
     let mut archive = zip::ZipArchive::new(cursor).unwrap();
     let names: Vec<String> = (0..archive.len())
-        .map(|i| archive.by_index(i).unwrap().name().to_string())
+        .map(|i| archive.by_index(i).unwrap().name().unwrap().to_string())
         .collect();
 
     assert!(names.iter().any(|n| n.contains("activeX/activeX1.xml")));
@@ -231,7 +231,7 @@ fn test_shape_save_drawing_xml() {
     let cursor = std::io::Cursor::new(&buf);
     let mut archive = zip::ZipArchive::new(cursor).unwrap();
     let names: Vec<String> = (0..archive.len())
-        .map(|i| archive.by_index(i).unwrap().name().to_string())
+        .map(|i| archive.by_index(i).unwrap().name().unwrap().to_string())
         .collect();
     assert!(names.iter().any(|n| n.contains("drawings/drawing1.xml")));
 
@@ -260,7 +260,7 @@ fn test_smartart_preservation_via_passthrough() {
     let cursor = std::io::Cursor::new(&buf);
     let mut archive = zip::ZipArchive::new(cursor).unwrap();
     let names: Vec<String> = (0..archive.len())
-        .map(|i| archive.by_index(i).unwrap().name().to_string())
+        .map(|i| archive.by_index(i).unwrap().name().unwrap().to_string())
         .collect();
 
     assert!(names.iter().any(|n| n.contains("diagrams/data1.xml")));
@@ -328,7 +328,7 @@ fn test_custom_xml_save_roundtrip() {
     let cursor = std::io::Cursor::new(&buf);
     let mut archive = zip::ZipArchive::new(cursor).unwrap();
     let names: Vec<String> = (0..archive.len())
-        .map(|i| archive.by_index(i).unwrap().name().to_string())
+        .map(|i| archive.by_index(i).unwrap().name().unwrap().to_string())
         .collect();
 
     assert!(names.iter().any(|n| n.contains("customXml/item1.xml")));
@@ -397,7 +397,7 @@ fn test_custom_property_save_roundtrip() {
     let cursor = std::io::Cursor::new(&buf);
     let mut archive = zip::ZipArchive::new(cursor).unwrap();
     let names: Vec<String> = (0..archive.len())
-        .map(|i| archive.by_index(i).unwrap().name().to_string())
+        .map(|i| archive.by_index(i).unwrap().name().unwrap().to_string())
         .collect();
 
     assert!(names.iter().any(|n| n.contains("docProps/custom.xml")));
@@ -481,7 +481,7 @@ fn test_combined_features_save() {
     let cursor = std::io::Cursor::new(&buf);
     let mut archive = zip::ZipArchive::new(cursor).unwrap();
     let names: Vec<String> = (0..archive.len())
-        .map(|i| archive.by_index(i).unwrap().name().to_string())
+        .map(|i| archive.by_index(i).unwrap().name().unwrap().to_string())
         .collect();
 
     assert!(names.iter().any(|n| n.contains("threadedComment")));

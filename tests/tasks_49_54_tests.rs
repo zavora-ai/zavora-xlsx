@@ -229,7 +229,7 @@ fn test_pivot_table_date_grouping_xml_content() {
     let mut found_field_group = false;
     for i in 0..archive.len() {
         let mut file = archive.by_index(i).unwrap();
-        if file.name().contains("pivotCacheDefinition") {
+        if file.name().unwrap().contains("pivotCacheDefinition") {
             let mut content = String::new();
             std::io::Read::read_to_string(&mut file, &mut content).unwrap();
             if content.contains("fieldGroup") && content.contains("rangePr") {
@@ -273,7 +273,7 @@ fn test_pivot_table_range_grouping() {
     let mut found_range_pr = false;
     for i in 0..archive.len() {
         let mut file = archive.by_index(i).unwrap();
-        if file.name().contains("pivotCacheDefinition") {
+        if file.name().unwrap().contains("pivotCacheDefinition") {
             let mut content = String::new();
             std::io::Read::read_to_string(&mut file, &mut content).unwrap();
             if content.contains("rangePr") && content.contains("startNum") {
@@ -326,7 +326,7 @@ fn test_pivot_table_calculated_item() {
     let mut found_calculated_item = false;
     for i in 0..archive.len() {
         let mut file = archive.by_index(i).unwrap();
-        if file.name().contains("pivotTable") && file.name().ends_with(".xml") {
+        if file.name().unwrap().contains("pivotTable") && file.name().unwrap().ends_with(".xml") {
             let mut content = String::new();
             std::io::Read::read_to_string(&mut file, &mut content).unwrap();
             if content.contains("calculatedItem") {
@@ -370,7 +370,7 @@ fn test_pivot_table_multiple_calculated_items() {
     let mut found_items = false;
     for i in 0..archive.len() {
         let mut file = archive.by_index(i).unwrap();
-        if file.name().contains("pivotTable") && file.name().ends_with(".xml") {
+        if file.name().unwrap().contains("pivotTable") && file.name().unwrap().ends_with(".xml") {
             let mut content = String::new();
             std::io::Read::read_to_string(&mut file, &mut content).unwrap();
             if content.contains("calculatedItems") {
@@ -420,7 +420,7 @@ fn test_sort_state_serialization() {
     let mut found_sort_state = false;
     for i in 0..archive.len() {
         let mut file = archive.by_index(i).unwrap();
-        if file.name().contains("sheet1.xml") {
+        if file.name().unwrap().contains("sheet1.xml") {
             let mut content = String::new();
             std::io::Read::read_to_string(&mut file, &mut content).unwrap();
             if content.contains("sortState") {
@@ -455,7 +455,7 @@ fn test_sort_state_ascending() {
     let mut found_sort = false;
     for i in 0..archive.len() {
         let mut file = archive.by_index(i).unwrap();
-        if file.name().contains("sheet1.xml") {
+        if file.name().unwrap().contains("sheet1.xml") {
             let mut content = String::new();
             std::io::Read::read_to_string(&mut file, &mut content).unwrap();
             if content.contains("sortState") {
@@ -525,7 +525,7 @@ fn test_top10_filter() {
     let mut found_top10 = false;
     for i in 0..archive.len() {
         let mut file = archive.by_index(i).unwrap();
-        if file.name().contains("sheet1.xml") {
+        if file.name().unwrap().contains("sheet1.xml") {
             let mut content = String::new();
             std::io::Read::read_to_string(&mut file, &mut content).unwrap();
             if content.contains("top10") {
@@ -567,7 +567,7 @@ fn test_date_filter() {
     let mut found_date_filter = false;
     for i in 0..archive.len() {
         let mut file = archive.by_index(i).unwrap();
-        if file.name().contains("sheet1.xml") {
+        if file.name().unwrap().contains("sheet1.xml") {
             let mut content = String::new();
             std::io::Read::read_to_string(&mut file, &mut content).unwrap();
             if content.contains("dateGroupItem") {
@@ -609,7 +609,7 @@ fn test_custom_filter_and() {
     let mut found_custom = false;
     for i in 0..archive.len() {
         let mut file = archive.by_index(i).unwrap();
-        if file.name().contains("sheet1.xml") {
+        if file.name().unwrap().contains("sheet1.xml") {
             let mut content = String::new();
             std::io::Read::read_to_string(&mut file, &mut content).unwrap();
             if content.contains("customFilters") {
@@ -658,7 +658,7 @@ fn test_custom_filter_or() {
     let mut found_custom = false;
     for i in 0..archive.len() {
         let mut file = archive.by_index(i).unwrap();
-        if file.name().contains("sheet1.xml") {
+        if file.name().unwrap().contains("sheet1.xml") {
             let mut content = String::new();
             std::io::Read::read_to_string(&mut file, &mut content).unwrap();
             if content.contains("customFilters") {
@@ -702,7 +702,7 @@ fn test_bottom_10_percent_filter() {
     let mut found_top10 = false;
     for i in 0..archive.len() {
         let mut file = archive.by_index(i).unwrap();
-        if file.name().contains("sheet1.xml") {
+        if file.name().unwrap().contains("sheet1.xml") {
             let mut content = String::new();
             std::io::Read::read_to_string(&mut file, &mut content).unwrap();
             if content.contains("top10") {

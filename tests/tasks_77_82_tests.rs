@@ -244,7 +244,7 @@ fn test_irm_metadata_preserved_via_passthrough() {
     let cursor = std::io::Cursor::new(&file_data);
     let zip = zip::ZipArchive::new(cursor).unwrap();
     let names: Vec<String> = (0..zip.len())
-        .map(|i| zip.name_for_index(i).unwrap().to_string())
+        .map(|i| zip.name_for_index(i).unwrap().unwrap().to_string())
         .collect();
     assert!(
         names.iter().any(|n| n == "customXml/irmData.xml"),
@@ -265,7 +265,7 @@ fn test_irm_metadata_preserved_via_passthrough() {
     let cursor2 = std::io::Cursor::new(&file_data2);
     let mut zip2 = zip::ZipArchive::new(cursor2).unwrap();
     let names2: Vec<String> = (0..zip2.len())
-        .map(|i| zip2.name_for_index(i).unwrap().to_string())
+        .map(|i| zip2.name_for_index(i).unwrap().unwrap().to_string())
         .collect();
     assert!(
         names2.iter().any(|n| n == "customXml/irmData.xml"),

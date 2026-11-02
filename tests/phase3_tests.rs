@@ -118,8 +118,13 @@ fn image_png_embed() {
     // Verify the file contains the image in media/
     let file = std::fs::File::open(&path).unwrap();
     let mut zip = zip::ZipArchive::new(std::io::BufReader::new(file)).unwrap();
-    let has_media =
-        (0..zip.len()).any(|i| zip.by_index(i).unwrap().name().starts_with("xl/media/"));
+    let has_media = (0..zip.len()).any(|i| {
+        zip.by_index(i)
+            .unwrap()
+            .name()
+            .unwrap()
+            .starts_with("xl/media/")
+    });
     assert!(has_media, "Expected image in xl/media/");
 }
 

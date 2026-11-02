@@ -6,6 +6,7 @@ use zavora_xlsx::{CsvOptions, Workbook};
 
 #[test]
 fn test_save_as_xlsm_with_vba() {
+    std::fs::create_dir_all("output").unwrap();
     let mut wb = Workbook::new();
     let ws = wb.worksheet(0).unwrap();
     ws.write(0, 0, "XLSM Test").unwrap();
@@ -57,6 +58,7 @@ fn test_save_as_xlsm_empty_vba_returns_error() {
 
 #[test]
 fn test_save_as_template_xltx() {
+    std::fs::create_dir_all("output").unwrap();
     let mut wb = Workbook::new();
     let ws = wb.worksheet(0).unwrap();
     ws.write(0, 0, "Template Test").unwrap();
@@ -84,6 +86,7 @@ fn test_save_as_template_xltx() {
 
 #[test]
 fn test_save_as_template_macro_xltm() {
+    std::fs::create_dir_all("output").unwrap();
     let mut wb = Workbook::new();
     let ws = wb.worksheet(0).unwrap();
     ws.write(0, 0, "Macro Template Test").unwrap();
@@ -173,6 +176,7 @@ fn test_csv_export_tsv() {
 
 #[test]
 fn test_csv_export_to_file() {
+    std::fs::create_dir_all("output").unwrap();
     let mut wb = Workbook::new();
     let ws = wb.worksheet(0).unwrap();
     ws.write(0, 0, "Test").unwrap();
